@@ -2,7 +2,8 @@
 {% from "_macros.html" import render_form %}
 {% block title %}Login — ARIADNE{% endblock %}
 {% block content %}
-<div class="card">
+<div class="card card-login">
+  <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="ARIADNE" class="logo-login">
   <h1>Acesso ao sistema</h1>
   {{ render_form(form) }}
 </div>

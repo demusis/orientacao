@@ -4,11 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}ARIADNE{% endblock %}</title>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" sizes="32x32 48x48">
+  <link rel="icon" href="{{ url_for('static', filename='img/logo.svg') }}" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/logo-256.png') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 <header>
-  <div class="brand"><a href="{{ url_for('main.index') }}">ARIADNE</a>
+  <div class="brand">
+    <a href="{{ url_for('main.index') }}">
+      <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="" class="logo">ARIADNE</a>
     <span class="tagline">Registro, Integração e Acompanhamento Docente para Nivelamento Estudantil</span>
   </div>
   <nav>

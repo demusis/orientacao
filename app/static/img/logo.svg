@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ARIADNE">
+  <title>ARIADNE — labirinto com o fio de Ariadne</title>
+  <rect x="0" y="0" width="64" height="64" rx="12" fill="#1a4b7a"/>
+  <!-- fio de Ariadne: entra pela borda e percorre o labirinto até o centro -->
+  <path d="M 4 52 H 52 V 12 H 12 V 42 H 42 V 22 H 22 V 32 H 31"
+        fill="none" stroke="#ffffff" stroke-width="4.6"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- novelo no centro -->
+  <circle cx="32" cy="32" r="3.4" fill="#e8b84b"/>
+</svg>
