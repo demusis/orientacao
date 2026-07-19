@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% block title %}Ajuda — ARIADNE{% endblock %}
+{% block content %}
+<h1>Ajuda</h1>
+<p class="ajuda-intro">
+  Este manual descreve o funcionamento completo do ARIADNE
+  (<strong>A</strong>plicativo de <strong>R</strong>egistro, <strong>I</strong>ntegração e
+  <strong>A</strong>companhamento <strong>D</strong>ocente para <strong>N</strong>ivelamento
+  <strong>E</strong>studantil). As seções marcadas com
+  <span class="badge badge-papel">seu papel</span> correspondem ao seu perfil de acesso
+  (<strong>{{ current_user.papel }}</strong>).
+</p>
+
+<nav class="card ajuda-sumario">
+  <strong>Sumário</strong>
+  <ol>
+    <li><a href="#conceitos">Conceitos básicos: papéis e vínculo de orientação</a></li>
+    <li><a href="#primeiro-acesso">Primeiro acesso e senha</a></li>
+    <li><a href="#painel">Painel</a></li>
+    <li><a href="#administracao">Administração: usuários e vínculos</a></li>
+    <li><a href="#cronograma">Cronograma: atribuição e acompanhamento de marcos</a></li>
+    <li><a href="#documentos">Documentos: envio, versões e download</a></li>
+    <li><a href="#atas">Atas de orientação</a></li>
+    <li><a href="#pareceres">Pareceres técnicos</a></li>
+    <li><a href="#auditoria">Trilha de auditoria</a></li>
+    <li><a href="#faq">Perguntas frequentes</a></li>
+  </ol>
+</nav>
+
+<section id="conceitos" class="card">
+  <h2>1. Conceitos básicos</h2>
+  <p>O sistema organiza-se em torno do <strong>vínculo de orientação</strong>: a relação
+  formal entre um orientador e um orientando, com modalidade (Iniciação Científica,
+  Mestrado ou Doutorado), título de projeto, datas de início e fim previsto. Todo o
+  conteúdo — cronograma, documentos, atas e pareceres — pertence a um vínculo.</p>
+  <p>Há três papéis, com permissões estritas:</p>
+  <table>
+    <tr><th>Papel</th><th>O que pode fazer</th></tr>
+    <tr>
+      <td>Administrador</td>
+      <td>Cadastra usuários, cria e encerra vínculos, consulta a auditoria e acessa
+      qualquer orientação. Não participa do conteúdo acadêmico.</td>
+    </tr>
+    <tr>
+      <td>Orientador</td>
+      <td>Nos seus vínculos: define e confirma marcos, redige e finaliza atas, emite
+      pareceres, envia e baixa documentos.</td>
+    </tr>
+    <tr>
+      <td>Orientando</td>
+      <td>Nos seus vínculos: visualiza o cronograma, sinaliza conclusão de marcos,
+      envia versões de documentos e consulta atas e pareceres.</td>
+    </tr>
+  </table>
+  <p>Ninguém acessa vínculo do qual não participa; a tentativa resulta em
+  "Acesso negado" (403).</p>
+</section>
+
+<section id="primeiro-acesso" class="card">
+  <h2>2. Primeiro acesso e senha</h2>
+  <ol>
+    <li>Sua conta é criada pelo administrador, que informa e-mail e senha inicial.</li>
+    <li>Entre em <em>Login</em> com essas credenciais.</li>
+    <li>Troque a senha inicial no menu <strong>Senha</strong> (mínimo de 8 caracteres).</li>
+  </ol>
+  <p>Não há recuperação automática de senha nesta versão: em caso de esquecimento,
+  solicite ao administrador a definição de uma nova senha inicial.</p>
+</section>
+
+<section id="painel" class="card">
+  <h2>3. Painel</h2>
+  <p>O <strong>Painel</strong> lista os vínculos visíveis ao seu papel (o administrador vê
+  todos; orientador e orientando veem apenas os próprios) e alerta sobre
+  <strong>marcos em atraso</strong> — marcos com data prevista vencida e ainda não
+  concluídos. O botão <em>Abrir</em> conduz à página do vínculo, que reúne os quatro
+  módulos: Cronograma, Documentos, Atas e Pareceres.</p>
+</section>
+
+<section id="administracao" class="card">
+  <h2>4. Administração {% if current_user.papel == 'admin' %}<span class="badge badge-papel">seu papel</span>{% endif %}</h2>
+  <h3>4.1 Usuários</h3>
+  <ol>
+    <li>Menu <strong>Usuários → + Novo usuário</strong>: informe nome, e-mail
+    institucional, papel e senha inicial (a ser trocada pelo titular no primeiro acesso).</li>
+    <li><em>Editar</em> permite corrigir dados, trocar papel, redefinir senha e
+    ativar/desativar a conta. Conta desativada não autentica, mas preserva o histórico.</li>
+  </ol>
+  <p>Salvaguardas: um administrador <strong>não pode</strong> alterar o próprio papel nem
+  desativar a própria conta, e o sistema recusa a despromoção do último administrador
+  ativo — ambas as tentativas ficam registradas em auditoria.</p>
+  <h3>4.2 Vínculos de orientação</h3>
+  <ol>
+    <li>Menu <strong>Orientações → + Novo vínculo</strong>: selecione orientador e
+    orientando (apenas usuários ativos), modalidade, título do projeto e datas.</li>
+    <li>O sistema impede vínculo ativo duplicado entre o mesmo par.</li>
+    <li><em>Encerrar</em> muda o status para concluída, suspensa ou cancelada; o
+    conteúdo permanece consultável.</li>
+  </ol>
+</section>
+
+<section id="cronograma" class="card">
+  <h2>5. Cronograma
+    {% if current_user.papel in ('orientador', 'orientando') %}<span class="badge badge-papel">seu papel</span>{% endif %}
+  </h2>
+  <p>O cronograma é composto de <strong>marcos</strong>: entregas ou etapas metodológicas
+  com data prevista (ex.: "Qualificação", "Capítulo 2 — revisão"). É por meio de marcos
+  que o orientador atribui tarefas datadas ao orientando.</p>
+  <h3>5.1 Fluxo completo de um marco</h3>
+  <ol>
+    <li><strong>Orientador</strong> cria o marco (título, descrição, data prevista,
+    ordem) em <em>Cronograma → + Novo marco</em>. Status inicial: <em>pendente</em>.</li>
+    <li><strong>Orientando</strong>, ao concluir o trabalho, clica em
+    <em>Sinalizar conclusão</em>. O marco passa a <em>em andamento</em> com o selo
+    "sinalizado" — é uma declaração, não a conclusão definitiva.</li>
+    <li><strong>Orientador</strong> examina a entrega e clica em
+    <em>Confirmar conclusão</em>. Só então o status muda para <em>concluído</em>, com a
+    data de conclusão registrada.</li>
+  </ol>
+  <h3>5.2 Atraso</h3>
+  <p>Marco com data prevista vencida e não concluído recebe automaticamente o selo
+  <em>atrasado</em> — na listagem e no alerta do Painel. O selo desaparece quando a
+  conclusão é confirmada.</p>
+</section>
+
+<section id="documentos" class="card">
+  <h2>6. Documentos
+    {% if current_user.papel in ('orientador', 'orientando') %}<span class="badge badge-papel">seu papel</span>{% endif %}
+  </h2>
+  <p>O repositório guarda cada trabalho como um <strong>documento</strong> com
+  <strong>versões numeradas</strong> (v1, v2, …). Versões nunca são substituídas nem
+  apagadas: o histórico integral fica preservado.</p>
+  <h3>6.1 Enviar um documento novo</h3>
+  <ol>
+    <li>Na orientação, acesse <em>Documentos → + Novo documento</em>.</li>
+    <li>Informe o título, associe a um marco do cronograma (opcional) e selecione o
+    arquivo. Um comentário descritivo é recomendável ("primeira versão do capítulo 2").</li>
+    <li>O envio cria a <strong>versão 1</strong>.</li>
+  </ol>
+  <h3>6.2 Enviar nova versão</h3>
+  <ol>
+    <li>Abra o documento (<em>Histórico</em>) e use o formulário
+    <em>Enviar nova versão</em>.</li>
+    <li>A numeração avança automaticamente; use o comentário para resumir o que mudou
+    ("incorporadas as correções da reunião de 15/07").</li>
+  </ol>
+  <h3>6.3 Regras de validação do upload</h3>
+  <ul>
+    <li>Extensões aceitas: <code>pdf</code>, <code>doc</code>, <code>docx</code>,
+    <code>odt</code>, <code>txt</code>, <code>zip</code>.</li>
+    <li>Tamanho máximo: <strong>20 MB</strong> por arquivo.</li>
+    <li>O conteúdo do arquivo é conferido contra a extensão declarada: um arquivo
+    renomeado (ex.: executável com extensão <code>.pdf</code>) é recusado.</li>
+  </ul>
+  <h3>6.4 Download</h3>
+  <p>O botão <em>Baixar</em> entrega o arquivo com o nome original. O acesso é restrito
+  aos participantes do vínculo (e ao administrador), e cada download fica registrado em
+  auditoria. Não há links públicos para arquivos.</p>
+</section>
+
+<section id="atas" class="card">
+  <h2>7. Atas de orientação
+    {% if current_user.papel == 'orientador' %}<span class="badge badge-papel">seu papel</span>{% endif %}
+  </h2>
+  <p>A ata formaliza cada reunião de orientação em duas fases:</p>
+  <ol>
+    <li><strong>Rascunho</strong> — o orientador registra data da reunião, pauta e
+    deliberações em <em>Atas → + Nova ata</em>. Enquanto rascunho, pode ser editada
+    livremente (cada edição é auditada). O orientando visualiza.</li>
+    <li><strong>Finalizada</strong> — o botão <em>Finalizar ata</em> formaliza o
+    registro com carimbo de data/hora. A partir daí a ata é
+    <strong>imutável</strong>: não pode ser editada nem excluída por ninguém, inclusive
+    quem a redigiu. Tentativas de alteração são recusadas e registradas em auditoria.</li>
+  </ol>
+  <p>Recomendação de uso: finalize a ata logo após a reunião, com as deliberações
+  validadas pelas partes — depois de finalizada, correções exigem nova ata
+  complementar.</p>
+</section>
+
+<section id="pareceres" class="card">
+  <h2>8. Pareceres técnicos
+    {% if current_user.papel == 'orientador' %}<span class="badge badge-papel">seu papel</span>{% endif %}
+  </h2>
+  <p>O parecer é o instrumento de apreciação formal do orientador. Em
+  <em>Pareceres → + Emitir parecer</em>, informam-se:</p>
+  <ul>
+    <li><strong>Tipo</strong>: andamento (avaliação geral do período), documento
+    (apreciação de uma entrega) ou marco (avaliação de uma etapa);</li>
+    <li><strong>Versão de documento</strong> (opcional): vincula o parecer a uma versão
+    específica — recomendado no tipo "documento", pois fixa exatamente o que foi
+    avaliado;</li>
+    <li><strong>Conteúdo</strong> e <strong>resultado</strong>: aprovado, aprovado com
+    ressalvas ou reprovado.</li>
+  </ul>
+  <p>Diferentemente da ata, o parecer <strong>não tem fase de rascunho</strong>: é
+  imutável desde a emissão. Revisões de juízo exigem novo parecer.</p>
+</section>
+
+<section id="auditoria" class="card">
+  <h2>9. Trilha de auditoria {% if current_user.papel == 'admin' %}<span class="badge badge-papel">seu papel</span>{% endif %}</h2>
+  <p>Toda operação relevante — login e tentativas falhas, criação e alteração de
+  usuários e vínculos, marcos, envios e downloads de documentos, atas, pareceres e
+  tentativas de operação recusada — gera um registro com autor, ação, entidade, data/hora
+  (UTC) e endereço IP. A trilha é <em>append-only</em>: o sistema não possui função de
+  edição ou exclusão de registros. O administrador a consulta no menu
+  <strong>Auditoria</strong>.</p>
+</section>
+
+<section id="faq" class="card">
+  <h2>10. Perguntas frequentes</h2>
+  <dl>
+    <dt>Esqueci minha senha.</dt>
+    <dd>Solicite ao administrador uma nova senha inicial e troque-a no primeiro acesso.</dd>
+
+    <dt>Meu arquivo foi recusado com "extensão não permitida" ou "conteúdo não
+    corresponde à extensão".</dt>
+    <dd>Verifique se o formato está entre os aceitos (seção 6.3) e se o arquivo não foi
+    apenas renomeado. Converta para PDF quando possível; para conjuntos de arquivos,
+    utilize <code>zip</code>.</dd>
+
+    <dt>Enviei a versão errada de um documento. Posso apagá-la?</dt>
+    <dd>Não. Versões são permanentes. Envie a versão correta com um comentário
+    indicando que a anterior deve ser desconsiderada.</dd>
+
+    <dt>Preciso corrigir uma ata finalizada.</dt>
+    <dd>Não é possível editá-la. Registre nova ata com a retificação nas
+    deliberações, referenciando a data da ata original.</dd>
+
+    <dt>Sinalizei a conclusão de um marco por engano.</dt>
+    <dd>A sinalização não conclui o marco; informe o orientador, que simplesmente não
+    confirmará a conclusão. O marco permanece em andamento.</dd>
+
+    <dt>Não consigo acessar uma orientação ("Acesso negado").</dt>
+    <dd>Você não participa daquele vínculo. Se deveria participar, o administrador deve
+    verificar o cadastro do vínculo.</dd>
+
+    <dt>O que acontece quando o vínculo é encerrado?</dt>
+    <dd>O conteúdo (cronograma, documentos, atas, pareceres) permanece consultável;
+    encerra-se apenas o andamento. Um novo trabalho exige novo vínculo.</dd>
+  </dl>
+</section>
+{% endblock %}

@@ -24,6 +24,7 @@
         <a href="{{ url_for('admin.listar_orientacoes') }}">Orientações</a>
         <a href="{{ url_for('admin.listar_auditoria') }}">Auditoria</a>
       {% endif %}
+      <a href="{{ url_for('main.ajuda') }}">Ajuda</a>
       <a href="{{ url_for('auth.trocar_senha') }}">Senha</a>
       <form class="inline" method="post" action="{{ url_for('auth.logout') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

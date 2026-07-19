@@ -32,3 +32,9 @@ def dashboard():
 def orientacao_detalhe(orientacao_id: int):
     orientacao = orientacao_autorizada(orientacao_id)
     return render_template("main/orientacao_detalhe.html", orientacao=orientacao)
+
+
+@bp.route("/ajuda")
+@login_required
+def ajuda():
+    return render_template("main/ajuda.html")
