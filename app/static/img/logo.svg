@@ -1,10 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ARIADNE">
   <title>ARIADNE — labirinto com o fio de Ariadne</title>
   <rect x="0" y="0" width="64" height="64" rx="12" fill="#1a4b7a"/>
-  <!-- fio de Ariadne: entra pela borda e percorre o labirinto até o centro -->
-  <path d="M 4 52 H 52 V 12 H 12 V 42 H 42 V 22 H 22 V 32 H 31"
-        fill="none" stroke="#ffffff" stroke-width="4.6"
-        stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- muralhas: anéis concêntricos com aberturas alternadas -->
+  <path d="M 38 56 H 56 V 8 H 8 V 56 H 26" fill="none" stroke="#ffffff"
+        stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 26 17 H 17 V 47 H 47 V 17 H 38" fill="none" stroke="#ffffff"
+        stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- fio de Ariadne: entra pela abertura inferior e segue os corredores até o centro -->
+  <path d="M 32 62 V 51.5 H 51.5 V 12.5 H 32 V 30" fill="none" stroke="#e8b84b"
+        stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
   <!-- novelo no centro -->
-  <circle cx="32" cy="32" r="3.4" fill="#e8b84b"/>
+  <circle cx="32" cy="32" r="3.6" fill="#e8b84b"/>
 </svg>
