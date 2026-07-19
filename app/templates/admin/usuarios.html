@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Usuários — ARIADNE{% endblock %}
+{% block content %}
+<h1>Usuários</h1>
+<p><a href="{{ url_for('admin.criar_usuario') }}">+ Novo usuário</a></p>
+<table>
+  <tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Ativo</th><th></th></tr>
+  {% for u in usuarios %}
+  <tr>
+    <td>{{ u.nome }}</td>
+    <td>{{ u.email }}</td>
+    <td>{{ u.papel }}</td>
+    <td>{{ 'sim' if u.ativo else 'não' }}</td>
+    <td><a href="{{ url_for('admin.editar_usuario', usuario_id=u.id) }}">Editar</a></td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

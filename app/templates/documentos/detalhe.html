@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_form %}
+{% block title %}{{ documento.titulo }} — ARIADNE{% endblock %}
+{% block content %}
+<h1>{{ documento.titulo }}</h1>
+<h2>Histórico de versões</h2>
+<table>
+  <tr><th>Versão</th><th>Arquivo</th><th>Tamanho</th><th>Enviado por</th><th>Em</th><th>Comentário</th><th></th></tr>
+  {% for v in documento.versoes %}
+  <tr>
+    <td>v{{ v.numero_versao }}</td>
+    <td>{{ v.nome_original }}</td>
+    <td>{{ (v.tamanho_bytes / 1024) | round(1) }} KB</td>
+    <td>{{ v.remetente.nome }}</td>
+    <td>{{ v.enviado_em.strftime('%Y-%m-%d %H:%M') }}</td>
+    <td>{{ v.comentario or '' }}</td>
+    <td><a href="{{ url_for('documentos.download', orientacao_id=orientacao.id, documento_id=documento.id, versao_id=v.id) }}">Baixar</a></td>
+  </tr>
+  {% endfor %}
+</table>
+<div class="card">
+  <h2>Enviar nova versão</h2>
+  {{ render_form(form, enctype='multipart/form-data') }}
+</div>
+{% endblock %}

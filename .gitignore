@@ -1,0 +1,19 @@
+# Ambiente
+.venv/
+.env
+instance/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Dados locais
+uploads/
+*.db
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/

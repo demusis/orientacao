@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ARIADNE{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header>
+  <div class="brand"><a href="{{ url_for('main.index') }}">ARIADNE</a>
+    <span class="tagline">Registro, Integração e Acompanhamento Docente para Nivelamento Estudantil</span>
+  </div>
+  <nav>
+    {% if current_user.is_authenticated %}
+      <a href="{{ url_for('main.dashboard') }}">Painel</a>
+      {% if current_user.papel == 'admin' %}
+        <a href="{{ url_for('admin.listar_usuarios') }}">Usuários</a>
+        <a href="{{ url_for('admin.listar_orientacoes') }}">Orientações</a>
+        <a href="{{ url_for('admin.listar_auditoria') }}">Auditoria</a>
+      {% endif %}
+      <a href="{{ url_for('auth.trocar_senha') }}">Senha</a>
+      <form class="inline" method="post" action="{{ url_for('auth.logout') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="link">Sair ({{ current_user.nome }})</button>
+      </form>
+    {% endif %}
+  </nav>
+</header>
+<main>
+  {% with mensagens = get_flashed_messages(with_categories=true) %}
+    {% for categoria, msg in mensagens %}
+      <div class="flash flash-{{ categoria }}">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+<footer><small>ARIADNE — protótipo de homologação</small></footer>
+</body>
+</html>

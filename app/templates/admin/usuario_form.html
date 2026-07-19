@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_form %}
+{% block title %}{{ titulo }} — ARIADNE{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>{{ titulo }}</h1>
+  {{ render_form(form) }}
+</div>
+{% endblock %}

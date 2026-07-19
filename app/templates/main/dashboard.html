@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Painel — ARIADNE{% endblock %}
+{% block content %}
+<h1>Painel — {{ current_user.papel.capitalize() }}</h1>
+
+{% if marcos_atrasados %}
+<div class="flash flash-danger">
+  <strong>{{ marcos_atrasados|length }} marco(s) em atraso.</strong>
+</div>
+{% endif %}
+
+<h2>Orientações</h2>
+{% if orientacoes %}
+<table>
+  <tr><th>Projeto</th><th>Modalidade</th><th>Orientador</th><th>Orientando</th><th>Status</th><th></th></tr>
+  {% for o in orientacoes %}
+  <tr>
+    <td>{{ o.titulo_projeto }}</td>
+    <td>{{ MODALIDADE_LABEL[o.modalidade] }}</td>
+    <td>{{ o.orientador.nome }}</td>
+    <td>{{ o.orientando.nome }}</td>
+    <td><span class="badge">{{ o.status }}</span></td>
+    <td><a href="{{ url_for('main.orientacao_detalhe', orientacao_id=o.id) }}">Abrir</a></td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>Nenhuma orientação vinculada.</p>
+{% endif %}
+{% endblock %}

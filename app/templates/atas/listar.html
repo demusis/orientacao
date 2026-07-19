@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Atas — ARIADNE{% endblock %}
+{% block content %}
+<h1>Atas — {{ orientacao.titulo_projeto }}</h1>
+{% if current_user.id == orientacao.orientador_id or current_user.papel == 'admin' %}
+<p><a href="{{ url_for('atas.criar_ata', orientacao_id=orientacao.id) }}">+ Nova ata</a></p>
+{% endif %}
+<table>
+  <tr><th>Reunião</th><th>Pauta</th><th>Status</th><th>Redigida por</th><th></th></tr>
+  {% for a in atas %}
+  <tr>
+    <td>{{ a.data_reuniao }}</td>
+    <td>{{ a.pauta | truncate(80) }}</td>
+    <td><span class="badge {% if a.imutavel %}badge-concluido{% endif %}">{{ a.status }}</span></td>
+    <td>{{ a.redator.nome }}</td>
+    <td><a href="{{ url_for('atas.detalhe_ata', orientacao_id=orientacao.id, ata_id=a.id) }}">Abrir</a></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5">Nenhuma ata registrada.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

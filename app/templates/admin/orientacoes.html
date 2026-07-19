@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Orientações — ARIADNE{% endblock %}
+{% block content %}
+<h1>Orientações</h1>
+<p><a href="{{ url_for('admin.criar_orientacao') }}">+ Novo vínculo</a></p>
+<table>
+  <tr><th>Projeto</th><th>Orientador</th><th>Orientando</th><th>Modalidade</th><th>Status</th><th></th></tr>
+  {% for o in orientacoes %}
+  <tr>
+    <td><a href="{{ url_for('main.orientacao_detalhe', orientacao_id=o.id) }}">{{ o.titulo_projeto }}</a></td>
+    <td>{{ o.orientador.nome }}</td>
+    <td>{{ o.orientando.nome }}</td>
+    <td>{{ MODALIDADE_LABEL[o.modalidade] }}</td>
+    <td><span class="badge">{{ o.status }}</span></td>
+    <td>{% if o.status == 'ativa' %}<a href="{{ url_for('admin.encerrar_orientacao', orientacao_id=o.id) }}">Encerrar</a>{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

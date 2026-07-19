@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Cronograma — ARIADNE{% endblock %}
+{% block content %}
+<h1>Cronograma — {{ orientacao.titulo_projeto }}</h1>
+{% if current_user.id == orientacao.orientador_id or current_user.papel == 'admin' %}
+<p><a href="{{ url_for('cronogramas.criar', orientacao_id=orientacao.id) }}">+ Novo marco</a></p>
+{% endif %}
+<table>
+  <tr><th>#</th><th>Marco</th><th>Prevista</th><th>Conclusão</th><th>Status</th><th>Ações</th></tr>
+  {% for m in marcos %}
+  <tr>
+    <td>{{ m.ordem }}</td>
+    <td>{{ m.titulo }}{% if m.descricao %}<br><small>{{ m.descricao }}</small>{% endif %}</td>
+    <td>{{ m.data_prevista }}</td>
+    <td>{{ m.data_conclusao or '—' }}</td>
+    <td>
+      <span class="badge {% if m.status == 'concluido' %}badge-concluido{% endif %}">{{ m.status }}</span>
+      {% if m.atrasado %}<span class="badge badge-atrasado">atrasado</span>{% endif %}
+      {% if m.conclusao_sinalizada and m.status != 'concluido' %}<span class="badge">sinalizado</span>{% endif %}
+    </td>
+    <td class="acoes">
+      {% if current_user.id == orientacao.orientador_id or current_user.papel == 'admin' %}
+        <a href="{{ url_for('cronogramas.editar', orientacao_id=orientacao.id, marco_id=m.id) }}">Editar</a>
+        {% if m.status != 'concluido' %}
+        <form method="post" action="{{ url_for('cronogramas.confirmar_conclusao', orientacao_id=orientacao.id, marco_id=m.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="link">Confirmar conclusão</button>
+        </form>
+        {% endif %}
+      {% endif %}
+      {% if current_user.id == orientacao.orientando_id and m.status != 'concluido' and not m.conclusao_sinalizada %}
+        <form method="post" action="{{ url_for('cronogramas.sinalizar_conclusao', orientacao_id=orientacao.id, marco_id=m.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="link">Sinalizar conclusão</button>
+        </form>
+      {% endif %}
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6">Nenhum marco definido.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

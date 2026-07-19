@@ -1,0 +1,13 @@
+{% macro render_form(form, action='', enctype=None) %}
+<form method="post" action="{{ action }}" {% if enctype %}enctype="{{ enctype }}"{% endif %}>
+  {{ form.hidden_tag() }}
+  {% for campo in form if campo.widget.input_type not in ('hidden', 'submit') %}
+    <div class="campo">
+      {{ campo.label }}
+      {{ campo() }}
+      {% for erro in campo.errors %}<span class="erro">{{ erro }}</span>{% endfor %}
+    </div>
+  {% endfor %}
+  {{ form.submit() }}
+</form>
+{% endmacro %}

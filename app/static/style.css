@@ -1,0 +1,30 @@
+:root { --azul: #1a4b7a; --cinza: #f0f2f5; --borda: #d0d5db; }
+* { box-sizing: border-box; }
+body { font-family: system-ui, sans-serif; margin: 0; background: var(--cinza); color: #1c1e21; }
+header { background: var(--azul); color: #fff; padding: .7rem 1.2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem; }
+header a { color: #fff; text-decoration: none; margin-right: .9rem; }
+.brand a { font-weight: 700; font-size: 1.2rem; }
+.tagline { font-size: .7rem; opacity: .8; display: block; }
+nav { display: flex; align-items: center; flex-wrap: wrap; }
+main { max-width: 960px; margin: 1.5rem auto; padding: 0 1rem; }
+footer { text-align: center; padding: 1rem; color: #666; }
+table { width: 100%; border-collapse: collapse; background: #fff; margin: 1rem 0; }
+th, td { border: 1px solid var(--borda); padding: .5rem .6rem; text-align: left; font-size: .92rem; }
+th { background: #e6ebf1; }
+.campo { margin-bottom: .8rem; display: flex; flex-direction: column; max-width: 480px; }
+.campo label { font-weight: 600; margin-bottom: .2rem; }
+input[type=text], input[type=password], input[type=email], input[type=date], input[type=number], select, textarea { padding: .45rem; border: 1px solid var(--borda); border-radius: 4px; font: inherit; }
+textarea { min-height: 6rem; }
+button, input[type=submit] { background: var(--azul); color: #fff; border: 0; padding: .5rem 1rem; border-radius: 4px; cursor: pointer; font: inherit; }
+button.link { background: none; padding: 0; text-decoration: underline; }
+form.inline { display: inline; }
+.flash { padding: .6rem .9rem; border-radius: 4px; margin-bottom: 1rem; }
+.flash-success { background: #d8f0d8; border: 1px solid #7fbf7f; }
+.flash-danger { background: #f8d7da; border: 1px solid #d9838d; }
+.flash-warning, .flash-info { background: #fff3cd; border: 1px solid #e0c96a; }
+.erro { color: #b02a37; font-size: .85rem; }
+.badge { display: inline-block; padding: .1rem .5rem; border-radius: 8px; font-size: .78rem; background: #e2e6ea; }
+.badge-atrasado { background: #f8d7da; }
+.badge-concluido { background: #d8f0d8; }
+.acoes form { display: inline; }
+.card { background: #fff; border: 1px solid var(--borda); border-radius: 6px; padding: 1rem; margin-bottom: 1rem; }

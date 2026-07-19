@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_form %}
+{% block title %}Encerrar orientação — ARIADNE{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Encerrar: {{ orientacao.titulo_projeto }}</h1>
+  {{ render_form(form) }}
+</div>
+{% endblock %}

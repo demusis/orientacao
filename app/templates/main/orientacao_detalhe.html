@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}{{ orientacao.titulo_projeto }} — ARIADNE{% endblock %}
+{% block content %}
+<h1>{{ orientacao.titulo_projeto }}</h1>
+<div class="card">
+  <p><strong>Modalidade:</strong> {{ MODALIDADE_LABEL[orientacao.modalidade] }} |
+     <strong>Status:</strong> {{ orientacao.status }}</p>
+  <p><strong>Orientador:</strong> {{ orientacao.orientador.nome }} |
+     <strong>Orientando:</strong> {{ orientacao.orientando.nome }}</p>
+  <p><strong>Início:</strong> {{ orientacao.data_inicio }} |
+     <strong>Fim previsto:</strong> {{ orientacao.data_fim_prevista or '—' }}</p>
+</div>
+<nav class="card">
+  <a href="{{ url_for('cronogramas.listar', orientacao_id=orientacao.id) }}">Cronograma</a> ·
+  <a href="{{ url_for('documentos.listar', orientacao_id=orientacao.id) }}">Documentos</a> ·
+  <a href="{{ url_for('atas.listar_atas', orientacao_id=orientacao.id) }}">Atas</a> ·
+  <a href="{{ url_for('atas.listar_pareceres', orientacao_id=orientacao.id) }}">Pareceres</a>
+</nav>
+{% endblock %}

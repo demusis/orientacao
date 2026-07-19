@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Auditoria — ARIADNE{% endblock %}
+{% block content %}
+<h1>Trilha de auditoria (200 mais recentes)</h1>
+<table>
+  <tr><th>Data/hora (UTC)</th><th>Usuário</th><th>Ação</th><th>Entidade</th><th>Dados</th><th>IP</th></tr>
+  {% for log in logs %}
+  <tr>
+    <td>{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+    <td>{{ log.usuario.nome if log.usuario else '—' }}</td>
+    <td>{{ log.acao }}</td>
+    <td>{{ log.entidade }}{% if log.entidade_id %}#{{ log.entidade_id }}{% endif %}</td>
+    <td><small>{{ log.dados_json or '' }}</small></td>
+    <td>{{ log.ip or '—' }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

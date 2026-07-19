@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Pareceres — ARIADNE{% endblock %}
+{% block content %}
+<h1>Pareceres — {{ orientacao.titulo_projeto }}</h1>
+{% if current_user.id == orientacao.orientador_id or current_user.papel == 'admin' %}
+<p><a href="{{ url_for('atas.emitir_parecer', orientacao_id=orientacao.id) }}">+ Emitir parecer</a></p>
+{% endif %}
+{% for p in pareceres %}
+<div class="card">
+  <p>
+    <strong>{{ p.tipo.capitalize() }}</strong> —
+    <span class="badge">{{ RESULTADO_LABEL[p.resultado] }}</span>
+    {% if p.versao_documento %} — {{ p.versao_documento.documento.titulo }} (v{{ p.versao_documento.numero_versao }}){% endif %}
+  </p>
+  <p>{{ p.conteudo }}</p>
+  <p><small>Emitido por {{ p.emissor.nome }} em {{ p.emitido_em.strftime('%Y-%m-%d %H:%M') }} (UTC). Registro imutável.</small></p>
+</div>
+{% else %}
+<p>Nenhum parecer emitido.</p>
+{% endfor %}
+{% endblock %}

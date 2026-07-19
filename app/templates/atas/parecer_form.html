@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_form %}
+{% block title %}Emitir parecer — ARIADNE{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Emitir parecer — {{ orientacao.titulo_projeto }}</h1>
+  <p><small>O parecer é imutável após a emissão.</small></p>
+  {{ render_form(form) }}
+</div>
+{% endblock %}

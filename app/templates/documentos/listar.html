@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Documentos — ARIADNE{% endblock %}
+{% block content %}
+<h1>Documentos — {{ orientacao.titulo_projeto }}</h1>
+<p><a href="{{ url_for('documentos.criar', orientacao_id=orientacao.id) }}">+ Novo documento</a></p>
+<table>
+  <tr><th>Título</th><th>Versão atual</th><th>Enviado por</th><th>Em</th><th></th></tr>
+  {% for d in documentos %}
+  {% set v = d.versao_atual %}
+  <tr>
+    <td>{{ d.titulo }}</td>
+    <td>{% if v %}v{{ v.numero_versao }} — {{ v.nome_original }}{% else %}—{% endif %}</td>
+    <td>{{ v.remetente.nome if v else '—' }}</td>
+    <td>{{ v.enviado_em.strftime('%Y-%m-%d %H:%M') if v else '—' }}</td>
+    <td><a href="{{ url_for('documentos.detalhe', orientacao_id=orientacao.id, documento_id=d.id) }}">Histórico</a></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5">Nenhum documento.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}
