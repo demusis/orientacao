@@ -20,6 +20,7 @@ class Usuario(UserMixin, db.Model):
     criado_em = db.Column(
         db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
     )
+    criado_por = db.Column(db.Integer, db.ForeignKey("usuario.id"), nullable=True)
 
     orientacoes_como_orientador = db.relationship(
         "Orientacao",

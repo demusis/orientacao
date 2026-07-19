@@ -9,15 +9,20 @@ from app.blueprints.admin.forms import (
 )
 from app.extensions import db
 from app.models import Orientacao, Usuario
+from app.blueprints.orientandos.forms import ExcluirForm
 from app.services import auditoria
+from app.services import usuarios as usuarios_service
 from app.services.rbac import role_required
+from app.services.usuarios import GestaoUsuarioInvalida
 
 
 @bp.route("/usuarios")
 @role_required("admin")
 def listar_usuarios():
     usuarios = Usuario.query.order_by(Usuario.nome).all()
-    return render_template("admin/usuarios.html", usuarios=usuarios)
+    return render_template(
+        "admin/usuarios.html", usuarios=usuarios, excluir_form=ExcluirForm()
+    )
 
 
 @bp.route("/usuarios/novo", methods=["GET", "POST"])
@@ -25,28 +30,40 @@ def listar_usuarios():
 def criar_usuario():
     form = UsuarioForm()
     if form.validate_on_submit():
-        email = form.email.data.lower().strip()
-        if Usuario.query.filter_by(email=email).first():
-            flash("E-mail já cadastrado.", "danger")
-        elif not form.senha.data:
+        if not form.senha.data:
             flash("Senha inicial é obrigatória na criação.", "danger")
         else:
-            usuario = Usuario(
-                nome=form.nome.data,
-                email=email,
-                papel=form.papel.data,
-                ativo=form.ativo.data,
-            )
-            usuario.set_senha(form.senha.data)
-            db.session.add(usuario)
-            db.session.flush()
-            auditoria.registrar(
-                "criacao_usuario", "usuario", usuario.id, {"email": email, "papel": usuario.papel}
-            )
-            db.session.commit()
-            flash("Usuário criado.", "success")
-            return redirect(url_for("admin.listar_usuarios"))
+            try:
+                usuarios_service.criar_usuario(
+                    nome=form.nome.data,
+                    email=form.email.data.lower().strip(),
+                    papel=form.papel.data,
+                    senha=form.senha.data,
+                    autor=current_user,
+                    ativo=form.ativo.data,
+                )
+                db.session.commit()
+                flash("Usuário criado.", "success")
+                return redirect(url_for("admin.listar_usuarios"))
+            except GestaoUsuarioInvalida as exc:
+                flash(str(exc), "danger")
     return render_template("admin/usuario_form.html", form=form, titulo="Novo usuário")
+
+
+@bp.route("/usuarios/<int:usuario_id>/excluir", methods=["POST"])
+@role_required("admin")
+def excluir_usuario(usuario_id: int):
+    usuario = db.session.get(Usuario, usuario_id) or abort(404)
+    form = ExcluirForm()
+    if form.validate_on_submit():
+        try:
+            usuarios_service.excluir_usuario(usuario, current_user)
+            db.session.commit()
+            flash("Usuário excluído.", "success")
+        except GestaoUsuarioInvalida as exc:
+            db.session.commit()  # persiste o log da recusa
+            flash(str(exc), "danger")
+    return redirect(url_for("admin.listar_usuarios"))
 
 
 @bp.route("/usuarios/<int:usuario_id>/editar", methods=["GET", "POST"])

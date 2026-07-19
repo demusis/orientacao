@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_form %}
+{% block title %}Novo orientando — ARIADNE{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Novo orientando</h1>
+  <p><small>A conta é criada com papel de orientando. O vínculo de orientação é
+  formalizado pelo administrador.</small></p>
+  {{ render_form(form) }}
+</div>
+{% endblock %}

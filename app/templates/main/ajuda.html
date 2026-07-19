@@ -44,7 +44,8 @@
     <tr>
       <td>Orientador</td>
       <td>Nos seus vínculos: define e confirma marcos, redige e finaliza atas, emite
-      pareceres, envia e baixa documentos.</td>
+      pareceres, envia e baixa documentos. Pode também criar contas de orientando e
+      excluir as que criou enquanto sem histórico.</td>
     </tr>
     <tr>
       <td>Orientando</td>
@@ -85,9 +86,16 @@
     <li><em>Editar</em> permite corrigir dados, trocar papel, redefinir senha e
     ativar/desativar a conta. Conta desativada não autentica, mas preserva o histórico.</li>
   </ol>
-  <p>Salvaguardas: um administrador <strong>não pode</strong> alterar o próprio papel nem
-  desativar a própria conta, e o sistema recusa a despromoção do último administrador
-  ativo — ambas as tentativas ficam registradas em auditoria.</p>
+  <p>O administrador também pode <strong>excluir</strong> usuários, mas somente contas
+  <em>sem histórico</em> — sem vínculos, conteúdo ou ações auditadas. Contas com
+  histórico devem ser <em>desativadas</em>, o que preserva a integridade dos registros.</p>
+  <p>Salvaguardas: um administrador <strong>não pode</strong> alterar o próprio papel,
+  desativar ou excluir a própria conta, e o sistema recusa a despromoção ou exclusão do
+  último administrador ativo — todas as tentativas ficam registradas em auditoria.</p>
+  <h3>4.3 Criação de orientandos pelo orientador</h3>
+  <p>O orientador dispõe do menu <strong>Orientandos</strong> para criar contas de
+  orientando (papel fixo) e excluir as contas que ele próprio criou, enquanto ainda sem
+  histórico. O vínculo de orientação continua sendo formalizado pelo administrador.</p>
   <h3>4.2 Vínculos de orientação</h3>
   <ol>
     <li>Menu <strong>Orientações → + Novo vínculo</strong>: selecione orientador e
@@ -268,6 +276,12 @@
     entre os participantes, e a tarefa em grupo gera um marco idêntico no cronograma de
     cada orientando, acompanhado individualmente. Ambas seguem as mesmas regras de
     finalização e imutabilidade.</dd>
+
+    <dt>Por que não consigo excluir um usuário?</dt>
+    <dd>A exclusão física é admitida apenas para contas sem qualquer registro no
+    sistema. Se a conta participa de vínculo, criou conteúdo ou possui ações
+    auditadas, a via correta é a desativação — o histórico institucional não pode
+    ser apagado.</dd>
 
     <dt>O que acontece quando o vínculo é encerrado?</dt>
     <dd>O conteúdo (cronograma, documentos, atas, pareceres) permanece consultável;

@@ -3,15 +3,26 @@
 {% block content %}
 <h1>Usuários</h1>
 <p><a href="{{ url_for('admin.criar_usuario') }}">+ Novo usuário</a></p>
+<p><small>A exclusão só é admitida para contas sem histórico (sem vínculos,
+conteúdo ou ações auditadas); nos demais casos, utilize a desativação em
+Editar, que preserva o histórico.</small></p>
 <table>
-  <tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Ativo</th><th></th></tr>
+  <tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Ativo</th><th>Ações</th></tr>
   {% for u in usuarios %}
   <tr>
     <td>{{ u.nome }}</td>
     <td>{{ u.email }}</td>
     <td>{{ u.papel }}</td>
     <td>{{ 'sim' if u.ativo else 'não' }}</td>
-    <td><a href="{{ url_for('admin.editar_usuario', usuario_id=u.id) }}">Editar</a></td>
+    <td class="acoes">
+      <a href="{{ url_for('admin.editar_usuario', usuario_id=u.id) }}">Editar</a>
+      {% if u.id != current_user.id %}
+      <form method="post" action="{{ url_for('admin.excluir_usuario', usuario_id=u.id) }}">
+        {{ excluir_form.hidden_tag() }}
+        <button type="submit" class="link">Excluir</button>
+      </form>
+      {% endif %}
+    </td>
   </tr>
   {% endfor %}
 </table>

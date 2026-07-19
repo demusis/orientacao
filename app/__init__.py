@@ -29,6 +29,7 @@ def create_app(config_name: str | None = None) -> Flask:
     from app.blueprints.documentos import bp as documentos_bp
     from app.blueprints.atas import bp as atas_bp
     from app.blueprints.reunioes import bp as reunioes_bp
+    from app.blueprints.orientandos import bp as orientandos_bp
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(admin_bp, url_prefix="/admin")
@@ -37,6 +38,7 @@ def create_app(config_name: str | None = None) -> Flask:
     app.register_blueprint(documentos_bp, url_prefix="/orientacoes/<int:orientacao_id>/documentos")
     app.register_blueprint(atas_bp, url_prefix="/orientacoes/<int:orientacao_id>")
     app.register_blueprint(reunioes_bp, url_prefix="/reunioes")
+    app.register_blueprint(orientandos_bp, url_prefix="/orientandos")
 
     register_cli(app)
     register_template_globals(app)

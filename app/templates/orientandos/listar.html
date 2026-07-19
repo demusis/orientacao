@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Meus orientandos — ARIADNE{% endblock %}
+{% block content %}
+<h1>Meus orientandos</h1>
+<p><a href="{{ url_for('orientandos.criar') }}">+ Novo orientando</a></p>
+<p><small>A exclusão só é possível para contas criadas por você e ainda sem
+histórico (sem vínculo, conteúdo ou ações). Nos demais casos, solicite a
+desativação ao administrador. Após criar a conta, solicite ao administrador o
+vínculo de orientação.</small></p>
+<table>
+  <tr><th>Nome</th><th>E-mail</th><th>Ativo</th><th></th></tr>
+  {% for u in orientandos %}
+  <tr>
+    <td>{{ u.nome }}</td>
+    <td>{{ u.email }}</td>
+    <td>{{ 'sim' if u.ativo else 'não' }}</td>
+    <td class="acoes">
+      {% if u.id in excluiveis %}
+      <form method="post" action="{{ url_for('orientandos.excluir', usuario_id=u.id) }}">
+        {{ excluir_form.hidden_tag() }}
+        <button type="submit" class="link">Excluir</button>
+      </form>
+      {% endif %}
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="4">Nenhum orientando vinculado ou criado por você.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}
