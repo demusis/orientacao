@@ -19,6 +19,8 @@ class Marco(db.Model):
     )
     ordem = db.Column(db.Integer, nullable=False, default=0)
     conclusao_sinalizada = db.Column(db.Boolean, nullable=False, default=False)
+    # UUID hex comum aos marcos criados por uma mesma tarefa em grupo
+    grupo_id = db.Column(db.String(32), nullable=True, index=True)
 
     orientacao = db.relationship("Orientacao", back_populates="marcos")
 

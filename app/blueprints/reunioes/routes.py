@@ -1,0 +1,111 @@
+import uuid
+
+from flask import flash, redirect, render_template, url_for
+from flask_login import current_user
+
+from app.blueprints.reunioes import bp
+from app.blueprints.reunioes.forms import AtaGrupoForm, MarcoGrupoForm
+from app.extensions import db
+from app.models import Ata, Marco, Orientacao
+from app.services import auditoria
+from app.services.rbac import role_required
+
+
+def _vinculos_ativos():
+    return (
+        Orientacao.query.filter_by(orientador_id=current_user.id, status="ativa")
+        .order_by(Orientacao.titulo_projeto)
+        .all()
+    )
+
+
+def _choices(vinculos):
+    return [(o.id, f"{o.orientando.nome} — {o.titulo_projeto}") for o in vinculos]
+
+
+@bp.route("/")
+@role_required("orientador")
+def index():
+    vinculos = _vinculos_ativos()
+    atas_grupo = (
+        Ata.query.filter_by(orientador_id=current_user.id, tipo="grupo")
+        .order_by(Ata.data_reuniao.desc())
+        .all()
+    )
+    return render_template(
+        "reunioes/index.html", vinculos=vinculos, atas_grupo=atas_grupo
+    )
+
+
+@bp.route("/atas/nova", methods=["GET", "POST"])
+@role_required("orientador")
+def criar_ata_grupo():
+    vinculos = _vinculos_ativos()
+    form = AtaGrupoForm()
+    form.orientacoes.choices = _choices(vinculos)
+    if form.validate_on_submit():
+        selecionadas = [o for o in vinculos if o.id in form.orientacoes.data]
+        ata = Ata(
+            tipo="grupo",
+            orientador_id=current_user.id,
+            data_reuniao=form.data_reuniao.data,
+            pauta=form.pauta.data,
+            deliberacoes=form.deliberacoes.data,
+            redigida_por=current_user.id,
+            orientacoes=selecionadas,
+        )
+        db.session.add(ata)
+        db.session.flush()
+        auditoria.registrar(
+            "criacao_ata_grupo",
+            "ata",
+            ata.id,
+            {"orientacoes": [o.id for o in selecionadas]},
+        )
+        db.session.commit()
+        flash(
+            f"Ata de reunião em grupo registrada como rascunho "
+            f"({len(selecionadas)} vínculos).",
+            "success",
+        )
+        return redirect(url_for("reunioes.index"))
+    return render_template("reunioes/ata_form.html", form=form, vinculos=vinculos)
+
+
+@bp.route("/tarefas/nova", methods=["GET", "POST"])
+@role_required("orientador")
+def criar_tarefa_grupo():
+    vinculos = _vinculos_ativos()
+    form = MarcoGrupoForm()
+    form.orientacoes.choices = _choices(vinculos)
+    if form.validate_on_submit():
+        selecionadas = [o for o in vinculos if o.id in form.orientacoes.data]
+        grupo_id = uuid.uuid4().hex
+        for orientacao in selecionadas:
+            marco = Marco(
+                orientacao_id=orientacao.id,
+                titulo=form.titulo.data,
+                descricao=form.descricao.data,
+                data_prevista=form.data_prevista.data,
+                ordem=form.ordem.data or 0,
+                grupo_id=grupo_id,
+            )
+            db.session.add(marco)
+        auditoria.registrar(
+            "criacao_marco_grupo",
+            "marco",
+            None,
+            {
+                "grupo_id": grupo_id,
+                "titulo": form.titulo.data,
+                "orientacoes": [o.id for o in selecionadas],
+            },
+        )
+        db.session.commit()
+        flash(
+            f"Tarefa atribuída a {len(selecionadas)} orientandos "
+            f"(um marco por cronograma).",
+            "success",
+        )
+        return redirect(url_for("reunioes.index"))
+    return render_template("reunioes/tarefa_form.html", form=form, vinculos=vinculos)

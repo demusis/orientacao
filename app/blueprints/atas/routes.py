@@ -12,7 +12,7 @@ from app.services.rbac import orientacao_autorizada
 
 def _ata_da_orientacao(orientacao, ata_id: int) -> Ata:
     ata = db.session.get(Ata, ata_id)
-    if ata is None or ata.orientacao_id != orientacao.id:
+    if ata is None or orientacao not in ata.orientacoes:
         abort(404)
     return ata
 
@@ -34,11 +34,13 @@ def criar_ata(orientacao_id: int):
     form = AtaForm()
     if form.validate_on_submit():
         ata = Ata(
-            orientacao_id=orientacao.id,
+            tipo="individual",
+            orientador_id=orientacao.orientador_id,
             data_reuniao=form.data_reuniao.data,
             pauta=form.pauta.data,
             deliberacoes=form.deliberacoes.data,
             redigida_por=current_user.id,
+            orientacoes=[orientacao],
         )
         db.session.add(ata)
         db.session.flush()
@@ -55,7 +57,7 @@ def detalhe_ata(orientacao_id: int, ata_id: int):
     orientacao = orientacao_autorizada(orientacao_id)
     ata = _ata_da_orientacao(orientacao, ata_id)
     pode_editar = (
-        current_user.id == orientacao.orientador_id or current_user.papel == "admin"
+        current_user.id == ata.orientador_id or current_user.papel == "admin"
     ) and not ata.imutavel
 
     form = AtaForm(obj=ata)
@@ -92,9 +94,9 @@ def detalhe_ata(orientacao_id: int, ata_id: int):
 @login_required
 def finalizar(orientacao_id: int, ata_id: int):
     orientacao = orientacao_autorizada(orientacao_id)
-    if current_user.id != orientacao.orientador_id and current_user.papel != "admin":
-        abort(403)
     ata = _ata_da_orientacao(orientacao, ata_id)
+    if current_user.id != ata.orientador_id and current_user.papel != "admin":
+        abort(403)
     form = FinalizarAtaForm()
     if form.validate_on_submit():
         try:

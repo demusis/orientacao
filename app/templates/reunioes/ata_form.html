@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_form %}
+{% block title %}Nova ata de grupo — ARIADNE{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Nova ata de reunião em grupo</h1>
+  {% if vinculos|length < 2 %}
+  <p class="flash flash-warning">São necessários ao menos dois vínculos ativos para
+  registrar reunião em grupo.</p>
+  {% endif %}
+  {{ render_form(form) }}
+</div>
+{% endblock %}

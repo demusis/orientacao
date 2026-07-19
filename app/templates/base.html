@@ -19,6 +19,9 @@
   <nav>
     {% if current_user.is_authenticated %}
       <a href="{{ url_for('main.dashboard') }}">Painel</a>
+      {% if current_user.papel == 'orientador' %}
+        <a href="{{ url_for('reunioes.index') }}">Reuniões</a>
+      {% endif %}
       {% if current_user.papel == 'admin' %}
         <a href="{{ url_for('admin.listar_usuarios') }}">Usuários</a>
         <a href="{{ url_for('admin.listar_orientacoes') }}">Orientações</a>

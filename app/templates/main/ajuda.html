@@ -116,7 +116,12 @@
     <em>Confirmar conclusão</em>. Só então o status muda para <em>concluído</em>, com a
     data de conclusão registrada.</li>
   </ol>
-  <h3>5.2 Atraso</h3>
+  <h3>5.2 Tarefa em grupo</h3>
+  <p>No menu <strong>Reuniões → + Nova tarefa em grupo</strong>, o orientador seleciona
+  dois ou mais orientandos e o sistema cria um marco idêntico no cronograma de cada um,
+  com selo <em>grupo</em>. O acompanhamento (sinalização, confirmação e atraso) é
+  <strong>individual</strong>: a conclusão de um orientando não afeta os demais.</p>
+  <h3>5.3 Atraso</h3>
   <p>Marco com data prevista vencida e não concluído recebe automaticamente o selo
   <em>atrasado</em> — na listagem e no alerta do Painel. O selo desaparece quando a
   conclusão é confirmada.</p>
@@ -161,7 +166,13 @@
   <h2>7. Atas de orientação
     {% if current_user.papel == 'orientador' %}<span class="badge badge-papel">seu papel</span>{% endif %}
   </h2>
-  <p>A ata formaliza cada reunião de orientação em duas fases:</p>
+  <p>As reuniões de orientação podem ser <strong>individuais</strong> (orientador e um
+  orientando, registradas dentro do próprio vínculo) ou <strong>em grupo</strong>
+  (orientador e dois ou mais de seus orientandos, registradas no menu
+  <strong>Reuniões → + Nova ata de reunião em grupo</strong>). A ata de grupo é um
+  <strong>registro único compartilhado</strong>: todos os participantes visualizam a
+  mesma ata em seus vínculos, com a lista de presentes. Em ambos os tipos, a ata
+  formaliza-se em duas fases:</p>
   <ol>
     <li><strong>Rascunho</strong> — o orientador registra data da reunião, pauta e
     deliberações em <em>Atas → + Nova ata</em>. Enquanto rascunho, pode ser editada
@@ -232,6 +243,13 @@
     <dt>Não consigo acessar uma orientação ("Acesso negado").</dt>
     <dd>Você não participa daquele vínculo. Se deveria participar, o administrador deve
     verificar o cadastro do vínculo.</dd>
+
+    <dt>Qual a diferença entre reunião individual e em grupo?</dt>
+    <dd>A individual pertence a um único vínculo e é registrada dentro dele. A de grupo
+    reúne dois ou mais orientandos do mesmo orientador: a ata é única e compartilhada
+    entre os participantes, e a tarefa em grupo gera um marco idêntico no cronograma de
+    cada orientando, acompanhado individualmente. Ambas seguem as mesmas regras de
+    finalização e imutabilidade.</dd>
 
     <dt>O que acontece quando o vínculo é encerrado?</dt>
     <dd>O conteúdo (cronograma, documentos, atas, pareceres) permanece consultável;

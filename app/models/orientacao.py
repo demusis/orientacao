@@ -47,7 +47,9 @@ class Orientacao(db.Model):
         "Marco", back_populates="orientacao", order_by="Marco.ordem", lazy="dynamic"
     )
     documentos = db.relationship("Documento", back_populates="orientacao", lazy="dynamic")
-    atas = db.relationship("Ata", back_populates="orientacao", lazy="dynamic")
+    atas = db.relationship(
+        "Ata", secondary="ata_orientacao", back_populates="orientacoes", lazy="dynamic"
+    )
     pareceres = db.relationship("Parecer", back_populates="orientacao", lazy="dynamic")
 
     def envolve(self, usuario) -> bool:

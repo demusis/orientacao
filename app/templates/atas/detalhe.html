@@ -4,9 +4,15 @@
 {% block content %}
 <h1>Ata de {{ ata.data_reuniao }} — {{ orientacao.titulo_projeto }}</h1>
 <p>
+  Tipo: <span class="badge">{{ ata.tipo }}</span> ·
   Status: <span class="badge {% if ata.imutavel %}badge-concluido{% endif %}">{{ ata.status }}</span>
   {% if ata.finalizada_em %} — finalizada em {{ ata.finalizada_em.strftime('%Y-%m-%d %H:%M') }} (UTC){% endif %}
 </p>
+{% if ata.tipo == 'grupo' %}
+<p><strong>Participantes:</strong>
+  {% for o in ata.orientacoes %}{{ o.orientando.nome }} ({{ o.titulo_projeto | truncate(40) }}){% if not loop.last %}; {% endif %}{% endfor %}
+</p>
+{% endif %}
 
 {% if pode_editar %}
   <div class="card">{{ render_form(form) }}</div>

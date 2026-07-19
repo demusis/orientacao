@@ -34,11 +34,12 @@ def test_ata_finalizada_e_imutavel_e_tentativa_e_auditada(app, orientacao, orien
     from app.services.atas import AtaImutavel, atualizar_ata, finalizar_ata
 
     ata = Ata(
-        orientacao_id=orientacao.id,
+        orientador_id=orientador.id,
         data_reuniao=date(2026, 7, 10),
         pauta="Pauta",
         deliberacoes="Deliberações",
         redigida_por=orientador.id,
+        orientacoes=[orientacao],
     )
     db.session.add(ata)
     db.session.commit()

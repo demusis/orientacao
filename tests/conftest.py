@@ -72,6 +72,26 @@ def orientacao(app, orientador, orientando):
     return o
 
 
+@pytest.fixture
+def orientando2(app):
+    return _criar_usuario("Orientando D", "orientando2@teste.br", "orientando")
+
+
+@pytest.fixture
+def orientacao2(app, orientador, orientando2):
+    """Segundo vínculo do mesmo orientador (cenários de reunião em grupo)."""
+    o = Orientacao(
+        orientador_id=orientador.id,
+        orientando_id=orientando2.id,
+        modalidade="doutorado",
+        titulo_projeto="Segundo Projeto",
+        data_inicio=date(2026, 2, 2),
+    )
+    db.session.add(o)
+    db.session.commit()
+    return o
+
+
 def login(client, email, senha="senha-teste-123"):
     return client.post(
         "/auth/login", data={"email": email, "senha": senha}, follow_redirects=True

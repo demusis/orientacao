@@ -6,17 +6,18 @@
 <p><a href="{{ url_for('atas.criar_ata', orientacao_id=orientacao.id) }}">+ Nova ata</a></p>
 {% endif %}
 <table>
-  <tr><th>Reunião</th><th>Pauta</th><th>Status</th><th>Redigida por</th><th></th></tr>
+  <tr><th>Reunião</th><th>Tipo</th><th>Pauta</th><th>Status</th><th>Redigida por</th><th></th></tr>
   {% for a in atas %}
   <tr>
     <td>{{ a.data_reuniao }}</td>
+    <td><span class="badge">{{ a.tipo }}</span></td>
     <td>{{ a.pauta | truncate(80) }}</td>
     <td><span class="badge {% if a.imutavel %}badge-concluido{% endif %}">{{ a.status }}</span></td>
     <td>{{ a.redator.nome }}</td>
     <td><a href="{{ url_for('atas.detalhe_ata', orientacao_id=orientacao.id, ata_id=a.id) }}">Abrir</a></td>
   </tr>
   {% else %}
-  <tr><td colspan="5">Nenhuma ata registrada.</td></tr>
+  <tr><td colspan="6">Nenhuma ata registrada.</td></tr>
   {% endfor %}
 </table>
 {% endblock %}
