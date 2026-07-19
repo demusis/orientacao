@@ -48,7 +48,15 @@ def register_cli(app: Flask) -> None:
     @click.option("--senha", required=True)
     def seed_admin(nome: str, email: str, senha: str):
         """Cria o usuário administrador inicial."""
+        from email_validator import EmailNotValidError, validate_email
+
         from app.models import Usuario
+
+        # mesma validação do formulário de login; evita semear e-mail inutilizável
+        try:
+            validate_email(email, check_deliverability=False)
+        except EmailNotValidError as exc:
+            raise click.ClickException(f"E-mail inválido: {exc}")
 
         if Usuario.query.filter_by(email=email).first():
             click.echo(f"Usuário {email} já existe.")
