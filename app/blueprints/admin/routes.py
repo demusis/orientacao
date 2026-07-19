@@ -1,4 +1,5 @@
 from flask import abort, flash, redirect, render_template, url_for
+from flask_login import current_user
 
 from app.blueprints.admin import bp
 from app.blueprints.admin.forms import (
@@ -54,6 +55,27 @@ def editar_usuario(usuario_id: int):
     usuario = db.session.get(Usuario, usuario_id) or abort(404)
     form = UsuarioForm(obj=usuario)
     if form.validate_on_submit():
+        despromocao = (
+            usuario.papel == "admin"
+            and usuario.ativo
+            and (form.papel.data != "admin" or not form.ativo.data)
+        )
+        if despromocao and usuario.id == current_user.id:
+            auditoria.registrar("autodespromocao_recusada", "usuario", usuario.id)
+            db.session.commit()
+            flash(
+                "Um administrador não pode alterar o próprio papel nem desativar a própria conta.",
+                "danger",
+            )
+            return redirect(url_for("admin.editar_usuario", usuario_id=usuario.id))
+        if despromocao and Usuario.query.filter_by(papel="admin", ativo=True).count() <= 1:
+            auditoria.registrar("despromocao_ultimo_admin_recusada", "usuario", usuario.id)
+            db.session.commit()
+            flash(
+                "Operação recusada: o sistema deve manter ao menos um administrador ativo.",
+                "danger",
+            )
+            return redirect(url_for("admin.editar_usuario", usuario_id=usuario.id))
         usuario.nome = form.nome.data
         usuario.email = form.email.data.lower().strip()
         usuario.papel = form.papel.data
