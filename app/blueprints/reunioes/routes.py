@@ -88,6 +88,7 @@ def criar_tarefa_grupo():
             marco = Marco(
                 orientacao_id=orientacao.id,
                 titulo=form.titulo.data,
+                tipo=form.tipo.data,
                 descricao=form.descricao.data,
                 data_prevista=form.data_prevista.data,
                 ordem=form.ordem.data or 0,

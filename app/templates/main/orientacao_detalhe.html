@@ -5,7 +5,10 @@
 <div class="card">
   <p><strong>Modalidade:</strong> {{ MODALIDADE_LABEL[orientacao.modalidade] }} |
      <strong>Status:</strong> {{ orientacao.status }}</p>
-  <p><strong>Orientador:</strong> {{ orientacao.orientador.nome }} |
+  <p><strong>Orientador:</strong> {{ orientacao.orientador.nome }}
+     {%- if orientacao.coorientadores %} |
+     <strong>Coorientação:</strong> {% for c in orientacao.coorientadores %}{{ c.nome }}{% if not loop.last %}, {% endif %}{% endfor %}
+     {%- endif %} |
      <strong>Orientando:</strong> {{ orientacao.orientando.nome }}</p>
   <p><strong>Início:</strong> {{ orientacao.data_inicio }} |
      <strong>Fim previsto:</strong> {{ orientacao.data_fim_prevista or '—' }}</p>
@@ -16,4 +19,24 @@
   <a href="{{ url_for('atas.listar_atas', orientacao_id=orientacao.id) }}">Atas</a> ·
   <a href="{{ url_for('atas.listar_pareceres', orientacao_id=orientacao.id) }}">Pareceres</a>
 </nav>
+{% if orientacao.eventos %}
+<div class="card">
+  <h2>Eventos do vínculo</h2>
+  <table>
+    <tr><th>Evento</th><th>Alteração</th><th>Fundamentação</th><th>Em (UTC)</th></tr>
+    {% for e in orientacao.eventos | reverse %}
+    <tr>
+      <td>{{ TIPO_EVENTO_LABEL[e.tipo] }}</td>
+      <td>
+        {% if e.tipo == 'prorrogacao' %}{{ e.data_anterior or '—' }} → {{ e.data_nova }}
+        {% elif e.tipo == 'mudanca_titulo' %}{{ e.texto_anterior | truncate(40) }} → {{ e.texto_novo | truncate(40) }}
+        {% else %}—{% endif %}
+      </td>
+      <td>{{ e.fundamentacao }}</td>
+      <td>{{ e.registrado_em.strftime('%Y-%m-%d %H:%M') }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
 {% endblock %}

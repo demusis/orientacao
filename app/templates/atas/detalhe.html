@@ -7,6 +7,9 @@
   Tipo: <span class="badge">{{ ata.tipo }}</span> ·
   Status: <span class="badge {% if ata.imutavel %}badge-concluido{% endif %}">{{ ata.status }}</span>
   {% if ata.finalizada_em %} — finalizada em {{ ata.finalizada_em.strftime('%Y-%m-%d %H:%M') }} (UTC){% endif %}
+  {% if ata.imutavel %} —
+  <a href="{{ url_for('atas.pdf_ata', orientacao_id=orientacao.id, ata_id=ata.id) }}">Exportar PDF</a>
+  {% endif %}
 </p>
 
 <div class="card">
@@ -37,7 +40,7 @@
 <div class="card">
   <h2>Participantes e presenças</h2>
   <table>
-    <tr><th>Orientando</th><th>Presença</th><th>Registro</th><th>Justificativa</th>
+    <tr><th>Orientando</th><th>Presença</th><th>Registro</th>
       {% if pode_gerir and not ata.imutavel %}<th>Ações</th>{% endif %}</tr>
     {% for p in ata.participacoes %}
     <tr>
@@ -46,12 +49,6 @@
       <td>
         {% if p.presenca_registrada_em %}
           {{ p.presenca_registrada_em.strftime('%Y-%m-%d %H:%M') }} (UTC) por {{ p.registrador.nome }}
-        {% else %}—{% endif %}
-      </td>
-      <td>
-        {% if p.justificativa %}
-          {{ p.justificativa }}<br>
-          <small>lançada em {{ p.justificativa_em.strftime('%Y-%m-%d %H:%M') }} (UTC)</small>
         {% else %}—{% endif %}
       </td>
       {% if pode_gerir and not ata.imutavel %}
@@ -67,14 +64,6 @@
     </tr>
     {% endfor %}
   </table>
-  {% if minha_participacao and minha_participacao.presenca == 'ausente' %}
-  <h3>{% if minha_participacao.justificativa %}Atualizar justificativa{% else %}Justificar ausência (facultativo){% endif %}</h3>
-  <form method="post" action="{{ url_for('atas.justificar', orientacao_id=orientacao.id, ata_id=ata.id) }}">
-    {{ justificativa_form.hidden_tag() }}
-    <div class="campo">{{ justificativa_form.justificativa() }}</div>
-    {{ justificativa_form.submit() }}
-  </form>
-  {% endif %}
 </div>
 
 {% if pode_editar %}
@@ -82,12 +71,14 @@
     <h2>Editar conteúdo (rascunho)</h2>
     {{ render_form(form) }}
   </div>
+  {% if pode_finalizar %}
   <form method="post" action="{{ url_for('atas.finalizar', orientacao_id=orientacao.id, ata_id=ata.id) }}">
     {{ finalizar_form.hidden_tag() }}
     {{ finalizar_form.submit() }}
   </form>
   <p><small>Atenção: após finalizada, a ata torna-se imutável e as presenças não podem
-  mais ser alteradas.</small></p>
+  mais ser alteradas. A finalização cabe ao orientador principal.</small></p>
+  {% endif %}
 {% else %}
   <div class="card">
     <h2>Pauta</h2>

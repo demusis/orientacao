@@ -82,16 +82,6 @@ def registrar_presenca(participacao: AtaParticipacao, presenca: str, usuario):
     )
 
 
-def justificar_ausencia(participacao: AtaParticipacao, texto: str):
-    """Facultativa; admitida também após a finalização da ata, pois integra a
-    participação, não o texto da ata."""
-    if participacao.presenca != "ausente":
-        raise OperacaoInvalida("Justificativa aplica-se apenas a ausência registrada.")
-    participacao.justificativa = texto
-    participacao.justificativa_em = datetime.now(timezone.utc)
-    auditoria.registrar(
-        "justificativa_ausencia",
-        "ata",
-        participacao.ata_id,
-        {"orientacao_id": participacao.orientacao_id},
-    )
+# Nota LGPD: o registro de justificativa de ausência foi retirado por decisão de
+# 19/07/2026 (potencial dado sensível). As colunas justificativa/justificativa_em
+# permanecem dormentes no esquema, sem via de escrita.

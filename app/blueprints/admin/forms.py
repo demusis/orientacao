@@ -6,6 +6,7 @@ from wtforms import (
     SelectField,
     StringField,
     SubmitField,
+    TextAreaField,
 )
 from wtforms.validators import DataRequired, Email, Length, Optional
 
@@ -36,9 +37,36 @@ class OrientacaoForm(FlaskForm):
     submit = SubmitField("Salvar")
 
 
+class EventoVinculoForm(FlaskForm):
+    tipo = SelectField(
+        "Tipo do evento",
+        choices=[
+            ("prorrogacao", "Prorrogação de prazo"),
+            ("trancamento", "Trancamento"),
+            ("destrancamento", "Destrancamento"),
+            ("mudanca_titulo", "Mudança de título"),
+        ],
+    )
+    fundamentacao = TextAreaField("Fundamentação", validators=[DataRequired()])
+    data_nova = DateField("Novo fim previsto (prorrogação)", validators=[Optional()])
+    texto_novo = StringField(
+        "Novo título (mudança de título)", validators=[Optional(), Length(max=255)]
+    )
+    submit = SubmitField("Registrar evento")
+
+
 class EncerrarOrientacaoForm(FlaskForm):
     status = SelectField(
         "Novo status",
         choices=[("concluida", "Concluída"), ("suspensa", "Suspensa"), ("cancelada", "Cancelada")],
     )
     submit = SubmitField("Aplicar")
+
+
+class CoorientadorForm(FlaskForm):
+    usuario_id = SelectField("Coorientador", coerce=int)
+    submit = SubmitField("Designar coorientador")
+
+
+class RemoverForm(FlaskForm):
+    submit = SubmitField("Remover")

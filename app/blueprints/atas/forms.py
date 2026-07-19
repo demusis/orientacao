@@ -28,13 +28,6 @@ class ReagendarForm(FlaskForm):
     submit = SubmitField("Reagendar reunião")
 
 
-class JustificativaForm(FlaskForm):
-    justificativa = TextAreaField(
-        "Justificativa de ausência", validators=[DataRequired()]
-    )
-    submit = SubmitField("Registrar justificativa")
-
-
 class AcaoForm(FlaskForm):
     """Confirmação simples (CSRF) para ações de botão."""
 

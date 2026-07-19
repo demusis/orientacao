@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_form %}
+{% block title %}Coorientadores — ARIADNE{% endblock %}
+{% block content %}
+<h1>Equipe de orientação — {{ orientacao.titulo_projeto }}</h1>
+<p><strong>Orientador principal:</strong> {{ orientacao.orientador.nome }}</p>
+
+<h2>Coorientadores</h2>
+<table>
+  <tr><th>Nome</th><th>Designado em (UTC)</th><th></th></tr>
+  {% for a in orientacao.equipe if a.funcao == 'coorientador' %}
+  <tr>
+    <td>{{ a.usuario.nome }}</td>
+    <td>{{ a.designado_em.strftime('%Y-%m-%d %H:%M') }}</td>
+    <td>
+      <form method="post" action="{{ url_for('admin.remover_coorientador', orientacao_id=orientacao.id, usuario_id=a.usuario_id) }}">
+        {{ remover_form.hidden_tag() }}
+        <button type="submit" class="link">Remover</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="3">Nenhum coorientador designado.</td></tr>
+  {% endfor %}
+</table>
+
+<div class="card">
+  <h2>Designar coorientador</h2>
+  {% if form.usuario_id.choices %}
+    {{ render_form(form) }}
+  {% else %}
+    <p>Não há orientadores elegíveis (ativos e ainda não designados).</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -97,39 +97,6 @@ def test_orientando_nao_assinala_presenca(client, orientacao, orientacao2, orien
     assert ata.participacao_de(orientacao.id).presenca == "pendente"
 
 
-def test_orientando_ausente_justifica_facultativamente(client, orientacao, orientacao2, orientador, orientando):
-    login(client, "orientador@teste.br")
-    _criar_ata_grupo(client, [orientacao.id, orientacao2.id])
-    ata = Ata.query.one()
-    client.post(
-        f"/orientacoes/{orientacao.id}/atas/{ata.id}/presenca/{orientacao.id}/ausente"
-    )
-
-    client.post("/auth/logout")
-    login(client, "orientando@teste.br")
-    client.post(
-        f"/orientacoes/{orientacao.id}/atas/{ata.id}/justificativa",
-        data={"justificativa": "Consulta médica agendada previamente."},
-        follow_redirects=True,
-    )
-    p = ata.participacao_de(orientacao.id)
-    assert p.justificativa == "Consulta médica agendada previamente."
-    assert p.justificativa_em is not None  # data/hora da ação
-    assert LogAuditoria.query.filter_by(acao="justificativa_ausencia").count() == 1
-
-
-def test_justificativa_exige_ausencia_registrada(client, orientacao, orientacao2, orientador, orientando):
-    login(client, "orientador@teste.br")
-    _criar_ata_grupo(client, [orientacao.id, orientacao2.id])
-    ata = Ata.query.one()
-
-    client.post("/auth/logout")
-    login(client, "orientando@teste.br")
-    client.post(
-        f"/orientacoes/{orientacao.id}/atas/{ata.id}/justificativa",
-        data={"justificativa": "Tentativa sem ausência."},
-    )
-    assert ata.participacao_de(orientacao.id).justificativa is None
 
 
 def test_presenca_bloqueada_apos_finalizacao(client, orientacao, orientacao2, orientador):

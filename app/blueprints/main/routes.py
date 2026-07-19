@@ -38,3 +38,40 @@ def orientacao_detalhe(orientacao_id: int):
 @login_required
 def ajuda():
     return render_template("main/ajuda.html")
+
+
+@bp.route("/verificar/<tipo>/<int:reg_id>/<hash_informado>")
+def verificar(tipo: str, reg_id: int, hash_informado: str):
+    """Verificação pública de integridade de documento exportado. Divulga
+    apenas a correspondência do hash e o status do registro — nenhum conteúdo."""
+    from app.extensions import db
+    from app.models import Ata, Parecer
+    from app.services import exportacao
+
+    confere = False
+    situacao = None
+    momento = None
+    if tipo == "ata":
+        ata = db.session.get(Ata, reg_id)
+        if ata is not None and ata.imutavel:
+            confere = exportacao.hash_ata(ata) == hash_informado
+            situacao = "finalizada"
+            momento = ata.finalizada_em
+    elif tipo == "parecer":
+        parecer = db.session.get(Parecer, reg_id)
+        if parecer is not None:
+            confere = exportacao.hash_parecer(parecer) == hash_informado
+            situacao = "emitido"
+            momento = parecer.emitido_em
+    else:
+        from flask import abort
+
+        abort(404)
+    return render_template(
+        "main/verificar.html",
+        tipo=tipo,
+        reg_id=reg_id,
+        confere=confere,
+        situacao=situacao,
+        momento=momento,
+    )

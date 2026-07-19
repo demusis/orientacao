@@ -12,7 +12,11 @@
     <td>{{ o.orientando.nome }}</td>
     <td>{{ MODALIDADE_LABEL[o.modalidade] }}</td>
     <td><span class="badge">{{ o.status }}</span></td>
-    <td>{% if o.status == 'ativa' %}<a href="{{ url_for('admin.encerrar_orientacao', orientacao_id=o.id) }}">Encerrar</a>{% endif %}</td>
+    <td class="acoes">
+      <a href="{{ url_for('admin.eventos_orientacao', orientacao_id=o.id) }}">Eventos</a>
+      <a href="{{ url_for('admin.coorientadores', orientacao_id=o.id) }}">Coorientadores</a>
+      {% if o.status == 'ativa' %}<a href="{{ url_for('admin.encerrar_orientacao', orientacao_id=o.id) }}">Encerrar</a>{% endif %}
+    </td>
   </tr>
   {% endfor %}
 </table>

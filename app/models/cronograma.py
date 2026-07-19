@@ -3,6 +3,23 @@ from datetime import date
 from app.extensions import db
 
 STATUS_MARCO = ("pendente", "em_andamento", "concluido")
+TIPOS_MARCO = (
+    "outro",
+    "qualificacao",
+    "defesa",
+    "relatorio_anual",
+    "proficiencia",
+    "publicacao",
+)
+
+TIPO_MARCO_LABEL = {
+    "outro": "Outro",
+    "qualificacao": "Qualificação",
+    "defesa": "Defesa",
+    "relatorio_anual": "Relatório anual",
+    "proficiencia": "Proficiência",
+    "publicacao": "Publicação",
+}
 
 
 class Marco(db.Model):
@@ -16,6 +33,9 @@ class Marco(db.Model):
     data_conclusao = db.Column(db.Date, nullable=True)
     status = db.Column(
         db.Enum(*STATUS_MARCO, name="status_marco"), nullable=False, default="pendente"
+    )
+    tipo = db.Column(
+        db.Enum(*TIPOS_MARCO, name="tipo_marco"), nullable=False, default="outro"
     )
     ordem = db.Column(db.Integer, nullable=False, default=0)
     conclusao_sinalizada = db.Column(db.Boolean, nullable=False, default=False)

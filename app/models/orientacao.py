@@ -52,8 +52,94 @@ class Orientacao(db.Model):
     )
     pareceres = db.relationship("Parecer", back_populates="orientacao", lazy="dynamic")
 
+    eventos = db.relationship(
+        "EventoVinculo",
+        back_populates="orientacao",
+        order_by="EventoVinculo.registrado_em",
+    )
+    equipe = db.relationship(
+        "OrientacaoOrientador",
+        back_populates="orientacao",
+        cascade="all, delete-orphan",
+    )
+
+    @property
+    def coorientadores(self):
+        return [a.usuario for a in self.equipe if a.funcao == "coorientador"]
+
+    def orienta(self, usuario) -> bool:
+        """Usuário integra a equipe de orientação (principal ou coorientador)."""
+        if usuario.id == self.orientador_id:
+            return True
+        return any(a.usuario_id == usuario.id for a in self.equipe)
+
     def envolve(self, usuario) -> bool:
-        return usuario.id in (self.orientador_id, self.orientando_id)
+        return usuario.id == self.orientando_id or self.orienta(usuario)
 
     def __repr__(self) -> str:
         return f"<Orientacao {self.id} {self.modalidade} {self.status}>"
+
+
+FUNCOES_ORIENTADOR = ("principal", "coorientador")
+
+
+class OrientacaoOrientador(db.Model):
+    """Equipe de orientação do vínculo: orientador principal e coorientadores."""
+
+    __tablename__ = "orientacao_orientador"
+
+    orientacao_id = db.Column(
+        db.Integer, db.ForeignKey("orientacao.id"), primary_key=True
+    )
+    usuario_id = db.Column(db.Integer, db.ForeignKey("usuario.id"), primary_key=True)
+    funcao = db.Column(
+        db.Enum(*FUNCOES_ORIENTADOR, name="funcao_orientador"),
+        nullable=False,
+        default="coorientador",
+    )
+    designado_em = db.Column(
+        db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+
+    orientacao = db.relationship("Orientacao", back_populates="equipe")
+    usuario = db.relationship("Usuario")
+
+    def __repr__(self) -> str:
+        return f"<OrientacaoOrientador o={self.orientacao_id} u={self.usuario_id} {self.funcao}>"
+
+
+TIPOS_EVENTO = ("prorrogacao", "trancamento", "destrancamento", "mudanca_titulo")
+
+TIPO_EVENTO_LABEL = {
+    "prorrogacao": "Prorrogação de prazo",
+    "trancamento": "Trancamento",
+    "destrancamento": "Destrancamento",
+    "mudanca_titulo": "Mudança de título",
+}
+
+
+class EventoVinculo(db.Model):
+    """Ato formal sobre o vínculo (prorrogação, trancamento etc.), com
+    fundamentação obrigatória e carimbo de data/hora. Preserva o histórico dos
+    valores alterados."""
+
+    __tablename__ = "evento_vinculo"
+
+    id = db.Column(db.Integer, primary_key=True)
+    orientacao_id = db.Column(db.Integer, db.ForeignKey("orientacao.id"), nullable=False)
+    tipo = db.Column(db.Enum(*TIPOS_EVENTO, name="tipo_evento"), nullable=False)
+    fundamentacao = db.Column(db.Text, nullable=False)
+    data_anterior = db.Column(db.Date, nullable=True)
+    data_nova = db.Column(db.Date, nullable=True)
+    texto_anterior = db.Column(db.String(255), nullable=True)
+    texto_novo = db.Column(db.String(255), nullable=True)
+    registrado_por = db.Column(db.Integer, db.ForeignKey("usuario.id"), nullable=False)
+    registrado_em = db.Column(
+        db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+
+    orientacao = db.relationship("Orientacao", back_populates="eventos")
+    autor = db.relationship("Usuario", foreign_keys=[registrado_por])
+
+    def __repr__(self) -> str:
+        return f"<EventoVinculo {self.id} {self.tipo} orientacao={self.orientacao_id}>"

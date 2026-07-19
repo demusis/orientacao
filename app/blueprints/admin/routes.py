@@ -3,12 +3,17 @@ from flask_login import current_user
 
 from app.blueprints.admin import bp
 from app.blueprints.admin.forms import (
+    CoorientadorForm,
     EncerrarOrientacaoForm,
+    EventoVinculoForm,
     OrientacaoForm,
+    RemoverForm,
     UsuarioForm,
 )
+from app.services import eventos as eventos_service
+from app.services.eventos import EventoInvalido
 from app.extensions import db
-from app.models import Orientacao, Usuario
+from app.models import Orientacao, OrientacaoOrientador, Usuario
 from app.blueprints.orientandos.forms import ExcluirForm
 from app.services import auditoria
 from app.services import usuarios as usuarios_service
@@ -146,6 +151,13 @@ def criar_orientacao():
             )
             db.session.add(orientacao)
             db.session.flush()
+            db.session.add(
+                OrientacaoOrientador(
+                    orientacao_id=orientacao.id,
+                    usuario_id=orientacao.orientador_id,
+                    funcao="principal",
+                )
+            )
             auditoria.registrar(
                 "criacao_orientacao",
                 "orientacao",
@@ -181,6 +193,106 @@ def encerrar_orientacao(orientacao_id: int):
         return redirect(url_for("admin.listar_orientacoes"))
     return render_template(
         "admin/orientacao_encerrar.html", form=form, orientacao=orientacao
+    )
+
+
+@bp.route("/orientacoes/<int:orientacao_id>/coorientadores", methods=["GET", "POST"])
+@role_required("admin")
+def coorientadores(orientacao_id: int):
+    orientacao = db.session.get(Orientacao, orientacao_id) or abort(404)
+    ja_designados = {a.usuario_id for a in orientacao.equipe} | {
+        orientacao.orientador_id
+    }
+    elegiveis = (
+        Usuario.query.filter_by(papel="orientador", ativo=True)
+        .filter(~Usuario.id.in_(ja_designados))
+        .order_by(Usuario.nome)
+        .all()
+    )
+    form = CoorientadorForm()
+    form.usuario_id.choices = [(u.id, u.nome) for u in elegiveis]
+    if form.validate_on_submit():
+        db.session.add(
+            OrientacaoOrientador(
+                orientacao_id=orientacao.id,
+                usuario_id=form.usuario_id.data,
+                funcao="coorientador",
+            )
+        )
+        auditoria.registrar(
+            "designacao_coorientador",
+            "orientacao",
+            orientacao.id,
+            {"usuario_id": form.usuario_id.data},
+        )
+        db.session.commit()
+        flash("Coorientador designado.", "success")
+        return redirect(
+            url_for("admin.coorientadores", orientacao_id=orientacao.id)
+        )
+    return render_template(
+        "admin/coorientadores.html",
+        orientacao=orientacao,
+        form=form,
+        remover_form=RemoverForm(),
+    )
+
+
+@bp.route(
+    "/orientacoes/<int:orientacao_id>/coorientadores/<int:usuario_id>/remover",
+    methods=["POST"],
+)
+@role_required("admin")
+def remover_coorientador(orientacao_id: int, usuario_id: int):
+    orientacao = db.session.get(Orientacao, orientacao_id) or abort(404)
+    assoc = next(
+        (
+            a
+            for a in orientacao.equipe
+            if a.usuario_id == usuario_id and a.funcao == "coorientador"
+        ),
+        None,
+    )
+    if assoc is None:
+        abort(404)
+    form = RemoverForm()
+    if form.validate_on_submit():
+        db.session.delete(assoc)
+        auditoria.registrar(
+            "remocao_coorientador",
+            "orientacao",
+            orientacao.id,
+            {"usuario_id": usuario_id},
+        )
+        db.session.commit()
+        flash("Coorientador removido.", "success")
+    return redirect(url_for("admin.coorientadores", orientacao_id=orientacao.id))
+
+
+@bp.route("/orientacoes/<int:orientacao_id>/eventos", methods=["GET", "POST"])
+@role_required("admin")
+def eventos_orientacao(orientacao_id: int):
+    orientacao = db.session.get(Orientacao, orientacao_id) or abort(404)
+    form = EventoVinculoForm()
+    if form.validate_on_submit():
+        try:
+            eventos_service.registrar_evento(
+                orientacao,
+                tipo=form.tipo.data,
+                fundamentacao=form.fundamentacao.data,
+                usuario=current_user,
+                data_nova=form.data_nova.data,
+                texto_novo=form.texto_novo.data or None,
+            )
+            db.session.commit()
+            flash("Evento registrado e aplicado ao vínculo.", "success")
+            return redirect(
+                url_for("admin.eventos_orientacao", orientacao_id=orientacao.id)
+            )
+        except EventoInvalido as exc:
+            flash(str(exc), "danger")
+    return render_template(
+        "admin/eventos.html", orientacao=orientacao, form=form
     )
 
 

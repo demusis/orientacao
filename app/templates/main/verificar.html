@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Verificação de documento — ARIADNE{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Verificação de integridade</h1>
+  <p>Documento: <strong>{{ tipo }}-{{ reg_id }}</strong></p>
+  {% if confere %}
+    <p class="flash flash-success"><strong>CONFERE.</strong> O hash informado corresponde
+    ao registro interno ({{ situacao }} em {{ momento.strftime('%Y-%m-%d %H:%M') }} UTC).
+    O conteúdo do documento impresso é idêntico ao registrado no sistema.</p>
+  {% else %}
+    <p class="flash flash-danger"><strong>NÃO CONFERE.</strong> O hash informado não
+    corresponde a um registro finalizado com esse identificador. O documento pode ter
+    sido alterado, o identificador pode estar incorreto ou o registro não está
+    finalizado.</p>
+  {% endif %}
+  <p><small>Esta verificação não divulga o conteúdo do registro; atesta apenas a
+  correspondência entre o documento apresentado e o registro interno.</small></p>
+</div>
+{% endblock %}

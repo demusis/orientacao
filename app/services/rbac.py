@@ -3,9 +3,10 @@ from functools import wraps
 
 from flask import abort
 from flask_login import current_user, login_required
+from sqlalchemy import or_
 
 from app.extensions import db
-from app.models import Orientacao
+from app.models import Orientacao, OrientacaoOrientador
 
 
 def role_required(*papeis):
@@ -37,10 +38,23 @@ def orientacao_autorizada(orientacao_id: int) -> Orientacao:
 
 
 def orientacoes_do_usuario():
-    """Consulta-base de orientações visíveis ao usuário corrente."""
+    """Consulta-base de orientações visíveis ao usuário corrente. Orientador
+    enxerga vínculos em que é principal ou coorientador."""
     q = Orientacao.query
     if current_user.papel == "orientador":
-        return q.filter_by(orientador_id=current_user.id)
+        return (
+            q.outerjoin(
+                OrientacaoOrientador,
+                OrientacaoOrientador.orientacao_id == Orientacao.id,
+            )
+            .filter(
+                or_(
+                    Orientacao.orientador_id == current_user.id,
+                    OrientacaoOrientador.usuario_id == current_user.id,
+                )
+            )
+            .distinct()
+        )
     if current_user.papel == "orientando":
         return q.filter_by(orientando_id=current_user.id)
     return q  # admin

@@ -10,7 +10,8 @@
   {% for m in marcos %}
   <tr>
     <td>{{ m.ordem }}</td>
-    <td>{{ m.titulo }}{% if m.descricao %}<br><small>{{ m.descricao }}</small>{% endif %}</td>
+    <td>{{ m.titulo }} <span class="badge">{{ TIPO_MARCO_LABEL[m.tipo] }}</span>
+        {% if m.descricao %}<br><small>{{ m.descricao }}</small>{% endif %}</td>
     <td>{{ m.data_prevista }}</td>
     <td>{{ m.data_conclusao or '—' }}</td>
     <td>

@@ -2,6 +2,7 @@ from flask_wtf import FlaskForm
 from wtforms import (
     DateField,
     IntegerField,
+    SelectField,
     SelectMultipleField,
     StringField,
     SubmitField,
@@ -9,6 +10,8 @@ from wtforms import (
     TimeField,
     widgets,
 )
+
+from app.models.cronograma import TIPOS_MARCO, TIPO_MARCO_LABEL
 from wtforms.validators import DataRequired, Length, NumberRange, Optional, ValidationError
 
 
@@ -38,6 +41,9 @@ class AtaGrupoForm(FlaskForm):
 
 class MarcoGrupoForm(FlaskForm):
     titulo = StringField("Título", validators=[DataRequired(), Length(max=255)])
+    tipo = SelectField(
+        "Tipo", choices=[(t, TIPO_MARCO_LABEL[t]) for t in TIPOS_MARCO], default="outro"
+    )
     descricao = TextAreaField("Descrição", validators=[Optional()])
     data_prevista = DateField("Data prevista", validators=[DataRequired()])
     ordem = IntegerField("Ordem", default=0, validators=[Optional(), NumberRange(min=0)])

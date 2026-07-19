@@ -1,5 +1,7 @@
-from flask import abort, flash, redirect, render_template, url_for
+from flask import Response, abort, flash, redirect, render_template, url_for
 from flask_login import current_user, login_required
+
+from app.services import exportacao
 
 from app.blueprints.atas import bp
 from app.blueprints.atas.forms import (
@@ -7,7 +9,6 @@ from app.blueprints.atas.forms import (
     AtaEdicaoForm,
     AtaForm,
     FinalizarAtaForm,
-    JustificativaForm,
     ParecerForm,
     ReagendarForm,
 )
@@ -19,7 +20,6 @@ from app.services.atas import (
     OperacaoInvalida,
     atualizar_ata,
     finalizar_ata,
-    justificar_ausencia,
     reagendar_ata,
     registrar_presenca,
 )
@@ -31,6 +31,12 @@ def _ata_da_orientacao(orientacao, ata_id: int) -> Ata:
     if ata is None or orientacao not in ata.orientacoes:
         abort(404)
     return ata
+
+
+def _orienta_ata(ata: Ata) -> bool:
+    """Usuário corrente integra a equipe de orientação (principal ou
+    coorientador) de algum vínculo participante da ata."""
+    return any(o.orienta(current_user) for o in ata.orientacoes)
 
 
 @bp.route("/atas")
@@ -45,7 +51,7 @@ def listar_atas(orientacao_id: int):
 @login_required
 def criar_ata(orientacao_id: int):
     orientacao = orientacao_autorizada(orientacao_id)
-    if current_user.id != orientacao.orientador_id and current_user.papel != "admin":
+    if not orientacao.orienta(current_user) and current_user.papel != "admin":
         abort(403)
     form = AtaForm()
     if form.validate_on_submit():
@@ -73,9 +79,7 @@ def criar_ata(orientacao_id: int):
 def detalhe_ata(orientacao_id: int, ata_id: int):
     orientacao = orientacao_autorizada(orientacao_id)
     ata = _ata_da_orientacao(orientacao, ata_id)
-    pode_editar = (
-        current_user.id == ata.orientador_id or current_user.papel == "admin"
-    ) and not ata.imutavel
+    pode_editar = (_orienta_ata(ata) or current_user.papel == "admin") and not ata.imutavel
 
     form = AtaEdicaoForm(obj=ata)
     finalizar_form = FinalizarAtaForm()
@@ -96,10 +100,6 @@ def detalhe_ata(orientacao_id: int, ata_id: int):
             url_for("atas.detalhe_ata", orientacao_id=orientacao.id, ata_id=ata.id)
         )
 
-    minha_participacao = None
-    if current_user.papel == "orientando":
-        minha_participacao = ata.participacao_de(orientacao.id)
-
     return render_template(
         "atas/detalhe.html",
         orientacao=orientacao,
@@ -107,10 +107,10 @@ def detalhe_ata(orientacao_id: int, ata_id: int):
         form=form,
         finalizar_form=finalizar_form,
         pode_editar=pode_editar,
-        pode_gerir=current_user.id == ata.orientador_id or current_user.papel == "admin",
+        pode_gerir=_orienta_ata(ata) or current_user.papel == "admin",
+        pode_finalizar=current_user.id == ata.orientador_id
+        or current_user.papel == "admin",
         acao_form=AcaoForm(),
-        justificativa_form=JustificativaForm(),
-        minha_participacao=minha_participacao,
     )
 
 
@@ -151,7 +151,7 @@ def reagendar(orientacao_id: int, ata_id: int):
 def marcar_presenca(orientacao_id: int, ata_id: int, alvo_id: int, presenca: str):
     orientacao = orientacao_autorizada(orientacao_id)
     ata = _ata_da_orientacao(orientacao, ata_id)
-    if current_user.id != ata.orientador_id and current_user.papel != "admin":
+    if not _orienta_ata(ata) and current_user.papel != "admin":
         abort(403)
     participacao = ata.participacao_de(alvo_id)
     if participacao is None:
@@ -170,28 +170,60 @@ def marcar_presenca(orientacao_id: int, ata_id: int, alvo_id: int, presenca: str
     )
 
 
-@bp.route("/atas/<int:ata_id>/justificativa", methods=["POST"])
+# Rota de justificativa de ausência retirada em 19/07/2026 (decisão LGPD:
+# potencial dado sensível). Reintrodução exigirá base legal definida.
+
+
+@bp.route("/atas/<int:ata_id>/pdf")
 @login_required
-def justificar(orientacao_id: int, ata_id: int):
+def pdf_ata(orientacao_id: int, ata_id: int):
     orientacao = orientacao_autorizada(orientacao_id)
     ata = _ata_da_orientacao(orientacao, ata_id)
-    if current_user.id != orientacao.orientando_id:
-        abort(403)
-    participacao = ata.participacao_de(orientacao.id)
-    if participacao is None:
+    if not ata.imutavel:
+        flash("Apenas atas finalizadas podem ser exportadas.", "warning")
+        return redirect(
+            url_for("atas.detalhe_ata", orientacao_id=orientacao.id, ata_id=ata.id)
+        )
+    url_verificacao = url_for(
+        "main.verificar",
+        tipo="ata",
+        reg_id=ata.id,
+        hash_informado=exportacao.hash_ata(ata),
+        _external=True,
+    )
+    pdf = exportacao.gerar_pdf_ata(ata, url_verificacao)
+    auditoria.registrar("exportacao_pdf", "ata", ata.id)
+    db.session.commit()
+    return Response(
+        pdf,
+        mimetype="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=ariadne-ata-{ata.id}.pdf"},
+    )
+
+
+@bp.route("/pareceres/<int:parecer_id>/pdf")
+@login_required
+def pdf_parecer(orientacao_id: int, parecer_id: int):
+    orientacao = orientacao_autorizada(orientacao_id)
+    parecer = db.session.get(Parecer, parecer_id)
+    if parecer is None or parecer.orientacao_id != orientacao.id:
         abort(404)
-    form = JustificativaForm()
-    if form.validate_on_submit():
-        try:
-            justificar_ausencia(participacao, form.justificativa.data)
-            db.session.commit()
-            flash("Justificativa registrada.", "success")
-        except OperacaoInvalida as exc:
-            flash(str(exc), "danger")
-    else:
-        flash("Informe o texto da justificativa.", "danger")
-    return redirect(
-        url_for("atas.detalhe_ata", orientacao_id=orientacao.id, ata_id=ata.id)
+    url_verificacao = url_for(
+        "main.verificar",
+        tipo="parecer",
+        reg_id=parecer.id,
+        hash_informado=exportacao.hash_parecer(parecer),
+        _external=True,
+    )
+    pdf = exportacao.gerar_pdf_parecer(parecer, url_verificacao)
+    auditoria.registrar("exportacao_pdf", "parecer", parecer.id)
+    db.session.commit()
+    return Response(
+        pdf,
+        mimetype="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename=ariadne-parecer-{parecer.id}.pdf"
+        },
     )
 
 
