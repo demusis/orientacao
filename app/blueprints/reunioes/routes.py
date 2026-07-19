@@ -6,7 +6,7 @@ from flask_login import current_user
 from app.blueprints.reunioes import bp
 from app.blueprints.reunioes.forms import AtaGrupoForm, MarcoGrupoForm
 from app.extensions import db
-from app.models import Ata, Marco, Orientacao
+from app.models import Ata, AtaParticipacao, Marco, Orientacao
 from app.services import auditoria
 from app.services.rbac import role_required
 
@@ -49,10 +49,13 @@ def criar_ata_grupo():
             tipo="grupo",
             orientador_id=current_user.id,
             data_reuniao=form.data_reuniao.data,
+            hora_reuniao=form.hora_reuniao.data,
             pauta=form.pauta.data,
             deliberacoes=form.deliberacoes.data,
             redigida_por=current_user.id,
-            orientacoes=selecionadas,
+            participacoes=[
+                AtaParticipacao(orientacao_id=o.id) for o in selecionadas
+            ],
         )
         db.session.add(ata)
         db.session.flush()

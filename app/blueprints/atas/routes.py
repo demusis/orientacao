@@ -2,11 +2,27 @@ from flask import abort, flash, redirect, render_template, url_for
 from flask_login import current_user, login_required
 
 from app.blueprints.atas import bp
-from app.blueprints.atas.forms import AtaForm, FinalizarAtaForm, ParecerForm
+from app.blueprints.atas.forms import (
+    AcaoForm,
+    AtaEdicaoForm,
+    AtaForm,
+    FinalizarAtaForm,
+    JustificativaForm,
+    ParecerForm,
+    ReagendarForm,
+)
 from app.extensions import db
-from app.models import Ata, Parecer, VersaoDocumento, Documento
+from app.models import Ata, AtaParticipacao, Parecer, VersaoDocumento, Documento
 from app.services import auditoria
-from app.services.atas import AtaImutavel, atualizar_ata, finalizar_ata
+from app.services.atas import (
+    AtaImutavel,
+    OperacaoInvalida,
+    atualizar_ata,
+    finalizar_ata,
+    justificar_ausencia,
+    reagendar_ata,
+    registrar_presenca,
+)
 from app.services.rbac import orientacao_autorizada
 
 
@@ -37,10 +53,11 @@ def criar_ata(orientacao_id: int):
             tipo="individual",
             orientador_id=orientacao.orientador_id,
             data_reuniao=form.data_reuniao.data,
+            hora_reuniao=form.hora_reuniao.data,
             pauta=form.pauta.data,
             deliberacoes=form.deliberacoes.data,
             redigida_por=current_user.id,
-            orientacoes=[orientacao],
+            participacoes=[AtaParticipacao(orientacao_id=orientacao.id)],
         )
         db.session.add(ata)
         db.session.flush()
@@ -60,14 +77,13 @@ def detalhe_ata(orientacao_id: int, ata_id: int):
         current_user.id == ata.orientador_id or current_user.papel == "admin"
     ) and not ata.imutavel
 
-    form = AtaForm(obj=ata)
+    form = AtaEdicaoForm(obj=ata)
     finalizar_form = FinalizarAtaForm()
 
     if pode_editar and form.submit.data and form.validate_on_submit():
         try:
             atualizar_ata(
                 ata,
-                data_reuniao=form.data_reuniao.data,
                 pauta=form.pauta.data,
                 deliberacoes=form.deliberacoes.data,
             )
@@ -80,6 +96,10 @@ def detalhe_ata(orientacao_id: int, ata_id: int):
             url_for("atas.detalhe_ata", orientacao_id=orientacao.id, ata_id=ata.id)
         )
 
+    minha_participacao = None
+    if current_user.papel == "orientando":
+        minha_participacao = ata.participacao_de(orientacao.id)
+
     return render_template(
         "atas/detalhe.html",
         orientacao=orientacao,
@@ -87,6 +107,91 @@ def detalhe_ata(orientacao_id: int, ata_id: int):
         form=form,
         finalizar_form=finalizar_form,
         pode_editar=pode_editar,
+        pode_gerir=current_user.id == ata.orientador_id or current_user.papel == "admin",
+        acao_form=AcaoForm(),
+        justificativa_form=JustificativaForm(),
+        minha_participacao=minha_participacao,
+    )
+
+
+@bp.route("/atas/<int:ata_id>/reagendar", methods=["GET", "POST"])
+@login_required
+def reagendar(orientacao_id: int, ata_id: int):
+    orientacao = orientacao_autorizada(orientacao_id)
+    ata = _ata_da_orientacao(orientacao, ata_id)
+    if current_user.id != ata.orientador_id and current_user.papel != "admin":
+        abort(403)
+    form = ReagendarForm(data_reuniao=ata.data_reuniao, hora_reuniao=ata.hora_reuniao)
+    if form.validate_on_submit():
+        try:
+            reagendar_ata(
+                ata,
+                current_user,
+                data_nova=form.data_reuniao.data,
+                hora_nova=form.hora_reuniao.data,
+                motivo=form.motivo.data,
+            )
+            db.session.commit()
+            flash("Reunião reagendada; o histórico foi registrado.", "success")
+        except AtaImutavel as exc:
+            db.session.commit()  # persiste o log da tentativa
+            flash(str(exc), "danger")
+        return redirect(
+            url_for("atas.detalhe_ata", orientacao_id=orientacao.id, ata_id=ata.id)
+        )
+    return render_template(
+        "atas/reagendar.html", orientacao=orientacao, ata=ata, form=form
+    )
+
+
+@bp.route(
+    "/atas/<int:ata_id>/presenca/<int:alvo_id>/<presenca>", methods=["POST"]
+)
+@login_required
+def marcar_presenca(orientacao_id: int, ata_id: int, alvo_id: int, presenca: str):
+    orientacao = orientacao_autorizada(orientacao_id)
+    ata = _ata_da_orientacao(orientacao, ata_id)
+    if current_user.id != ata.orientador_id and current_user.papel != "admin":
+        abort(403)
+    participacao = ata.participacao_de(alvo_id)
+    if participacao is None:
+        abort(404)
+    form = AcaoForm()
+    if form.validate_on_submit():
+        try:
+            registrar_presenca(participacao, presenca, current_user)
+            db.session.commit()
+            flash("Presença registrada.", "success")
+        except (AtaImutavel, OperacaoInvalida) as exc:
+            db.session.commit()  # persiste o log da tentativa
+            flash(str(exc), "danger")
+    return redirect(
+        url_for("atas.detalhe_ata", orientacao_id=orientacao.id, ata_id=ata.id)
+    )
+
+
+@bp.route("/atas/<int:ata_id>/justificativa", methods=["POST"])
+@login_required
+def justificar(orientacao_id: int, ata_id: int):
+    orientacao = orientacao_autorizada(orientacao_id)
+    ata = _ata_da_orientacao(orientacao, ata_id)
+    if current_user.id != orientacao.orientando_id:
+        abort(403)
+    participacao = ata.participacao_de(orientacao.id)
+    if participacao is None:
+        abort(404)
+    form = JustificativaForm()
+    if form.validate_on_submit():
+        try:
+            justificar_ausencia(participacao, form.justificativa.data)
+            db.session.commit()
+            flash("Justificativa registrada.", "success")
+        except OperacaoInvalida as exc:
+            flash(str(exc), "danger")
+    else:
+        flash("Informe o texto da justificativa.", "danger")
+    return redirect(
+        url_for("atas.detalhe_ata", orientacao_id=orientacao.id, ata_id=ata.id)
     )
 
 

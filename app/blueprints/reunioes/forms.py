@@ -6,6 +6,7 @@ from wtforms import (
     StringField,
     SubmitField,
     TextAreaField,
+    TimeField,
     widgets,
 )
 from wtforms.validators import DataRequired, Length, NumberRange, Optional, ValidationError
@@ -26,6 +27,7 @@ def _minimo_dois(form, field):
 
 class AtaGrupoForm(FlaskForm):
     data_reuniao = DateField("Data da reunião", validators=[DataRequired()])
+    hora_reuniao = TimeField("Hora da reunião", validators=[Optional()])
     pauta = TextAreaField("Pauta", validators=[DataRequired()])
     deliberacoes = TextAreaField("Deliberações", validators=[DataRequired()])
     orientacoes = MultiCheckboxField(

@@ -8,19 +8,86 @@
   Status: <span class="badge {% if ata.imutavel %}badge-concluido{% endif %}">{{ ata.status }}</span>
   {% if ata.finalizada_em %} — finalizada em {{ ata.finalizada_em.strftime('%Y-%m-%d %H:%M') }} (UTC){% endif %}
 </p>
-{% if ata.tipo == 'grupo' %}
-<p><strong>Participantes:</strong>
-  {% for o in ata.orientacoes %}{{ o.orientando.nome }} ({{ o.titulo_projeto | truncate(40) }}){% if not loop.last %}; {% endif %}{% endfor %}
-</p>
-{% endif %}
+
+<div class="card">
+  <h2>Agendamento</h2>
+  <p><strong>Data:</strong> {{ ata.data_reuniao }}
+     {% if ata.hora_reuniao %} às {{ ata.hora_reuniao.strftime('%H:%M') }}{% endif %}
+     {% if pode_editar %}
+       — <a href="{{ url_for('atas.reagendar', orientacao_id=orientacao.id, ata_id=ata.id) }}">Reagendar</a>
+     {% endif %}
+  </p>
+  {% if ata.reagendamentos %}
+  <h3>Histórico de reagendamentos</h3>
+  <table>
+    <tr><th>De</th><th>Para</th><th>Motivo</th><th>Por</th><th>Registrado em (UTC)</th></tr>
+    {% for r in ata.reagendamentos %}
+    <tr>
+      <td>{{ r.data_anterior }}{% if r.hora_anterior %} {{ r.hora_anterior.strftime('%H:%M') }}{% endif %}</td>
+      <td>{{ r.data_nova }}{% if r.hora_nova %} {{ r.hora_nova.strftime('%H:%M') }}{% endif %}</td>
+      <td>{{ r.motivo or '—' }}</td>
+      <td>{{ r.autor.nome }}</td>
+      <td>{{ r.registrado_em.strftime('%Y-%m-%d %H:%M') }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Participantes e presenças</h2>
+  <table>
+    <tr><th>Orientando</th><th>Presença</th><th>Registro</th><th>Justificativa</th>
+      {% if pode_gerir and not ata.imutavel %}<th>Ações</th>{% endif %}</tr>
+    {% for p in ata.participacoes %}
+    <tr>
+      <td>{{ p.orientacao.orientando.nome }}</td>
+      <td><span class="badge {% if p.presenca == 'presente' %}badge-concluido{% elif p.presenca == 'ausente' %}badge-atrasado{% endif %}">{{ p.presenca }}</span></td>
+      <td>
+        {% if p.presenca_registrada_em %}
+          {{ p.presenca_registrada_em.strftime('%Y-%m-%d %H:%M') }} (UTC) por {{ p.registrador.nome }}
+        {% else %}—{% endif %}
+      </td>
+      <td>
+        {% if p.justificativa %}
+          {{ p.justificativa }}<br>
+          <small>lançada em {{ p.justificativa_em.strftime('%Y-%m-%d %H:%M') }} (UTC)</small>
+        {% else %}—{% endif %}
+      </td>
+      {% if pode_gerir and not ata.imutavel %}
+      <td class="acoes">
+        <form method="post" action="{{ url_for('atas.marcar_presenca', orientacao_id=orientacao.id, ata_id=ata.id, alvo_id=p.orientacao_id, presenca='presente') }}">
+          {{ acao_form.hidden_tag() }}<button type="submit" class="link">Presente</button>
+        </form>
+        <form method="post" action="{{ url_for('atas.marcar_presenca', orientacao_id=orientacao.id, ata_id=ata.id, alvo_id=p.orientacao_id, presenca='ausente') }}">
+          {{ acao_form.hidden_tag() }}<button type="submit" class="link">Ausente</button>
+        </form>
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </table>
+  {% if minha_participacao and minha_participacao.presenca == 'ausente' %}
+  <h3>{% if minha_participacao.justificativa %}Atualizar justificativa{% else %}Justificar ausência (facultativo){% endif %}</h3>
+  <form method="post" action="{{ url_for('atas.justificar', orientacao_id=orientacao.id, ata_id=ata.id) }}">
+    {{ justificativa_form.hidden_tag() }}
+    <div class="campo">{{ justificativa_form.justificativa() }}</div>
+    {{ justificativa_form.submit() }}
+  </form>
+  {% endif %}
+</div>
 
 {% if pode_editar %}
-  <div class="card">{{ render_form(form) }}</div>
+  <div class="card">
+    <h2>Editar conteúdo (rascunho)</h2>
+    {{ render_form(form) }}
+  </div>
   <form method="post" action="{{ url_for('atas.finalizar', orientacao_id=orientacao.id, ata_id=ata.id) }}">
     {{ finalizar_form.hidden_tag() }}
     {{ finalizar_form.submit() }}
   </form>
-  <p><small>Atenção: após finalizada, a ata torna-se imutável.</small></p>
+  <p><small>Atenção: após finalizada, a ata torna-se imutável e as presenças não podem
+  mais ser alteradas.</small></p>
 {% else %}
   <div class="card">
     <h2>Pauta</h2>

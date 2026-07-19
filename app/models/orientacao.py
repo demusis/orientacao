@@ -48,7 +48,7 @@ class Orientacao(db.Model):
     )
     documentos = db.relationship("Documento", back_populates="orientacao", lazy="dynamic")
     atas = db.relationship(
-        "Ata", secondary="ata_orientacao", back_populates="orientacoes", lazy="dynamic"
+        "Ata", secondary="ata_orientacao", viewonly=True, lazy="dynamic"
     )
     pareceres = db.relationship("Parecer", back_populates="orientacao", lazy="dynamic")
 

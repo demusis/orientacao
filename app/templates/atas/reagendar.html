@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_form %}
+{% block title %}Reagendar reunião — ARIADNE{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Reagendar reunião</h1>
+  <p>Agendamento atual: <strong>{{ ata.data_reuniao }}
+    {% if ata.hora_reuniao %} às {{ ata.hora_reuniao.strftime('%H:%M') }}{% endif %}</strong>.
+    O reagendamento fica registrado no histórico da ata, com autor e data/hora.</p>
+  {{ render_form(form) }}
+</div>
+{% endblock %}

@@ -33,13 +33,15 @@ def test_ata_finalizada_e_imutavel_e_tentativa_e_auditada(app, orientacao, orien
     from app.extensions import db
     from app.services.atas import AtaImutavel, atualizar_ata, finalizar_ata
 
+    from app.models import AtaParticipacao
+
     ata = Ata(
         orientador_id=orientador.id,
         data_reuniao=date(2026, 7, 10),
         pauta="Pauta",
         deliberacoes="Deliberações",
         redigida_por=orientador.id,
-        orientacoes=[orientacao],
+        participacoes=[AtaParticipacao(orientacao_id=orientacao.id)],
     )
     db.session.add(ata)
     db.session.commit()
@@ -47,9 +49,7 @@ def test_ata_finalizada_e_imutavel_e_tentativa_e_auditada(app, orientacao, orien
     db.session.commit()
 
     try:
-        atualizar_ata(
-            ata, data_reuniao=date(2026, 7, 11), pauta="X", deliberacoes="Y"
-        )
+        atualizar_ata(ata, pauta="X", deliberacoes="Y")
         assert False, "Deveria ter levantado AtaImutavel"
     except AtaImutavel:
         db.session.commit()

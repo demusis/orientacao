@@ -13,11 +13,35 @@ RESULTADO_LABEL = {
     "reprovado": "Reprovado",
 }
 
-ata_orientacao = db.Table(
-    "ata_orientacao",
-    db.Column("ata_id", db.Integer, db.ForeignKey("ata.id"), primary_key=True),
-    db.Column("orientacao_id", db.Integer, db.ForeignKey("orientacao.id"), primary_key=True),
-)
+PRESENCAS = ("pendente", "presente", "ausente")
+
+
+class AtaParticipacao(db.Model):
+    """Associação ata↔vínculo com registro de presença. A presença é assinalada
+    pelo orientador; a justificativa de ausência, facultativa, pelo orientando."""
+
+    __tablename__ = "ata_orientacao"
+
+    ata_id = db.Column(db.Integer, db.ForeignKey("ata.id"), primary_key=True)
+    orientacao_id = db.Column(
+        db.Integer, db.ForeignKey("orientacao.id"), primary_key=True
+    )
+    presenca = db.Column(
+        db.Enum(*PRESENCAS, name="presenca_ata"), nullable=False, default="pendente"
+    )
+    presenca_registrada_em = db.Column(db.DateTime, nullable=True)
+    presenca_registrada_por = db.Column(
+        db.Integer, db.ForeignKey("usuario.id"), nullable=True
+    )
+    justificativa = db.Column(db.Text, nullable=True)
+    justificativa_em = db.Column(db.DateTime, nullable=True)
+
+    ata = db.relationship("Ata", back_populates="participacoes")
+    orientacao = db.relationship("Orientacao")
+    registrador = db.relationship("Usuario", foreign_keys=[presenca_registrada_por])
+
+    def __repr__(self) -> str:
+        return f"<AtaParticipacao ata={self.ata_id} orientacao={self.orientacao_id} {self.presenca}>"
 
 
 class Ata(db.Model):
@@ -32,6 +56,7 @@ class Ata(db.Model):
     )
     orientador_id = db.Column(db.Integer, db.ForeignKey("usuario.id"), nullable=False)
     data_reuniao = db.Column(db.Date, nullable=False)
+    hora_reuniao = db.Column(db.Time, nullable=True)
     pauta = db.Column(db.Text, nullable=False)
     deliberacoes = db.Column(db.Text, nullable=False)
     redigida_por = db.Column(db.Integer, db.ForeignKey("usuario.id"), nullable=False)
@@ -43,8 +68,14 @@ class Ata(db.Model):
         db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
     )
 
+    participacoes = db.relationship(
+        "AtaParticipacao", back_populates="ata", cascade="all, delete-orphan"
+    )
     orientacoes = db.relationship(
-        "Orientacao", secondary=ata_orientacao, back_populates="atas"
+        "Orientacao", secondary="ata_orientacao", viewonly=True
+    )
+    reagendamentos = db.relationship(
+        "Reagendamento", back_populates="ata", order_by="Reagendamento.registrado_em"
     )
     orientador = db.relationship("Usuario", foreign_keys=[orientador_id])
     redator = db.relationship("Usuario", foreign_keys=[redigida_por])
@@ -53,8 +84,37 @@ class Ata(db.Model):
     def imutavel(self) -> bool:
         return self.status == "finalizada"
 
+    def participacao_de(self, orientacao_id: int):
+        return next(
+            (p for p in self.participacoes if p.orientacao_id == orientacao_id), None
+        )
+
     def __repr__(self) -> str:
         return f"<Ata {self.id} {self.tipo} {self.status}>"
+
+
+class Reagendamento(db.Model):
+    """Histórico de reagendamentos de uma reunião (ata em rascunho)."""
+
+    __tablename__ = "reagendamento"
+
+    id = db.Column(db.Integer, primary_key=True)
+    ata_id = db.Column(db.Integer, db.ForeignKey("ata.id"), nullable=False)
+    data_anterior = db.Column(db.Date, nullable=False)
+    hora_anterior = db.Column(db.Time, nullable=True)
+    data_nova = db.Column(db.Date, nullable=False)
+    hora_nova = db.Column(db.Time, nullable=True)
+    motivo = db.Column(db.Text, nullable=True)
+    registrado_por = db.Column(db.Integer, db.ForeignKey("usuario.id"), nullable=False)
+    registrado_em = db.Column(
+        db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+
+    ata = db.relationship("Ata", back_populates="reagendamentos")
+    autor = db.relationship("Usuario", foreign_keys=[registrado_por])
+
+    def __repr__(self) -> str:
+        return f"<Reagendamento ata={self.ata_id} {self.data_anterior}→{self.data_nova}>"
 
 
 class Parecer(db.Model):
