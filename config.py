@@ -31,6 +31,10 @@ class TestingConfig(Config):
 class ProductionConfig(Config):
     DEBUG = False
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", "")
+    # Bancos servidor (PostgreSQL/MySQL) encerram conexões ociosas; sem isto a
+    # primeira requisição após o período de inatividade falharia com conexão
+    # morta. Inócuo em SQLite.
+    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True, "pool_recycle": 280}
     # em produção a aplicação fica atrás do proxy do PythonAnywhere, que
     # acrescenta o endereço do cliente a X-Forwarded-For; sem isto a auditoria
     # grava o IP interno do proxy (10.x.x.x) em vez da origem real
