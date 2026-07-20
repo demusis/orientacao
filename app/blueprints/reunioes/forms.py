@@ -20,12 +20,9 @@ class MultiCheckboxField(SelectMultipleField):
     option_widget = widgets.CheckboxInput()
 
 
-def _minimo_dois(form, field):
-    if len(field.data or []) < 2:
-        raise ValidationError(
-            "Selecione ao menos dois vínculos. Para reunião individual, "
-            "utilize o módulo do próprio vínculo."
-        )
+def _minimo_um(form, field):
+    if len(field.data or []) < 1:
+        raise ValidationError("Selecione ao menos um orientando.")
 
 
 class AtaGrupoForm(FlaskForm):
@@ -34,7 +31,7 @@ class AtaGrupoForm(FlaskForm):
     pauta = TextAreaField("Pauta", validators=[DataRequired()])
     deliberacoes = TextAreaField("Deliberações", validators=[DataRequired()])
     orientacoes = MultiCheckboxField(
-        "Orientandos presentes", coerce=int, validators=[_minimo_dois]
+        "Orientandos presentes (um ou mais)", coerce=int, validators=[_minimo_um]
     )
     submit = SubmitField("Salvar rascunho")
 
@@ -48,6 +45,6 @@ class MarcoGrupoForm(FlaskForm):
     data_prevista = DateField("Data prevista", validators=[DataRequired()])
     ordem = IntegerField("Ordem", default=0, validators=[Optional(), NumberRange(min=0)])
     orientacoes = MultiCheckboxField(
-        "Orientandos designados", coerce=int, validators=[_minimo_dois]
+        "Orientandos designados (um ou mais)", coerce=int, validators=[_minimo_um]
     )
-    submit = SubmitField("Criar tarefa em grupo")
+    submit = SubmitField("Criar tarefa")

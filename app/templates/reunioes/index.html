@@ -1,13 +1,16 @@
 {% extends "base.html" %}
 {% block title %}Reuniões em grupo — ARIADNE{% endblock %}
 {% block content %}
-<h1>Reuniões em grupo</h1>
-<p>Registre atas e atribua tarefas a vários orientandos de uma só vez.
+<h1>Reuniões</h1>
+<p>Registre atas e atribua tarefas selecionando um ou mais orientandos.
 Você possui {{ vinculos|length }} vínculo(s) ativo(s).</p>
 <p>
-  <a href="{{ url_for('reunioes.criar_ata_grupo') }}">+ Nova ata de reunião em grupo</a> ·
-  <a href="{{ url_for('reunioes.criar_tarefa_grupo') }}">+ Nova tarefa em grupo</a>
+  <a href="{{ url_for('reunioes.criar_ata_grupo') }}">+ Nova ata de reunião</a> ·
+  <a href="{{ url_for('reunioes.criar_tarefa_grupo') }}">+ Nova tarefa</a>
 </p>
+<p><small>Atas com um único orientando são registradas como reuniões individuais
+e ficam no módulo de atas do próprio vínculo; a tabela abaixo lista as
+reuniões em grupo.</small></p>
 
 <h2>Atas de reuniões em grupo</h2>
 <table>

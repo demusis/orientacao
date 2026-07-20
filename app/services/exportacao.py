@@ -1,7 +1,13 @@
 """Exportação assinável: PDF de atas finalizadas e pareceres, com identificador
 e hash de integridade verificável por rota pública. O PDF destina-se à
 assinatura eletrônica externa (gov.br/SEI); o hash permite conferir que o
-documento impresso corresponde ao registro interno."""
+documento impresso corresponde ao registro interno.
+
+O conteúdo impresso é congelado (JSON canônico em `conteudo_congelado`) na
+finalização da ata e na emissão do parecer: PDF e hash derivam desse snapshot,
+de modo que alterações externas posteriores (mudança de título do projeto,
+correção de nome) não invalidam documentos já assinados. A enumeração dos
+campos existe em um único ponto (dados_ata/dados_parecer)."""
 import hashlib
 import json
 from io import BytesIO
@@ -22,67 +28,125 @@ from reportlab.platypus import (
 from app.models import Ata, Parecer
 from app.models.ata import RESULTADO_LABEL
 
-def _texto(valor: str) -> "str":
+
+def _texto(valor: str) -> str:
     """Texto de usuário para Paragraph: escape XML (o paraparser do reportlab
-    interpreta '&'/'<' como marcação) e quebras de linha preservadas."""
+    interpreta '&'/'<' como marcação) e quebras de linha preservadas. Células
+    planas de Table não passam por paraparser e recebem o texto sem escape."""
     return escape(valor or "").replace("\n", "<br/>")
 
 
-def _sha256(partes) -> str:
+def _canonico(obj) -> str:
     """Serialização canônica por JSON: delimitação inequívoca de campos
     (imune a caracteres de controle no conteúdo) e estrutura aninhada estável."""
-    canonico = json.dumps(partes, ensure_ascii=False, separators=(",", ":"))
-    return hashlib.sha256(canonico.encode("utf-8")).hexdigest()
+    return json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
+
+
+def _sha256(obj) -> str:
+    return hashlib.sha256(_canonico(obj).encode("utf-8")).hexdigest()
+
+
+# ---------------------------------------------------------------------------
+# Enumeração única dos campos impressos
+
+
+def dados_ata(ata: Ata) -> dict:
+    """Todo o conteúdo impresso no PDF da ata, em estrutura serializável."""
+    return {
+        "registro": "ata",
+        "id": ata.id,
+        "tipo": ata.tipo,
+        "data_reuniao": str(ata.data_reuniao),
+        "hora_reuniao": ata.hora_reuniao.strftime("%H:%M") if ata.hora_reuniao else "",
+        "orientador": ata.orientador.nome,
+        "redator": ata.redator.nome,
+        "pauta": ata.pauta,
+        "deliberacoes": ata.deliberacoes,
+        "finalizada_em": (
+            ata.finalizada_em.strftime("%Y-%m-%d %H:%M") if ata.finalizada_em else ""
+        ),
+        "participacoes": [
+            {
+                "orientacao_id": p.orientacao_id,
+                "orientando": p.orientacao.orientando.nome,
+                "projeto": p.orientacao.titulo_projeto,
+                "presenca": p.presenca,
+            }
+            for p in sorted(ata.participacoes, key=lambda x: x.orientacao_id)
+        ],
+        "reagendamentos": [
+            {
+                "de": str(r.data_anterior),
+                "para": str(r.data_nova),
+                "motivo": r.motivo or "",
+                "registrado_em": r.registrado_em.strftime("%Y-%m-%d %H:%M"),
+            }
+            for r in ata.reagendamentos
+        ],
+    }
+
+
+def dados_parecer(parecer: Parecer) -> dict:
+    versao = parecer.versao_documento
+    return {
+        "registro": "parecer",
+        "id": parecer.id,
+        "tipo": parecer.tipo,
+        "resultado": parecer.resultado,
+        "orientacao_id": parecer.orientacao_id,
+        "projeto": parecer.orientacao.titulo_projeto,
+        "orientando": parecer.orientacao.orientando.nome,
+        "documento_avaliado": (
+            f"{versao.documento.titulo} (v{versao.numero_versao})" if versao else ""
+        ),
+        "emissor": parecer.emissor.nome,
+        "emitido_em": parecer.emitido_em.strftime("%Y-%m-%d %H:%M"),
+        "conteudo": parecer.conteudo,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Congelamento e hash
+
+
+def congelar_ata(ata: Ata) -> None:
+    """Chamado na finalização: fixa o conteúdo que o PDF e o hash usarão."""
+    ata.conteudo_congelado = _canonico(dados_ata(ata))
+
+
+def congelar_parecer(parecer: Parecer) -> None:
+    """Chamado na emissão (o parecer é imutável desde a criação)."""
+    parecer.conteudo_congelado = _canonico(dados_parecer(parecer))
+
+
+def _dados_vigentes_ata(ata: Ata) -> dict:
+    if ata.conteudo_congelado:
+        return json.loads(ata.conteudo_congelado)
+    return dados_ata(ata)
+
+
+def _dados_vigentes_parecer(parecer: Parecer) -> dict:
+    if parecer.conteudo_congelado:
+        return json.loads(parecer.conteudo_congelado)
+    return dados_parecer(parecer)
 
 
 def hash_ata(ata: Ata) -> str:
-    """Cobre TODO o conteúdo impresso no PDF: qualquer diferença visual entre
-    dois PDFs do mesmo registro implica hashes distintos."""
-    partes = [
-        "ata",
-        str(ata.id),
-        ata.tipo,
-        str(ata.data_reuniao),
-        str(ata.hora_reuniao or ""),
-        ata.orientador.nome,
-        ata.redator.nome,
-        ata.pauta,
-        ata.deliberacoes,
-        str(ata.finalizada_em or ""),
-        [
-            [
-                str(p.orientacao_id),
-                p.orientacao.orientando.nome,
-                p.orientacao.titulo_projeto,
-                p.presenca,
-            ]
-            for p in sorted(ata.participacoes, key=lambda x: x.orientacao_id)
-        ],
-        [
-            [str(r.data_anterior), str(r.data_nova), r.motivo or "", str(r.registrado_em)]
-            for r in ata.reagendamentos
-        ],
-    ]
-    return _sha256(partes)
+    """Hash do conteúdo congelado: cobre tudo o que o PDF imprime e permanece
+    estável a alterações externas posteriores à finalização."""
+    if ata.conteudo_congelado:
+        return hashlib.sha256(ata.conteudo_congelado.encode("utf-8")).hexdigest()
+    return _sha256(dados_ata(ata))
 
 
 def hash_parecer(parecer: Parecer) -> str:
-    versao = parecer.versao_documento
-    return _sha256(
-        [
-            "parecer",
-            str(parecer.id),
-            parecer.tipo,
-            parecer.resultado,
-            parecer.conteudo,
-            str(parecer.emitido_em),
-            str(parecer.orientacao_id),
-            parecer.orientacao.titulo_projeto,
-            parecer.orientacao.orientando.nome,
-            parecer.emissor.nome,
-            f"{versao.documento.titulo}|v{versao.numero_versao}" if versao else "",
-        ]
-    )
+    if parecer.conteudo_congelado:
+        return hashlib.sha256(parecer.conteudo_congelado.encode("utf-8")).hexdigest()
+    return _sha256(dados_parecer(parecer))
+
+
+# ---------------------------------------------------------------------------
+# Geração dos PDFs (renderiza o snapshot; escape apenas dentro de Paragraph)
 
 
 def _documento_base(buffer: BytesIO, titulo: str):
@@ -142,29 +206,23 @@ def _rodape_verificacao(estilos, tipo: str, reg_id: int, hash_hex: str, url_veri
 def gerar_pdf_ata(ata: Ata, url_verificacao: str) -> bytes:
     buffer = BytesIO()
     doc, estilos = _documento_base(buffer, f"ARIADNE — Ata {ata.id}")
+    d = _dados_vigentes_ata(ata)
     h = hash_ata(ata)
 
     fluxo = [
         Paragraph("ARIADNE — Ata de reunião de orientação", estilos["Title"]),
         _tabela(
             [
-                ["Identificador", f"ata-{ata.id}"],
-                ["Tipo de reunião", ata.tipo],
+                ["Identificador", f"ata-{d['id']}"],
+                ["Tipo de reunião", d["tipo"]],
                 [
                     "Data e hora",
-                    f"{ata.data_reuniao}"
-                    + (
-                        f" às {ata.hora_reuniao.strftime('%H:%M')}"
-                        if ata.hora_reuniao
-                        else ""
-                    ),
+                    d["data_reuniao"]
+                    + (f" às {d['hora_reuniao']}" if d["hora_reuniao"] else ""),
                 ],
-                ["Orientador responsável", _texto(ata.orientador.nome)],
-                ["Redigida por", _texto(ata.redator.nome)],
-                [
-                    "Finalizada em (UTC)",
-                    ata.finalizada_em.strftime("%Y-%m-%d %H:%M") if ata.finalizada_em else "—",
-                ],
+                ["Orientador responsável", d["orientador"]],
+                ["Redigida por", d["redator"]],
+                ["Finalizada em (UTC)", d["finalizada_em"] or "—"],
             ],
             larguras=[45 * mm, 115 * mm],
         ),
@@ -174,22 +232,22 @@ def gerar_pdf_ata(ata: Ata, url_verificacao: str) -> bytes:
             [["Orientando", "Projeto", "Presença"]]
             + [
                 [
-                    _texto(p.orientacao.orientando.nome),
-                    Paragraph(_texto(p.orientacao.titulo_projeto), estilos["BodyText"]),
-                    p.presenca,
+                    p["orientando"],
+                    Paragraph(_texto(p["projeto"]), estilos["BodyText"]),
+                    p["presenca"],
                 ]
-                for p in sorted(ata.participacoes, key=lambda x: x.orientacao_id)
+                for p in d["participacoes"]
             ],
             larguras=[50 * mm, 80 * mm, 30 * mm],
         ),
         Spacer(1, 5 * mm),
         Paragraph("Pauta", estilos["Heading2"]),
-        Paragraph(_texto(ata.pauta), estilos["BodyText"]),
+        Paragraph(_texto(d["pauta"]), estilos["BodyText"]),
         Spacer(1, 3 * mm),
         Paragraph("Deliberações", estilos["Heading2"]),
-        Paragraph(_texto(ata.deliberacoes), estilos["BodyText"]),
+        Paragraph(_texto(d["deliberacoes"]), estilos["BodyText"]),
     ]
-    if ata.reagendamentos:
+    if d["reagendamentos"]:
         fluxo += [
             Spacer(1, 5 * mm),
             Paragraph("Histórico de reagendamentos", estilos["Heading2"]),
@@ -197,17 +255,17 @@ def gerar_pdf_ata(ata: Ata, url_verificacao: str) -> bytes:
                 [["De", "Para", "Motivo", "Registrado em (UTC)"]]
                 + [
                     [
-                        str(r.data_anterior),
-                        str(r.data_nova),
-                        Paragraph(_texto(r.motivo or "—"), estilos["BodyText"]),
-                        r.registrado_em.strftime("%Y-%m-%d %H:%M"),
+                        r["de"],
+                        r["para"],
+                        Paragraph(_texto(r["motivo"] or "—"), estilos["BodyText"]),
+                        r["registrado_em"],
                     ]
-                    for r in ata.reagendamentos
+                    for r in d["reagendamentos"]
                 ],
                 larguras=[25 * mm, 25 * mm, 75 * mm, 35 * mm],
             ),
         ]
-    fluxo += _rodape_verificacao(estilos, "ata", ata.id, h, url_verificacao)
+    fluxo += _rodape_verificacao(estilos, "ata", d["id"], h, url_verificacao)
     doc.build(fluxo)
     return buffer.getvalue()
 
@@ -215,31 +273,33 @@ def gerar_pdf_ata(ata: Ata, url_verificacao: str) -> bytes:
 def gerar_pdf_parecer(parecer: Parecer, url_verificacao: str) -> bytes:
     buffer = BytesIO()
     doc, estilos = _documento_base(buffer, f"ARIADNE — Parecer {parecer.id}")
+    d = _dados_vigentes_parecer(parecer)
     h = hash_parecer(parecer)
 
-    versao = parecer.versao_documento
     fluxo = [
         Paragraph("ARIADNE — Parecer técnico", estilos["Title"]),
         _tabela(
             [
-                ["Identificador", f"parecer-{parecer.id}"],
-                ["Tipo", parecer.tipo],
-                ["Resultado", RESULTADO_LABEL[parecer.resultado]],
-                ["Projeto", _texto(parecer.orientacao.titulo_projeto)],
-                ["Orientando", _texto(parecer.orientacao.orientando.nome)],
+                ["Identificador", f"parecer-{d['id']}"],
+                ["Tipo", d["tipo"]],
+                ["Resultado", RESULTADO_LABEL[d["resultado"]]],
+                ["Projeto", Paragraph(_texto(d["projeto"]), estilos["BodyText"])],
+                ["Orientando", d["orientando"]],
                 [
                     "Documento avaliado",
-                    _texto(f"{versao.documento.titulo} (v{versao.numero_versao})") if versao else "—",
+                    Paragraph(
+                        _texto(d["documento_avaliado"] or "—"), estilos["BodyText"]
+                    ),
                 ],
-                ["Emitido por", _texto(parecer.emissor.nome)],
-                ["Emitido em (UTC)", parecer.emitido_em.strftime("%Y-%m-%d %H:%M")],
+                ["Emitido por", d["emissor"]],
+                ["Emitido em (UTC)", d["emitido_em"]],
             ],
             larguras=[45 * mm, 115 * mm],
         ),
         Spacer(1, 5 * mm),
         Paragraph("Parecer", estilos["Heading2"]),
-        Paragraph(_texto(parecer.conteudo), estilos["BodyText"]),
+        Paragraph(_texto(d["conteudo"]), estilos["BodyText"]),
     ]
-    fluxo += _rodape_verificacao(estilos, "parecer", parecer.id, h, url_verificacao)
+    fluxo += _rodape_verificacao(estilos, "parecer", d["id"], h, url_verificacao)
     doc.build(fluxo)
     return buffer.getvalue()

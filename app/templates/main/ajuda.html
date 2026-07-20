@@ -135,11 +135,12 @@
     <em>Confirmar conclusão</em>. Só então o status muda para <em>concluído</em>, com a
     data de conclusão registrada.</li>
   </ol>
-  <h3>5.2 Tarefa em grupo</h3>
-  <p>No menu <strong>Reuniões → + Nova tarefa em grupo</strong>, o orientador seleciona
-  dois ou mais orientandos e o sistema cria um marco idêntico no cronograma de cada um,
-  com selo <em>grupo</em>. O acompanhamento (sinalização, confirmação e atraso) é
-  <strong>individual</strong>: a conclusão de um orientando não afeta os demais.</p>
+  <h3>5.2 Tarefa para um ou mais orientandos</h3>
+  <p>No menu <strong>Reuniões → + Nova tarefa</strong>, o orientador seleciona um ou
+  mais orientandos e o sistema cria um marco idêntico no cronograma de cada um. Quando
+  há dois ou mais selecionados, os marcos recebem o selo <em>grupo</em>. O
+  acompanhamento (sinalização, confirmação e atraso) é <strong>individual</strong>: a
+  conclusão de um orientando não afeta os demais.</p>
   <h3>5.3 Atraso</h3>
   <p>Marco com data prevista vencida e não concluído recebe automaticamente o selo
   <em>atrasado</em> — na listagem e no alerta do Painel. O selo desaparece quando a
@@ -186,9 +187,11 @@
     {% if current_user.papel == 'orientador' %}<span class="badge badge-papel">seu papel</span>{% endif %}
   </h2>
   <p>As reuniões de orientação podem ser <strong>individuais</strong> (orientador e um
-  orientando, registradas dentro do próprio vínculo) ou <strong>em grupo</strong>
-  (orientador e dois ou mais de seus orientandos, registradas no menu
-  <strong>Reuniões → + Nova ata de reunião em grupo</strong>). A ata de grupo é um
+  orientando) ou <strong>em grupo</strong> (orientador e dois ou mais de seus
+  orientandos). O menu <strong>Reuniões → + Nova ata de reunião</strong> permite
+  selecionar um ou mais orientandos: com um único selecionado a ata é individual; com
+  dois ou mais, em grupo. A ata individual também pode ser registrada dentro do próprio
+  vínculo, em <em>Atas → + Nova ata</em>. A ata de grupo é um
   <strong>registro único compartilhado</strong>: todos os participantes visualizam a
   mesma ata em seus vínculos, com a lista de presentes. Em ambos os tipos, a ata
   formaliza-se em duas fases:</p>
@@ -287,11 +290,17 @@
     verificar o cadastro do vínculo.</dd>
 
     <dt>Qual a diferença entre reunião individual e em grupo?</dt>
-    <dd>A individual pertence a um único vínculo e é registrada dentro dele. A de grupo
-    reúne dois ou mais orientandos do mesmo orientador: a ata é única e compartilhada
-    entre os participantes, e a tarefa em grupo gera um marco idêntico no cronograma de
-    cada orientando, acompanhado individualmente. Ambas seguem as mesmas regras de
-    finalização e imutabilidade.</dd>
+    <dd>A individual pertence a um único vínculo. A de grupo reúne dois ou mais
+    orientandos do mesmo orientador: a ata é única e compartilhada entre os
+    participantes, e a tarefa em grupo gera um marco idêntico no cronograma de cada
+    orientando, acompanhado individualmente. O menu <em>Reuniões</em> aceita a seleção
+    de um ou mais orientandos e classifica a reunião automaticamente. Ambas seguem as
+    mesmas regras de finalização e imutabilidade.</dd>
+
+    <dt>Não encontro o menu Reuniões.</dt>
+    <dd>O menu <em>Reuniões</em> é exibido apenas para o papel <strong>orientador</strong>,
+    pois as reuniões partem dos vínculos ativos do próprio orientador. Administradores
+    registram atas pelo módulo de atas de cada vínculo.</dd>
 
     <dt>Por que não consigo excluir um usuário?</dt>
     <dd>A exclusão física é admitida apenas para contas sem qualquer registro no

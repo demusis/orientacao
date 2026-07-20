@@ -29,7 +29,11 @@ def downgrade():
     with op.batch_alter_table("ata_orientacao") as batch:
         batch.add_column(sa.Column("justificativa", sa.Text(), nullable=True))
         batch.add_column(sa.Column("justificativa_em", sa.DateTime(), nullable=True))
+    # a guarda evita violação da PK composta quando o orientador também consta
+    # da equipe (ex.: linha remanescente de um downgrade anterior interrompido)
     op.execute(
         "INSERT INTO orientacao_orientador (orientacao_id, usuario_id, funcao, designado_em) "
-        "SELECT id, orientador_id, 'principal', CURRENT_TIMESTAMP FROM orientacao"
+        "SELECT o.id, o.orientador_id, 'principal', CURRENT_TIMESTAMP FROM orientacao o "
+        "WHERE NOT EXISTS (SELECT 1 FROM orientacao_orientador oo "
+        "WHERE oo.orientacao_id = o.id AND oo.usuario_id = o.orientador_id)"
     )

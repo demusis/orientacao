@@ -145,8 +145,28 @@ def test_vinculo_de_outro_orientador_recusado(client, orientacao, orientacao2, o
     assert Marco.query.count() == 0
 
 
-def test_exige_ao_menos_dois_vinculos(client, orientacao, orientador):
+def test_exige_ao_menos_um_vinculo(client, orientacao, orientador):
+    login(client, "orientador@teste.br")
+    resp = _criar_ata_grupo(client, [])
+    assert "ao menos um orientando".encode() in resp.data
+    assert Ata.query.count() == 0
+
+
+def test_selecao_unica_gera_ata_individual(client, orientacao, orientador):
     login(client, "orientador@teste.br")
     resp = _criar_ata_grupo(client, [orientacao.id])
-    assert "ao menos dois vínculos".encode() in resp.data
-    assert Ata.query.count() == 0
+    assert resp.status_code == 200
+    ata = Ata.query.one()
+    assert ata.tipo == "individual"
+    assert {o.id for o in ata.orientacoes} == {orientacao.id}
+    assert LogAuditoria.query.filter_by(acao="criacao_ata").count() == 1
+
+
+def test_selecao_unica_gera_marco_sem_grupo(client, orientacao, orientador):
+    login(client, "orientador@teste.br")
+    resp = _criar_tarefa_grupo(client, [orientacao.id])
+    assert resp.status_code == 200
+    marco = Marco.query.one()
+    assert marco.orientacao_id == orientacao.id
+    assert marco.grupo_id is None
+    assert LogAuditoria.query.filter_by(acao="criacao_marco").count() == 1

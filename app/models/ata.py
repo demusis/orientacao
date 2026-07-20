@@ -63,6 +63,10 @@ class Ata(db.Model):
         db.Enum(*STATUS_ATA, name="status_ata"), nullable=False, default="rascunho"
     )
     finalizada_em = db.Column(db.DateTime, nullable=True)
+    # JSON canônico do conteúdo impresso, congelado na finalização; fonte única
+    # do PDF e do hash de integridade, estável a alterações externas posteriores
+    # (título do projeto, nomes)
+    conteudo_congelado = db.Column(db.Text, nullable=True)
     criada_em = db.Column(
         db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
     )
@@ -133,6 +137,8 @@ class Parecer(db.Model):
     emitido_em = db.Column(
         db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
     )
+    # congelado na emissão (o parecer é imutável desde a criação)
+    conteudo_congelado = db.Column(db.Text, nullable=True)
 
     orientacao = db.relationship("Orientacao", back_populates="pareceres")
     versao_documento = db.relationship("VersaoDocumento")

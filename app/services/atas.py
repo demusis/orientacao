@@ -31,6 +31,10 @@ def finalizar_ata(ata: Ata):
         raise AtaImutavel("Ata já finalizada.")
     ata.status = "finalizada"
     ata.finalizada_em = datetime.now(timezone.utc)
+    # congela o conteúdo impresso: PDF e hash passam a derivar do snapshot
+    from app.services.exportacao import congelar_ata
+
+    congelar_ata(ata)
     auditoria.registrar("finalizacao_ata", "ata", ata.id)
 
 

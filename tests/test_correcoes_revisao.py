@@ -1,6 +1,4 @@
-"""Testes das correções da revisão de código de 19/07/2026 (10 achados)."""
-from datetime import date
-
+"""Testes das correções das revisões de código de 19–20/07/2026."""
 from app.extensions import db
 from app.models import Ata, EventoVinculo, OrientacaoOrientador, Usuario
 
@@ -94,9 +92,12 @@ def test_pdf_com_caracteres_especiais(client, orientacao, orientador):
     assert resp.data.startswith(b"%PDF")
 
 
-# 3. hash cobre campos impressos mutáveis (título do projeto)
+# 3. conteúdo congelado na emissão: alteração externa posterior não invalida
+# o documento já assinável (PDF e hash derivam do snapshot)
 
-def test_mudanca_de_titulo_altera_hash_do_parecer(client, admin, orientacao, orientador):
+def test_mudanca_de_titulo_nao_invalida_parecer_emitido(client, admin, orientacao, orientador):
+    import json
+
     from app.services.exportacao import hash_parecer
 
     login(client, "orientador@teste.br")
@@ -112,7 +113,9 @@ def test_mudanca_de_titulo_altera_hash_do_parecer(client, admin, orientacao, ori
     from app.models import Parecer
 
     parecer = Parecer.query.one()
+    assert parecer.conteudo_congelado  # congelado na emissão
     h_antes = hash_parecer(parecer)
+    titulo_original = orientacao.titulo_projeto
 
     client.post("/auth/logout")
     login(client, "admin@teste.br")
@@ -124,38 +127,47 @@ def test_mudanca_de_titulo_altera_hash_do_parecer(client, admin, orientacao, ori
             "texto_novo": "Título Alterado",
         },
     )
-    assert hash_parecer(parecer) != h_antes  # PDF diferente => hash diferente
+    assert orientacao.titulo_projeto == "Título Alterado"
+    # hash estável: o PDF já emitido continua verificável
+    assert hash_parecer(parecer) == h_antes
+    # e o PDF continua imprimindo o título vigente na emissão
+    assert json.loads(parecer.conteudo_congelado)["projeto"] == titulo_original
+    resp = client.get(
+        f"/verificar/parecer/{parecer.id}/{h_antes}", follow_redirects=True
+    )
+    assert resp.status_code == 200
 
 
-# 4. separador sem ambiguidade de fronteira
-
-def test_hash_sem_colisao_por_deslocamento_de_fronteira(app, orientacao, orientador):
-    from app.models import AtaParticipacao
+def test_finalizacao_congela_conteudo_da_ata(client, orientacao, orientador):
     from app.services.exportacao import hash_ata
 
-    def criar(pauta, delib):
-        ata = Ata(
-            orientador_id=orientador.id,
-            data_reuniao=date(2026, 7, 20),
-            pauta=pauta,
-            deliberacoes=delib,
-            redigida_por=orientador.id,
-            participacoes=[AtaParticipacao(orientacao_id=orientacao.id)],
-        )
-        db.session.add(ata)
-        db.session.commit()
-        return ata
+    login(client, "orientador@teste.br")
+    client.post(
+        f"/orientacoes/{orientacao.id}/atas/nova",
+        data={"data_reuniao": "2026-07-20", "pauta": "P", "deliberacoes": "D"},
+    )
+    ata = Ata.query.one()
+    assert ata.conteudo_congelado is None  # rascunho ainda não congelado
+    client.post(f"/orientacoes/{orientacao.id}/atas/{ata.id}/finalizar")
+    assert ata.conteudo_congelado
+    h = hash_ata(ata)
 
-    a1 = criar("Pauta X", "A\x1fB")
-    a2 = criar("Pauta X\x1fA", "B")
-    # ids diferentes já divergem; comparação justa: mesmo id simulado
-    h1 = hash_ata(a1).replace(str(a1.id), "N", 1)
-    partes_iguais_exceto_conteudo = hash_ata(a2)
-    assert hash_ata(a1) != partes_iguais_exceto_conteudo
-    # e diretamente: o serializador distingue fronteiras
+    # correção de nome posterior à finalização não invalida o documento
+    orientador.nome = "Orientador A Corrigido"
+    db.session.commit()
+    assert hash_ata(ata) == h
+    resp = client.get(f"/orientacoes/{orientacao.id}/atas/{ata.id}/pdf")
+    assert resp.status_code == 200
+    assert resp.data.startswith(b"%PDF")
+
+
+# 4. serialização canônica sem ambiguidade de fronteira entre campos
+
+def test_hash_sem_colisao_por_deslocamento_de_fronteira(app):
     from app.services.exportacao import _sha256
 
     assert _sha256(["Pauta X", "A\x1fB"]) != _sha256(["Pauta X\x1fA", "B"])
+    assert _sha256({"a": "x|y", "b": ""}) != _sha256({"a": "x", "b": "y"})
 
 
 # 5. exclusão bloqueada para coorientador designado
@@ -173,7 +185,7 @@ def test_exclusao_bloqueada_para_coorientador_designado(client, admin, orientaca
 
 def test_encerrar_nao_oferece_suspensao(client, admin, orientacao):
     login(client, "admin@teste.br")
-    resp = client.post(
+    client.post(
         f"/admin/orientacoes/{orientacao.id}/encerrar",
         data={"status": "suspensa"},
         follow_redirects=True,

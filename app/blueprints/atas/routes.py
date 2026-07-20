@@ -33,27 +33,20 @@ def _ata_da_orientacao(orientacao, ata_id: int) -> Ata:
     return ata
 
 
-def _pode_editar_conteudo(ata: Ata) -> bool:
-    """Edição do texto da ata: admin, o orientador convocante ou quem integra a
-    equipe de TODOS os vínculos participantes. Coorientador de apenas um dos
-    vínculos de uma ata de grupo não controla o registro dos demais."""
+def _autorizacoes(ata: Ata) -> tuple[bool, set[int]]:
+    """Exame único dos vínculos participantes. Devolve (pode_editar, geríveis):
+    edição do texto cabe ao admin, ao orientador convocante ou a quem integra a
+    equipe de TODOS os vínculos; presença é assinalável por vínculo — todos,
+    para convocante e admin; apenas os próprios, para coorientadores."""
+    todos = {p.orientacao_id for p in ata.participacoes}
     if current_user.papel == "admin" or current_user.id == ata.orientador_id:
-        return True
-    return bool(ata.orientacoes) and all(
-        o.orienta(current_user) for o in ata.orientacoes
-    )
-
-
-def _orientacoes_geriveis(ata: Ata) -> set[int]:
-    """Vínculos cuja presença o usuário corrente pode assinalar: todos, para o
-    convocante e o admin; apenas os próprios, para coorientadores."""
-    if current_user.papel == "admin" or current_user.id == ata.orientador_id:
-        return {p.orientacao_id for p in ata.participacoes}
-    return {
+        return True, todos
+    geriveis = {
         p.orientacao_id
         for p in ata.participacoes
         if p.orientacao.orienta(current_user)
     }
+    return bool(todos) and geriveis == todos, geriveis
 
 
 @bp.route("/atas")
@@ -96,7 +89,8 @@ def criar_ata(orientacao_id: int):
 def detalhe_ata(orientacao_id: int, ata_id: int):
     orientacao = orientacao_autorizada(orientacao_id)
     ata = _ata_da_orientacao(orientacao, ata_id)
-    pode_editar = _pode_editar_conteudo(ata) and not ata.imutavel
+    pode_editar_base, geriveis = _autorizacoes(ata)
+    pode_editar = pode_editar_base and not ata.imutavel
 
     form = AtaEdicaoForm(obj=ata)
     finalizar_form = FinalizarAtaForm()
@@ -124,7 +118,7 @@ def detalhe_ata(orientacao_id: int, ata_id: int):
         form=form,
         finalizar_form=finalizar_form,
         pode_editar=pode_editar,
-        geriveis=_orientacoes_geriveis(ata),
+        geriveis=geriveis,
         pode_finalizar=current_user.id == ata.orientador_id
         or current_user.papel == "admin",
         acao_form=AcaoForm(),
@@ -172,7 +166,7 @@ def marcar_presenca(orientacao_id: int, ata_id: int, alvo_id: int, presenca: str
     if participacao is None:
         abort(404)
     # a autorização é sobre o vínculo-alvo, não sobre a ata como um todo
-    if alvo_id not in _orientacoes_geriveis(ata):
+    if alvo_id not in _autorizacoes(ata)[1]:
         abort(403)
     form = AcaoForm()
     if form.validate_on_submit():
@@ -303,6 +297,7 @@ def emitir_parecer(orientacao_id: int):
         )
         db.session.add(parecer)
         db.session.flush()
+        exportacao.congelar_parecer(parecer)
         auditoria.registrar(
             "emissao_parecer",
             "parecer",

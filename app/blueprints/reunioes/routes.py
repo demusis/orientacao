@@ -46,7 +46,9 @@ def criar_ata_grupo():
     if form.validate_on_submit():
         selecionadas = [o for o in vinculos if o.id in form.orientacoes.data]
         ata = Ata(
-            tipo="grupo",
+            # com um único orientando a reunião é individual; o registro fica
+            # idêntico ao criado pelo módulo do próprio vínculo
+            tipo="grupo" if len(selecionadas) > 1 else "individual",
             orientador_id=current_user.id,
             data_reuniao=form.data_reuniao.data,
             hora_reuniao=form.hora_reuniao.data,
@@ -60,15 +62,15 @@ def criar_ata_grupo():
         db.session.add(ata)
         db.session.flush()
         auditoria.registrar(
-            "criacao_ata_grupo",
+            "criacao_ata_grupo" if ata.tipo == "grupo" else "criacao_ata",
             "ata",
             ata.id,
             {"orientacoes": [o.id for o in selecionadas]},
         )
         db.session.commit()
         flash(
-            f"Ata de reunião em grupo registrada como rascunho "
-            f"({len(selecionadas)} vínculos).",
+            f"Ata de reunião registrada como rascunho "
+            f"({len(selecionadas)} vínculo(s)).",
             "success",
         )
         return redirect(url_for("reunioes.index"))
@@ -83,7 +85,8 @@ def criar_tarefa_grupo():
     form.orientacoes.choices = _choices(vinculos)
     if form.validate_on_submit():
         selecionadas = [o for o in vinculos if o.id in form.orientacoes.data]
-        grupo_id = uuid.uuid4().hex
+        # identificador de origem comum apenas quando a tarefa é coletiva
+        grupo_id = uuid.uuid4().hex if len(selecionadas) > 1 else None
         for orientacao in selecionadas:
             marco = Marco(
                 orientacao_id=orientacao.id,
@@ -96,7 +99,7 @@ def criar_tarefa_grupo():
             )
             db.session.add(marco)
         auditoria.registrar(
-            "criacao_marco_grupo",
+            "criacao_marco_grupo" if grupo_id else "criacao_marco",
             "marco",
             None,
             {
@@ -107,7 +110,7 @@ def criar_tarefa_grupo():
         )
         db.session.commit()
         flash(
-            f"Tarefa atribuída a {len(selecionadas)} orientandos "
+            f"Tarefa atribuída a {len(selecionadas)} orientando(s) "
             f"(um marco por cronograma).",
             "success",
         )

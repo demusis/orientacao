@@ -3,12 +3,12 @@
 {% block title %}Nova tarefa em grupo — ARIADNE{% endblock %}
 {% block content %}
 <div class="card">
-  <h1>Nova tarefa em grupo</h1>
-  <p><small>Será criado um marco idêntico no cronograma de cada orientando
-  selecionado, com acompanhamento individual.</small></p>
-  {% if vinculos|length < 2 %}
-  <p class="flash flash-warning">São necessários ao menos dois vínculos ativos para
-  atribuir tarefa em grupo.</p>
+  <h1>Nova tarefa</h1>
+  <p><small>Selecione um ou mais orientandos: será criado um marco idêntico no
+  cronograma de cada um, com acompanhamento individual.</small></p>
+  {% if not vinculos %}
+  <p class="flash flash-warning">É necessário ao menos um vínculo ativo para
+  atribuir tarefa.</p>
   {% endif %}
   {{ render_form(form) }}
 </div>

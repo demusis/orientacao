@@ -3,10 +3,12 @@
 {% block title %}Nova ata de grupo — ARIADNE{% endblock %}
 {% block content %}
 <div class="card">
-  <h1>Nova ata de reunião em grupo</h1>
-  {% if vinculos|length < 2 %}
-  <p class="flash flash-warning">São necessários ao menos dois vínculos ativos para
-  registrar reunião em grupo.</p>
+  <h1>Nova ata de reunião</h1>
+  <p><small>Selecione um ou mais orientandos. Com um único selecionado, a ata é
+  registrada como reunião individual do vínculo correspondente.</small></p>
+  {% if not vinculos %}
+  <p class="flash flash-warning">É necessário ao menos um vínculo ativo para
+  registrar reunião.</p>
   {% endif %}
   {{ render_form(form) }}
 </div>
