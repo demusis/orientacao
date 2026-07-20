@@ -117,7 +117,21 @@
   vínculo — ambos preservam o histórico. A exclusão física, pelo administrador, continua
   admitida apenas para contas sem qualquer registro (marco, documento, ata ou parecer);
   nesse caso o vínculo ainda vazio é removido junto.</p>
-  <h3>4.4 Quem altera o quê no vínculo</h3>
+  <h3>4.4 Backup, restauração e expurgo</h3>
+  <p>No menu <strong>Backup</strong>, o administrador dispõe de três operações. A
+  primeira, <em>gerar backup</em>, produz um arquivo <code>.zip</code> com todos os dados
+  e os arquivos enviados; guarde-o com cuidado, pois contém dados pessoais e senhas
+  cifradas. As outras duas são <strong>destrutivas e sem desfazer</strong>, e por isso
+  exigem digitar uma palavra de confirmação — não basta clicar.</p>
+  <p><em>Restaurar backup</em> substitui integralmente o conteúdo atual pelo do arquivo
+  enviado. É recusada se o backup tiver sido gerado sob outra versão da estrutura do
+  banco. Caso a conta de quem restaura não conste do arquivo, ela é preservada, para que
+  o sistema não fique sem administrador.</p>
+  <p><em>Apagar a base</em> remove todo o conteúdo — inclusive a trilha de auditoria —
+  preservando apenas a conta de quem executa. Um único registro novo documenta o ato, com
+  data, autor e quantidade removida de cada tipo; o histórico anterior não é recuperável.
+  Gere um backup antes.</p>
+  <h3>4.5 Quem altera o quê no vínculo</h3>
   <p>O <strong>orientador</strong> altera o <strong>título do projeto</strong>, pelo
   botão <em>Alterar título do projeto</em> na página da orientação. A alteração exige
   fundamentação e fica registrada como evento do vínculo, preservando o título anterior.</p>

@@ -1,4 +1,5 @@
 from flask_wtf import FlaskForm
+from flask_wtf.file import FileField, FileRequired
 from wtforms import (
     BooleanField,
     DateField,
@@ -99,6 +100,44 @@ class ExcluirForm(FlaskForm):
     """Exclusão de conta — privativa do administrador."""
 
     submit = SubmitField("Excluir")
+
+
+class GerarBackupForm(FlaskForm):
+    submit = SubmitField("Gerar e baixar backup")
+
+
+class _ConfirmacaoEscrita(FlaskForm):
+    """Operações irreversíveis exigem digitar a palavra, não apenas clicar: o
+    clique acidental é comum, a digitação deliberada não. Cada formulário
+    declara o campo `confirmacao` na posição que lhe convém — herdá-lo daqui o
+    colocaria antes dos demais, invertendo a ordem de leitura."""
+
+    PALAVRA = ""
+
+    def validate_confirmacao(self, field):
+        if field.data.strip().upper() != self.PALAVRA:
+            raise ValidationError(
+                f'Para prosseguir, digite exatamente "{self.PALAVRA}".'
+            )
+
+
+class RestaurarBackupForm(_ConfirmacaoEscrita):
+    PALAVRA = "RESTAURAR"
+
+    arquivo = FileField("Arquivo de backup (.zip)", validators=[FileRequired()])
+    confirmacao = StringField(
+        'Digite "RESTAURAR" para confirmar', validators=[DataRequired()]
+    )
+    submit = SubmitField("Restaurar backup")
+
+
+class ExpurgarBaseForm(_ConfirmacaoEscrita):
+    PALAVRA = "APAGAR"
+
+    confirmacao = StringField(
+        'Digite "APAGAR" para confirmar', validators=[DataRequired()]
+    )
+    submit = SubmitField("Apagar a base")
 
 
 class FiltroAuditoriaForm(FlaskForm):

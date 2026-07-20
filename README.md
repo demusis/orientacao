@@ -187,7 +187,7 @@ Mantenha o arquivo SQLite anterior como cópia de segurança até concluir a ver
 ### Observações
 
 - Em produção, `SQLALCHEMY_ENGINE_OPTIONS` já define `pool_pre_ping` e `pool_recycle`: bancos servidor encerram conexões ociosas, e sem isso a primeira requisição após um período de inatividade falharia.
-- A rotina de backup deve cobrir **banco e diretório de uploads**; um sem o outro não restaura o sistema.
+- A rotina de backup deve cobrir **banco e diretório de uploads**; um sem o outro não restaura o sistema. O menu **Backup** da aplicação já produz um pacote com ambos (ver adiante).
 
 ## Deploy (PythonAnywhere)
 
@@ -209,6 +209,31 @@ touch /var/www/<usuario>_pythonanywhere_com_wsgi.py
 O botão *Reload* do painel é intermitente; tocar o arquivo WSGI é o gatilho confiável. O reinício demora alguns segundos — confirme em `/var/log/<dominio>.server.log`, que registra `Starting uWSGI` e `WSGI app 0 ... ready` com horário, antes de testar. Verificar apenas o CSS servido induz a erro: arquivos estáticos vêm do disco e mudam sem reload, enquanto os templates só mudam depois dele.
 
 Ressalvas do plano gratuito: MySQL indisponível e o site expira mensalmente sem o clique em "Run until 1 month from today".
+
+## Backup, restauração e expurgo
+
+O menu **Backup**, privativo do administrador, oferece três operações.
+
+**Gerar backup** produz um `.zip` com os dados de todas as tabelas em JSON, os arquivos
+enviados e um manifesto com a revisão do esquema e as contagens. O formato é portátil:
+permanece restaurável após a migração para PostgreSQL. O arquivo contém dados pessoais e
+hashes de senha — trate-o como o próprio banco.
+
+**Restaurar backup** substitui integralmente o conteúdo atual. É recusada, antes de tocar
+nos dados, se o pacote não trouxer manifesto, se o formato for de outra versão, se
+faltarem tabelas ou se a revisão do esquema divergir da aplicada ao banco. Se a conta de
+quem restaura não constar do arquivo, ela é preservada, de modo que o operador não fique
+sem acesso. Arquivos com nome fora do padrão `<uuid>.<ext>` são descartados, o que fecha
+a porta a travessia de caminho no ZIP. O tamanho do envio é limitado por
+`MAX_CONTENT_LENGTH` (20 MB por padrão).
+
+**Apagar a base** remove todo o conteúdo, inclusive a trilha de auditoria, preservando
+apenas a conta de quem executa. Um único registro novo documenta o expurgo com autor,
+data e quantidade removida por tabela. As duas operações destrutivas exigem digitar uma
+palavra de confirmação (`RESTAURAR` e `APAGAR`), não apenas um clique.
+
+Para backup por linha de comando, fora da aplicação, use `scripts/migrar_banco.py`
+apontando a origem para o banco em uso e o destino para um arquivo novo.
 
 ## Ciclo de avaliação
 

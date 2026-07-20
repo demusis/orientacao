@@ -1,5 +1,13 @@
-from flask import abort, flash, redirect, render_template, request, url_for
-from flask_login import current_user
+from flask import (
+    Response,
+    abort,
+    flash,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
+from flask_login import current_user, login_user
 
 from app.blueprints.admin import bp
 from app.blueprints.admin.forms import (
@@ -8,8 +16,11 @@ from app.blueprints.admin.forms import (
     EncerrarOrientacaoForm,
     EventoVinculoForm,
     ExcluirForm,
+    ExpurgarBaseForm,
     FiltroAuditoriaForm,
+    GerarBackupForm,
     OrientacaoForm,
+    RestaurarBackupForm,
     RemoverForm,
     UsuarioForm,
 )
@@ -330,6 +341,97 @@ def eventos_orientacao(orientacao_id: int):
     return render_template(
         "admin/eventos.html", orientacao=orientacao, form=form
     )
+
+
+@bp.route("/backup", methods=["GET"])
+@role_required("admin")
+def backup():
+    from app.services.backup import ORDEM_TABELAS, _contagens
+
+    return render_template(
+        "admin/backup.html",
+        contagens=_contagens(),
+        tabelas=ORDEM_TABELAS,
+        gerar_form=GerarBackupForm(),
+        restaurar_form=RestaurarBackupForm(),
+        expurgar_form=ExpurgarBaseForm(),
+    )
+
+
+@bp.route("/backup/gerar", methods=["POST"])
+@role_required("admin")
+def gerar_backup():
+    from app.services import backup as servico
+
+    form = GerarBackupForm()
+    if not form.validate_on_submit():
+        return redirect(url_for("admin.backup"))
+    nome, conteudo = servico.gerar()
+    auditoria.registrar("geracao_backup", "sistema", None, {"arquivo": nome})
+    db.session.commit()
+    return Response(
+        conteudo,
+        mimetype="application/zip",
+        headers={"Content-Disposition": f"attachment; filename={nome}"},
+    )
+
+
+@bp.route("/backup/restaurar", methods=["POST"])
+@role_required("admin")
+def restaurar_backup():
+    from app.services import backup as servico
+
+    form = RestaurarBackupForm()
+    if form.validate_on_submit():
+        try:
+            resumo = servico.restaurar(form.arquivo.data, current_user)
+            # a sessão apontava para uma linha que deixou de existir; reautentica
+            # com o registro vigente antes de auditar e seguir
+            reingresso = Usuario.query.filter_by(
+                email=resumo["email_executor"]
+            ).one()
+            login_user(reingresso)
+            auditoria.registrar("restauracao_backup", "sistema", None, resumo)
+            db.session.commit()
+            aviso = (
+                " Sua conta foi preservada por não constar do backup."
+                if resumo["executor_preservado"]
+                else ""
+            )
+            flash(
+                f"Backup restaurado: {sum(resumo['contagens'].values())} registro(s) e "
+                f"{resumo['arquivos']} arquivo(s).{aviso}",
+                "success",
+            )
+        except servico.BackupInvalido as exc:
+            db.session.rollback()
+            flash(f"Restauração recusada: {exc}", "danger")
+        return redirect(url_for("admin.backup"))
+    for erros in form.errors.values():
+        for erro in erros:
+            flash(erro, "danger")
+    return redirect(url_for("admin.backup"))
+
+
+@bp.route("/backup/expurgar", methods=["POST"])
+@role_required("admin")
+def expurgar_base():
+    from app.services import backup as servico
+
+    form = ExpurgarBaseForm()
+    if form.validate_on_submit():
+        removidos = servico.expurgar(current_user)
+        db.session.commit()
+        flash(
+            f"Base apagada: {sum(removidos.values())} registro(s) removido(s). "
+            "Apenas a sua conta foi preservada.",
+            "success",
+        )
+        return redirect(url_for("admin.backup"))
+    for erros in form.errors.values():
+        for erro in erros:
+            flash(erro, "danger")
+    return redirect(url_for("admin.backup"))
 
 
 LIMITE_AUDITORIA = 20

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_form %}
+{% block title %}Backup e restauração — ARIADNE{% endblock %}
+{% block content %}
+<h1>Backup, restauração e expurgo</h1>
+
+<div class="card">
+  <h2>Conteúdo atual da base</h2>
+  <table>
+    <tr><th>Tabela</th><th>Registros</th></tr>
+    {% for t in tabelas %}
+    <tr><td>{{ t }}</td><td>{{ contagens[t] }}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="card">
+  <h2>1. Gerar backup</h2>
+  <p>Produz um arquivo <code>.zip</code> com os dados de todas as tabelas em JSON e os
+  arquivos enviados pelos orientandos. O formato é portátil: permanece restaurável caso
+  o banco seja migrado para PostgreSQL.</p>
+  <p class="flash flash-warning">O arquivo contém <strong>dados pessoais e hashes de
+  senha</strong>. Guarde-o com o mesmo cuidado que daria ao próprio banco: não o deixe
+  em pasta compartilhada nem o envie por canal aberto.</p>
+  <form method="post" action="{{ url_for('admin.gerar_backup') }}">
+    {{ gerar_form.hidden_tag() }}
+    {{ gerar_form.submit() }}
+  </form>
+</div>
+
+<div class="card">
+  <h2>2. Restaurar backup</h2>
+  <p class="flash flash-danger"><strong>Operação destrutiva.</strong> Todo o conteúdo
+  atual — vínculos, marcos, documentos, atas, pareceres e a trilha de auditoria — é
+  substituído pelo do arquivo enviado. Não há desfazer. Gere um backup do estado atual
+  antes de prosseguir.</p>
+  <p>A restauração é recusada se o backup tiver sido gerado sob outra versão do esquema
+  do banco, para não gravar dados sobre uma estrutura incompatível.
+  {% if current_user.is_authenticated %}Se a sua conta não constar do arquivo, ela será
+  preservada, de modo que você não fique sem acesso.{% endif %}</p>
+  {{ render_form(restaurar_form, action=url_for('admin.restaurar_backup'),
+                 enctype='multipart/form-data') }}
+  <p><small>Digite <strong>RESTAURAR</strong> no campo de confirmação. O tamanho do
+  arquivo é limitado pela configuração de envio da aplicação (20 MB por padrão).</small></p>
+</div>
+
+<div class="card">
+  <h2>3. Apagar a base</h2>
+  <p class="flash flash-danger"><strong>Operação destrutiva e irreversível.</strong>
+  Remove todos os usuários, vínculos, marcos, documentos, atas, pareceres, arquivos
+  enviados e a trilha de auditoria. Preserva <strong>apenas a sua conta</strong>
+  ({{ current_user.email }}), para que o sistema não fique sem administrador.</p>
+  <p>Um único registro novo de auditoria documenta o expurgo, com a data, o seu
+  identificador e a quantidade removida de cada tipo. O histórico anterior não é
+  recuperável — restaure um backup se precisar dele de volta.</p>
+  {{ render_form(expurgar_form, action=url_for('admin.expurgar_base')) }}
+  <p><small>Digite <strong>APAGAR</strong> no campo de confirmação.</small></p>
+</div>
+{% endblock %}
