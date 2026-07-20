@@ -210,6 +210,31 @@ O botão *Reload* do painel é intermitente; tocar o arquivo WSGI é o gatilho c
 
 Ressalvas do plano gratuito: MySQL indisponível e o site expira mensalmente sem o clique em "Run until 1 month from today".
 
+## Ciclo de avaliação
+
+O sistema tem um procedimento próprio de avaliação periódica, acionado sob demanda pelo
+comando `/avaliar` (definido em `.claude/commands/avaliar.md`). Ele examina três
+dimensões — **operação** (o que mantém o sistema no ar), **uso** (o que as pessoas de
+fato fazem) e **funcionalidade** (o que falta) — e produz uma proposta priorizada. O
+comando **não altera a aplicação**: toda mudança depende de aprovação item a item.
+
+A evidência de uso vem de `flask indicadores`, que agrega adesão, vínculos, fluxo de
+marcos, documentos, atas e trilha de auditoria:
+
+```bash
+flask indicadores                 # legível
+flask indicadores --json --dias 30
+```
+
+Os indicadores são **agregados**: contam quantos, não registram quem fez o quê. Leituras
+individuais permanecem fora da auditoria por decisão registrada em
+`avaliacoes/DECISOES.md`.
+
+Cada ciclo grava `avaliacoes/AAAA-MM-DD.md`, com um anexo em JSON do snapshot dos
+indicadores — é o que permite ao ciclo seguinte afirmar se algo melhorou. As decisões
+tomadas sobre cada achado ficam em `avaliacoes/DECISOES.md`, o que impede que um item já
+recusado seja reproposto indefinidamente.
+
 ## Segurança e operação
 
 - Trilha de auditoria *append-only*: a aplicação não expõe alteração nem exclusão de registros.

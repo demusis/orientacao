@@ -83,6 +83,27 @@ def register_cli(app: Flask) -> None:
         db.session.commit()
         click.echo(f"Administrador {email} criado.")
 
+    @app.cli.command("indicadores")
+    @click.option("--dias", default=30, help="Janela de análise da trilha, em dias.")
+    @click.option("--json", "como_json", is_flag=True, help="Saída em JSON.")
+    def indicadores(dias: int, como_json: bool):
+        """Indicadores agregados de uso, para o ciclo de avaliação."""
+        import json as _json
+
+        from app.services.indicadores import coletar
+
+        dados = coletar(dias)
+        if como_json:
+            click.echo(_json.dumps(dados, ensure_ascii=False, indent=2, default=str))
+            return
+        for secao, conteudo in dados.items():
+            if not isinstance(conteudo, dict):
+                click.echo(f"{secao}: {conteudo}")
+                continue
+            click.echo(f"\n[{secao}]")
+            for chave, valor in conteudo.items():
+                click.echo(f"  {chave}: {valor}")
+
 
 def register_template_globals(app: Flask) -> None:
     from app.models.orientacao import MODALIDADE_LABEL, TIPO_EVENTO_LABEL

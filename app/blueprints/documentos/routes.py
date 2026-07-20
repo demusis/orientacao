@@ -87,10 +87,11 @@ def detalhe(orientacao_id: int, documento_id: int):
             db.session.rollback()
             flash(str(exc), "danger")
         else:
+            db.session.flush()  # o id da versão é o que correlaciona log e registro
             auditoria.registrar(
                 "nova_versao_documento",
                 "versao_documento",
-                None,
+                versao.id,
                 {"documento_id": documento.id, "versao": versao.numero_versao},
             )
             db.session.commit()

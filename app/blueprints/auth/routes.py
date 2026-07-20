@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from urllib.parse import urlparse
@@ -25,6 +27,7 @@ def login():
             flash("Conta desativada. Contate o administrador.", "danger")
             return render_template("auth/login.html", form=form), 403
         login_user(usuario, remember=form.lembrar.data)
+        usuario.ultimo_acesso = datetime.now(timezone.utc)
         auditoria.registrar("login", "usuario", usuario.id)
         db.session.commit()
         destino = request.args.get("next", "")

@@ -17,6 +17,19 @@ def test_login_invalido_retorna_401_e_audita(client, app, orientador):
     assert LogAuditoria.query.filter_by(acao="login_falho").count() == 1
 
 
+def test_login_registra_ultimo_acesso(client, orientador):
+    """Base da medição de adesão: só o acesso bem-sucedido marca a conta."""
+    assert orientador.ultimo_acesso is None
+
+    client.post(
+        "/auth/login", data={"email": "orientador@teste.br", "senha": "errada"}
+    )
+    assert orientador.ultimo_acesso is None  # tentativa falha não conta
+
+    login(client, "orientador@teste.br")
+    assert orientador.ultimo_acesso is not None
+
+
 def test_usuario_inativo_nao_autentica(client, app, orientador):
     orientador.ativo = False
     from app.extensions import db

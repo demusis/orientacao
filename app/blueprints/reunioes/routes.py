@@ -88,6 +88,7 @@ def criar_tarefa_grupo():
         selecionadas = [o for o in vinculos if o.id in form.orientacoes.data]
         # identificador de origem comum apenas quando a tarefa é coletiva
         grupo_id = uuid.uuid4().hex if len(selecionadas) > 1 else None
+        criados = []
         for orientacao in selecionadas:
             marco = Marco(
                 orientacao_id=orientacao.id,
@@ -99,13 +100,18 @@ def criar_tarefa_grupo():
                 grupo_id=grupo_id,
             )
             db.session.add(marco)
+            criados.append(marco)
+        # um registro para N marcos: entidade_id fica no primeiro e a lista
+        # completa nos dados, para que o log seja correlacionável
+        db.session.flush()
         auditoria.registrar(
             "criacao_marco_grupo" if grupo_id else "criacao_marco",
             "marco",
-            None,
+            criados[0].id if criados else None,
             {
                 "grupo_id": grupo_id,
                 "titulo": form.titulo.data,
+                "marcos": [m.id for m in criados],
                 "orientacoes": [o.id for o in selecionadas],
             },
         )

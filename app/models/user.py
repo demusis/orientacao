@@ -21,6 +21,10 @@ class Usuario(UserMixin, db.Model):
         db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
     )
     criado_por = db.Column(db.Integer, db.ForeignKey("usuario.id"), nullable=True)
+    # Registro do último login bem-sucedido. Serve à medição agregada de adesão
+    # (contas ociosas, nunca acessadas); não registra o que a pessoa fez —
+    # leituras permanecem fora da auditoria por decisão de 20/07/2026.
+    ultimo_acesso = db.Column(db.DateTime, nullable=True)
 
     orientacoes_como_orientador = db.relationship(
         "Orientacao",
