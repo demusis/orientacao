@@ -1,17 +1,14 @@
-from flask import abort, flash, redirect, render_template, url_for
+from flask import flash, redirect, render_template, url_for
 from flask_login import current_user
 
 from app.blueprints.orientandos import bp
-from app.blueprints.orientandos.forms import ExcluirForm, OrientandoForm
+from app.blueprints.orientandos.forms import OrientandoForm
 from app.extensions import db
 from app.models import Orientacao, Usuario
 from app.services.rbac import role_required
 from app.services.usuarios import (
     GestaoUsuarioInvalida,
     criar_orientando_com_vinculo,
-    excluir_usuario,
-    motivo_bloqueio_exclusao,
-    vinculos_descartaveis,
 )
 
 
@@ -29,12 +26,6 @@ def _meus_orientandos():
 @role_required("orientador")
 def listar():
     orientandos = _meus_orientandos()
-    excluiveis = {
-        u.id
-        for u in orientandos
-        if u.criado_por == current_user.id
-        and motivo_bloqueio_exclusao(u, vinculos_descartaveis(u, current_user)) is None
-    }
     vinculos = {
         o.orientando_id: o
         for o in Orientacao.query.filter_by(
@@ -42,11 +33,7 @@ def listar():
         )
     }
     return render_template(
-        "orientandos/listar.html",
-        orientandos=orientandos,
-        excluiveis=excluiveis,
-        vinculos=vinculos,
-        excluir_form=ExcluirForm(),
+        "orientandos/listar.html", orientandos=orientandos, vinculos=vinculos
     )
 
 
@@ -77,22 +64,6 @@ def criar():
     return render_template("orientandos/form.html", form=form)
 
 
-@bp.route("/<int:usuario_id>/excluir", methods=["POST"])
-@role_required("orientador")
-def excluir(usuario_id: int):
-    usuario = db.session.get(Usuario, usuario_id) or abort(404)
-    # orientador só exclui contas de orientando que ele próprio criou
-    if usuario.papel != "orientando" or usuario.criado_por != current_user.id:
-        abort(403)
-    form = ExcluirForm()
-    if form.validate_on_submit():
-        try:
-            excluir_usuario(
-                usuario, current_user, vinculos_descartaveis(usuario, current_user)
-            )
-            db.session.commit()
-            flash("Conta de orientando e respectivo vínculo excluídos.", "success")
-        except GestaoUsuarioInvalida as exc:
-            db.session.commit()  # persiste o log da recusa
-            flash(str(exc), "danger")
-    return redirect(url_for("orientandos.listar"))
+# Exclusão e desativação de contas competem exclusivamente ao administrador
+# (decisão de 20/07/2026): o orientador cria a conta e o vínculo, mas não os
+# remove. A rota de exclusão que existia aqui foi retirada.

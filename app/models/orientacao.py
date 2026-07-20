@@ -44,7 +44,12 @@ class Orientacao(db.Model):
         back_populates="orientacoes_como_orientando",
     )
     marcos = db.relationship(
-        "Marco", back_populates="orientacao", order_by="Marco.ordem", lazy="dynamic"
+        "Marco",
+        back_populates="orientacao",
+        # etapa isolada empata com frequência (vários marcos por fase); data e
+        # id garantem ordem estável na listagem
+        order_by="Marco.etapa, Marco.data_prevista, Marco.id",
+        lazy="dynamic",
     )
     documentos = db.relationship("Documento", back_populates="orientacao", lazy="dynamic")
     atas = db.relationship(

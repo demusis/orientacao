@@ -4,13 +4,12 @@
 <h1>Meus orientandos</h1>
 <p><a href="{{ url_for('orientandos.criar') }}">+ Novo orientando</a></p>
 <p><small>Ao criar um orientando, o vínculo de orientação é atribuído a você
-automaticamente. A exclusão só é possível para contas criadas por você e ainda
-sem histórico — nesse caso o vínculo é removido junto. Havendo qualquer
-registro (marco, documento, ata ou parecer), solicite a desativação ao
-administrador, que preserva o histórico.</small></p>
+automaticamente. A desativação e a exclusão de contas competem ao
+administrador; para encerrar um acompanhamento, solicite a ele a desativação da
+conta ou o encerramento do vínculo, que preservam o histórico.</small></p>
 <table>
   <tr>
-    <th>Nome</th><th>E-mail</th><th>Projeto</th><th>Ativo</th><th></th>
+    <th>Nome</th><th>E-mail</th><th>Projeto</th><th>Ativo</th>
   </tr>
   {% for u in orientandos %}
   <tr>
@@ -26,17 +25,9 @@ administrador, que preserva o histórico.</small></p>
       {% endif %}
     </td>
     <td>{{ 'sim' if u.ativo else 'não' }}</td>
-    <td class="acoes">
-      {% if u.id in excluiveis %}
-      <form method="post" action="{{ url_for('orientandos.excluir', usuario_id=u.id) }}">
-        {{ excluir_form.hidden_tag() }}
-        <button type="submit" class="link">Excluir</button>
-      </form>
-      {% endif %}
-    </td>
   </tr>
   {% else %}
-  <tr><td colspan="5">Nenhum orientando vinculado ou criado por você.</td></tr>
+  <tr><td colspan="4">Nenhum orientando vinculado ou criado por você.</td></tr>
   {% endfor %}
 </table>
 {% endblock %}

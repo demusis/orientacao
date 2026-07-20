@@ -7,6 +7,7 @@ from app.blueprints.reunioes import bp
 from app.blueprints.reunioes.forms import AtaGrupoForm, MarcoGrupoForm
 from app.extensions import db
 from app.models import Ata, AtaParticipacao, Marco, Orientacao
+from app.models.cronograma import tipo_do_marco
 from app.services import auditoria
 from app.services.rbac import role_required
 
@@ -91,10 +92,10 @@ def criar_tarefa_grupo():
             marco = Marco(
                 orientacao_id=orientacao.id,
                 titulo=form.titulo.data,
-                tipo=form.tipo.data,
+                tipo=tipo_do_marco(form.tipo.data, form.etapa.data),
                 descricao=form.descricao.data,
                 data_prevista=form.data_prevista.data,
-                ordem=form.ordem.data or 0,
+                etapa=form.etapa.data,
                 grupo_id=grupo_id,
             )
             db.session.add(marco)

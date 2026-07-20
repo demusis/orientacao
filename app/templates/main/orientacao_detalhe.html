@@ -3,6 +3,9 @@
 {% block content %}
 <h1>{{ orientacao.titulo_projeto }}</h1>
 <div class="card">
+  {% if pode_alterar_titulo %}
+  <p><a href="{{ url_for('main.alterar_titulo', orientacao_id=orientacao.id) }}">Alterar título do projeto</a></p>
+  {% endif %}
   <p><strong>Modalidade:</strong> {{ MODALIDADE_LABEL[orientacao.modalidade] }} |
      <strong>Status:</strong> {{ orientacao.status }}</p>
   <p><strong>Orientador:</strong> {{ orientacao.orientador.nome }}

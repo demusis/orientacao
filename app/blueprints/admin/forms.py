@@ -8,7 +8,13 @@ from wtforms import (
     SubmitField,
     TextAreaField,
 )
-from wtforms.validators import DataRequired, Email, Length, Optional
+from wtforms.validators import (
+    DataRequired,
+    Email,
+    Length,
+    Optional,
+    ValidationError,
+)
 
 from app.models.orientacao import MODALIDADES, MODALIDADE_LABEL
 from app.models.user import PAPEIS
@@ -55,6 +61,20 @@ class EventoVinculoForm(FlaskForm):
     submit = SubmitField("Registrar evento")
 
 
+class AjusteDatasForm(FlaskForm):
+    """Correção das datas do vínculo, privativa do administrador. Para
+    dilatação de prazo prefira o evento de prorrogação, que exige fundamentação
+    e preserva o prazo anterior no histórico."""
+
+    data_inicio = DateField("Data de início", validators=[DataRequired()])
+    data_fim_prevista = DateField("Fim previsto", validators=[Optional()])
+    submit = SubmitField("Aplicar datas")
+
+    def validate_data_fim_prevista(self, field):
+        if field.data and self.data_inicio.data and field.data <= self.data_inicio.data:
+            raise ValidationError("O fim previsto deve ser posterior ao início.")
+
+
 class EncerrarOrientacaoForm(FlaskForm):
     # Suspensão não é oferecida aqui: exige trancamento fundamentado
     # (evento formal do vínculo), preservando o histórico obrigatório.
@@ -72,3 +92,9 @@ class CoorientadorForm(FlaskForm):
 
 class RemoverForm(FlaskForm):
     submit = SubmitField("Remover")
+
+
+class ExcluirForm(FlaskForm):
+    """Exclusão de conta — privativa do administrador."""
+
+    submit = SubmitField("Excluir")

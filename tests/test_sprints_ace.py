@@ -24,7 +24,7 @@ def test_marco_criado_com_tipo(client, orientacao, orientador):
             "tipo": "qualificacao",
             "descricao": "",
             "data_prevista": "2027-03-31",
-            "ordem": 1,
+            "etapa": 30,
         },
     )
     assert Marco.query.one().tipo == "qualificacao"

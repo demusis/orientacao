@@ -101,16 +101,24 @@ def test_orientador_cria_orientando_e_recebe_o_vinculo(client, orientador):
     assert client.get(f"/orientacoes/{vinculo.id}").status_code == 200
 
 
-def test_botao_excluir_aparece_para_conta_recem_criada(client, orientador):
-    """Regressão: a coluna de ações ficava vazia na listagem."""
+# --- exclusão e desativação são privativas do administrador (20/07/2026) ---
+
+
+def test_orientador_nao_dispoe_de_exclusao(client, orientador):
+    """A rota deixou de existir e a listagem não oferece a ação."""
     login(client, "orientador@teste.br")
     client.post("/orientandos/novo", data=_dados_orientando("Efêmero", "efemero@teste.br"))
+    alvo = Usuario.query.filter_by(email="efemero@teste.br").one()
+
     pagina = client.get("/orientandos/")
-    assert b"Excluir" in pagina.data
+    assert b"Excluir" not in pagina.data
+    assert client.post(f"/orientandos/{alvo.id}/excluir").status_code == 404
+    assert db_existe(alvo.id)
 
 
-def test_orientador_exclui_orientando_que_criou(client, orientador):
-    """A exclusão remove a conta e o vínculo vazio criado junto com ela."""
+def test_admin_exclui_orientando_descartando_vinculo_vazio(client, admin, orientador):
+    """Sem descartar o vínculo vazio nenhuma conta de orientando seria
+    excluível, pois o vínculo passou a nascer junto com a conta."""
     from app.models import Orientacao
 
     login(client, "orientador@teste.br")
@@ -118,12 +126,14 @@ def test_orientador_exclui_orientando_que_criou(client, orientador):
     alvo = Usuario.query.filter_by(email="efemero@teste.br").one()
     vinculo_id = Orientacao.query.filter_by(orientando_id=alvo.id).one().id
 
-    client.post(f"/orientandos/{alvo.id}/excluir", follow_redirects=True)
+    client.post("/auth/logout")
+    login(client, "admin@teste.br")
+    client.post(f"/admin/usuarios/{alvo.id}/excluir", follow_redirects=True)
     assert Usuario.query.filter_by(email="efemero@teste.br").count() == 0
     assert db.session.get(Orientacao, vinculo_id) is None
 
 
-def test_exclusao_recusada_quando_o_vinculo_tem_registro(client, orientador):
+def test_admin_nao_exclui_conta_com_historico(client, admin, orientador):
     """Um único marco basta para tornar a conta inexcluível."""
     from app.models import Marco, Orientacao
 
@@ -136,37 +146,32 @@ def test_exclusao_recusada_quando_o_vinculo_tem_registro(client, orientador):
     )
     db.session.commit()
 
-    assert b"Excluir" not in client.get("/orientandos/").data
-    resp = client.post(f"/orientandos/{alvo.id}/excluir", follow_redirects=True)
+    client.post("/auth/logout")
+    login(client, "admin@teste.br")
+    resp = client.post(f"/admin/usuarios/{alvo.id}/excluir", follow_redirects=True)
     assert "Exclusão recusada".encode() in resp.data
     assert db_existe(alvo.id)
     assert db.session.get(Orientacao, vinculo.id) is not None
 
 
-def test_orientador_nao_exclui_orientando_de_terceiro(client, orientador, orientando):
-    # 'orientando' (fixture) não foi criado pelo orientador (criado_por é nulo)
+def test_desativacao_de_conta_e_privativa_do_admin(client, admin, orientador, orientando):
+    """O orientador não dispõe de rota para desativar contas; o admin sim."""
     login(client, "orientador@teste.br")
-    resp = client.post(f"/orientandos/{orientando.id}/excluir")
-    assert resp.status_code == 403
-    assert db_existe(orientando.id)
+    assert client.post(f"/admin/usuarios/{orientando.id}/editar").status_code == 403
 
-
-def test_orientador_nao_exclui_orientando_vinculado_a_terceiro(
-    client, orientador, orientando, orientacao
-):
-    """Vínculo com outro orientador não é descartável: só o próprio vínculo
-    vazio do executor acompanha a conta na exclusão."""
-    from tests.conftest import _criar_usuario
-
-    outro = _criar_usuario("Prof. Externo", "externo@teste.br", "orientador")
-    orientando.criado_por = orientador.id
-    orientacao.orientador_id = outro.id
-    db.session.commit()
-
-    login(client, "orientador@teste.br")
-    resp = client.post(f"/orientandos/{orientando.id}/excluir", follow_redirects=True)
-    assert "Exclusão recusada".encode() in resp.data
-    assert db_existe(orientando.id)
+    client.post("/auth/logout")
+    login(client, "admin@teste.br")
+    client.post(
+        f"/admin/usuarios/{orientando.id}/editar",
+        data={
+            "nome": orientando.nome,
+            "email": orientando.email,
+            "papel": "orientando",
+            "senha": "",
+        },  # 'ativo' ausente => desmarcado
+        follow_redirects=True,
+    )
+    assert orientando.ativo is False
 
 
 def test_gestao_de_orientandos_restrita_ao_orientador(client, admin, orientando):

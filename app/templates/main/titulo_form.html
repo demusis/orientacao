@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_form %}
+{% block title %}Alterar título — ARIADNE{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Alterar título do projeto</h1>
+  <p><small>Título atual: <strong>{{ orientacao.titulo_projeto }}</strong>.
+  A alteração é registrada como evento do vínculo, preservando o título anterior,
+  o autor e a data/hora. As datas de início e fim do projeto são alteradas apenas
+  pelo administrador.</small></p>
+  {{ render_form(form) }}
+</div>
+{% endblock %}

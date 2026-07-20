@@ -1,9 +1,20 @@
-from flask import redirect, render_template, url_for
+from flask import abort, flash, redirect, render_template, url_for
 from flask_login import current_user, login_required
 
 from app.blueprints.main import bp
+from app.blueprints.main.forms import TituloProjetoForm
+from app.extensions import db
 from app.models import Orientacao
+from app.services import eventos as eventos_service
+from app.services.eventos import EventoInvalido
 from app.services.rbac import orientacao_autorizada, orientacoes_do_usuario
+
+
+def _pode_alterar_titulo(orientacao) -> bool:
+    """Título do projeto: orientador principal do vínculo ou administrador."""
+    return (
+        current_user.id == orientacao.orientador_id or current_user.papel == "admin"
+    )
 
 
 @bp.route("/")
@@ -31,7 +42,45 @@ def dashboard():
 @login_required
 def orientacao_detalhe(orientacao_id: int):
     orientacao = orientacao_autorizada(orientacao_id)
-    return render_template("main/orientacao_detalhe.html", orientacao=orientacao)
+    return render_template(
+        "main/orientacao_detalhe.html",
+        orientacao=orientacao,
+        pode_alterar_titulo=_pode_alterar_titulo(orientacao),
+    )
+
+
+@bp.route("/orientacoes/<int:orientacao_id>/titulo", methods=["GET", "POST"])
+@login_required
+def alterar_titulo(orientacao_id: int):
+    """O orientador altera o título do projeto; a alteração é registrada como
+    evento do vínculo, com o título anterior preservado. Datas de início e fim
+    não são editáveis aqui — competem ao administrador."""
+    orientacao = orientacao_autorizada(orientacao_id)
+    if not _pode_alterar_titulo(orientacao):
+        abort(403)
+    form = TituloProjetoForm(titulo_projeto=orientacao.titulo_projeto)
+    if form.validate_on_submit():
+        if form.titulo_projeto.data.strip() == orientacao.titulo_projeto:
+            flash("O título informado é igual ao atual.", "warning")
+        else:
+            try:
+                eventos_service.registrar_evento(
+                    orientacao,
+                    tipo="mudanca_titulo",
+                    fundamentacao=form.fundamentacao.data,
+                    usuario=current_user,
+                    texto_novo=form.titulo_projeto.data.strip(),
+                )
+                db.session.commit()
+                flash("Título do projeto alterado; o histórico foi registrado.", "success")
+                return redirect(
+                    url_for("main.orientacao_detalhe", orientacao_id=orientacao.id)
+                )
+            except EventoInvalido as exc:
+                flash(str(exc), "danger")
+    return render_template(
+        "main/titulo_form.html", form=form, orientacao=orientacao
+    )
 
 
 @bp.route("/ajuda")

@@ -6,10 +6,10 @@
 <p><a href="{{ url_for('cronogramas.criar', orientacao_id=orientacao.id) }}">+ Novo marco</a></p>
 {% endif %}
 <table>
-  <tr><th>#</th><th>Marco</th><th>Prevista</th><th>Conclusão</th><th>Status</th><th>Ações</th></tr>
+  <tr><th>Etapa</th><th>Marco</th><th>Prevista</th><th>Conclusão</th><th>Status</th><th>Ações</th></tr>
   {% for m in marcos %}
   <tr>
-    <td>{{ m.ordem }}</td>
+    <td>{{ ETAPA_MARCO_LABEL.get(m.etapa, '—') }}</td>
     <td>{{ m.titulo }} <span class="badge">{{ TIPO_MARCO_LABEL[m.tipo] }}</span>
         {% if m.descricao %}<br><small>{{ m.descricao }}</small>{% endif %}</td>
     <td>{{ m.data_prevista }}</td>

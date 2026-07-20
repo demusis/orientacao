@@ -75,9 +75,10 @@ def register_cli(app: Flask) -> None:
 def register_template_globals(app: Flask) -> None:
     from app.models.orientacao import MODALIDADE_LABEL, TIPO_EVENTO_LABEL
     from app.models.ata import RESULTADO_LABEL
-    from app.models.cronograma import TIPO_MARCO_LABEL
+    from app.models.cronograma import ETAPA_MARCO_LABEL, TIPO_MARCO_LABEL
 
     app.jinja_env.globals.update(
+        ETAPA_MARCO_LABEL=ETAPA_MARCO_LABEL,
         MODALIDADE_LABEL=MODALIDADE_LABEL,
         RESULTADO_LABEL=RESULTADO_LABEL,
         TIPO_EVENTO_LABEL=TIPO_EVENTO_LABEL,

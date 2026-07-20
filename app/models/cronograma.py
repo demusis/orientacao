@@ -21,6 +21,39 @@ TIPO_MARCO_LABEL = {
     "publicacao": "Publicação",
 }
 
+# Etapa do projeto: substitui a antiga "ordem" numérica livre. Os códigos são
+# inteiros espaçados de 10 — a ordenação do cronograma continua sendo feita no
+# banco (sem expressão condicional) e novas etapas cabem entre as atuais sem
+# renumerar as existentes. O código 0 é o padrão e agrupa o que ainda não foi
+# classificado, aparecendo no topo do cronograma.
+ETAPAS_MARCO = (0, 10, 20, 30, 40, 50, 60, 70, 80)
+
+ETAPA_MARCO_LABEL = {
+    0: "Não classificada",
+    10: "Planejamento",
+    20: "Revisão de literatura",
+    30: "Qualificação",
+    40: "Coleta / Experimentos",
+    50: "Análise de resultados",
+    60: "Redação",
+    70: "Publicação",
+    80: "Defesa",
+}
+
+# Etapas que correspondem a um ato formal já previsto em TIPOS_MARCO: quando o
+# tipo não foi especificado, deriva-se dele para não exigir a mesma informação
+# duas vezes.
+TIPO_IMPLICADO_PELA_ETAPA = {30: "qualificacao", 70: "publicacao", 80: "defesa"}
+
+
+def tipo_do_marco(tipo_informado: str, etapa: int) -> str:
+    """Completa o tipo a partir da etapa quando ele foi deixado em 'outro'
+    (valor padrão, que significa 'não especificado'). Tipo escolhido de forma
+    explícita nunca é sobrescrito."""
+    if tipo_informado != "outro":
+        return tipo_informado
+    return TIPO_IMPLICADO_PELA_ETAPA.get(etapa, "outro")
+
 
 class Marco(db.Model):
     __tablename__ = "marco"
@@ -37,7 +70,7 @@ class Marco(db.Model):
     tipo = db.Column(
         db.Enum(*TIPOS_MARCO, name="tipo_marco"), nullable=False, default="outro"
     )
-    ordem = db.Column(db.Integer, nullable=False, default=0)
+    etapa = db.Column(db.Integer, nullable=False, default=0)
     conclusao_sinalizada = db.Column(db.Boolean, nullable=False, default=False)
     # UUID hex comum aos marcos criados por uma mesma tarefa em grupo
     grupo_id = db.Column(db.String(32), nullable=True, index=True)

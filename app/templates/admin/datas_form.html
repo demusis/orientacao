@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_form %}
+{% block title %}Datas do vínculo — ARIADNE{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Datas do vínculo</h1>
+  <p><small>Projeto: <strong>{{ orientacao.titulo_projeto }}</strong> —
+  {{ orientacao.orientando.nome }}.</small></p>
+  <p class="flash flash-info">Esta tela destina-se à <strong>correção</strong> de datas.
+  Para dilatar o prazo, prefira <a href="{{ url_for('admin.eventos_orientacao', orientacao_id=orientacao.id) }}">Prorrogação</a>,
+  que exige fundamentação e preserva o prazo anterior no histórico do vínculo.</p>
+  {{ render_form(form) }}
+</div>
+{% endblock %}

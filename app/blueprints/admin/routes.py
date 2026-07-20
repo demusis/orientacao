@@ -3,9 +3,11 @@ from flask_login import current_user
 
 from app.blueprints.admin import bp
 from app.blueprints.admin.forms import (
+    AjusteDatasForm,
     CoorientadorForm,
     EncerrarOrientacaoForm,
     EventoVinculoForm,
+    ExcluirForm,
     OrientacaoForm,
     RemoverForm,
     UsuarioForm,
@@ -14,7 +16,6 @@ from app.services import eventos as eventos_service
 from app.services.eventos import EventoInvalido
 from app.extensions import db
 from app.models import Orientacao, OrientacaoOrientador, Usuario
-from app.blueprints.orientandos.forms import ExcluirForm
 from app.services import auditoria
 from app.services import usuarios as usuarios_service
 from app.services.rbac import role_required
@@ -62,7 +63,14 @@ def excluir_usuario(usuario_id: int):
     form = ExcluirForm()
     if form.validate_on_submit():
         try:
-            usuarios_service.excluir_usuario(usuario, current_user)
+            # vínculos ainda sem qualquer registro são removidos com a conta;
+            # do contrário nenhuma conta de orientando seria excluível, pois o
+            # vínculo passou a nascer junto com ela
+            usuarios_service.excluir_usuario(
+                usuario,
+                current_user,
+                usuarios_service.vinculos_descartaveis(usuario),
+            )
             db.session.commit()
             flash("Usuário excluído.", "success")
         except GestaoUsuarioInvalida as exc:
@@ -186,6 +194,40 @@ def encerrar_orientacao(orientacao_id: int):
         return redirect(url_for("admin.listar_orientacoes"))
     return render_template(
         "admin/orientacao_encerrar.html", form=form, orientacao=orientacao
+    )
+
+
+@bp.route("/orientacoes/<int:orientacao_id>/datas", methods=["GET", "POST"])
+@role_required("admin")
+def ajustar_datas(orientacao_id: int):
+    """Alteração das datas de início e fim do projeto — privativa do
+    administrador; o orientador altera apenas o título."""
+    orientacao = db.session.get(Orientacao, orientacao_id) or abort(404)
+    form = AjusteDatasForm(obj=orientacao)
+    if form.validate_on_submit():
+        anterior = {
+            "data_inicio": str(orientacao.data_inicio),
+            "data_fim_prevista": str(orientacao.data_fim_prevista or ""),
+        }
+        orientacao.data_inicio = form.data_inicio.data
+        orientacao.data_fim_prevista = form.data_fim_prevista.data
+        auditoria.registrar(
+            "ajuste_datas_orientacao",
+            "orientacao",
+            orientacao.id,
+            {
+                "de": anterior,
+                "para": {
+                    "data_inicio": str(orientacao.data_inicio),
+                    "data_fim_prevista": str(orientacao.data_fim_prevista or ""),
+                },
+            },
+        )
+        db.session.commit()
+        flash("Datas do vínculo atualizadas.", "success")
+        return redirect(url_for("admin.listar_orientacoes"))
+    return render_template(
+        "admin/datas_form.html", form=form, orientacao=orientacao
     )
 
 

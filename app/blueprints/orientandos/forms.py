@@ -33,7 +33,3 @@ class OrientandoForm(FlaskForm):
     def validate_data_fim_prevista(self, field):
         if field.data and self.data_inicio.data and field.data <= self.data_inicio.data:
             raise ValidationError("O fim previsto deve ser posterior ao início.")
-
-
-class ExcluirForm(FlaskForm):
-    submit = SubmitField("Excluir")

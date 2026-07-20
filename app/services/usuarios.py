@@ -36,17 +36,15 @@ def vinculo_sem_registros(orientacao: Orientacao) -> bool:
     )
 
 
-def vinculos_descartaveis(usuario: Usuario, orientador: Usuario) -> list[int]:
-    """Vínculos entre o orientando e o orientador que o criou, ainda sem
-    qualquer registro. Como o vínculo nasce junto com a conta (o orientador que
-    cria o orientando torna-se seu orientador), exigir ausência de vínculo para
-    excluir tornaria a exclusão impossível; o que se exige é ausência de
+def vinculos_descartaveis(usuario: Usuario) -> list[int]:
+    """Vínculos em que a conta figura como orientando e que ainda não
+    acumularam registro. Como o vínculo nasce junto com a conta (o orientador
+    que cria o orientando torna-se seu orientador), exigir ausência de vínculo
+    para excluir tornaria a exclusão impossível; o que se exige é ausência de
     histórico."""
     return [
         o.id
-        for o in Orientacao.query.filter_by(
-            orientando_id=usuario.id, orientador_id=orientador.id
-        )
+        for o in Orientacao.query.filter_by(orientando_id=usuario.id)
         if vinculo_sem_registros(o)
     ]
 
