@@ -28,21 +28,93 @@ def _linhas(pagina):
     return set(re.findall(r"<td>([a-z_0-9]+)</td>", pagina))
 
 
-def test_lista_limitada_a_20_registros(client, admin):
+def _conta_linhas(pagina):
+    import re
+
+    return len(re.findall(r"<td>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}</td>", pagina))
+
+
+def test_pagina_traz_20_registros_do_mais_recente_ao_mais_antigo(client, admin):
     for i in range(25):
         _log(f"acao_{i:02d}", quando=datetime(2026, 7, 20, 10, 0) + timedelta(minutes=i))
     login(client, "admin@teste.br")
     pagina = client.get("/admin/auditoria").data.decode()
 
-    import re
-
     acoes = _linhas(pagina)
     assert "acao_24" in acoes  # o mais recente
-    assert "acao_00" not in acoes  # o mais antigo ficou de fora
+    assert "acao_00" not in acoes  # o mais antigo ficou para a página seguinte
     # exatamente 20 linhas — o próprio 'login' do admin ocupa uma delas
-    linhas = re.findall(r"<td>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}</td>", pagina)
-    assert len(linhas) == 20
-    assert "Exibindo os <strong>20</strong>" in pagina
+    assert _conta_linhas(pagina) == 20
+    assert "página <strong>1</strong> de <strong>2</strong>" in pagina
+
+
+def test_segunda_pagina_traz_os_registros_seguintes(client, admin):
+    for i in range(25):
+        _log(f"acao_{i:02d}", quando=datetime(2026, 7, 20, 10, 0) + timedelta(minutes=i))
+    login(client, "admin@teste.br")
+    acoes = _linhas(client.get("/admin/auditoria?pagina=2").data.decode())
+    assert "acao_00" in acoes  # o mais antigo
+    assert "acao_24" not in acoes
+
+
+def test_rodape_oferece_primeira_e_ultima(client, admin):
+    for i in range(45):
+        _log(f"acao_{i:02d}", quando=datetime(2026, 7, 20, 10, 0) + timedelta(minutes=i))
+    login(client, "admin@teste.br")
+    pagina = client.get("/admin/auditoria?pagina=2").data.decode()
+
+    for rotulo in ("« Primeira", "‹ Anterior", "Próxima ›", "Última »"):
+        assert rotulo in pagina
+    # na página 2 de 3, os quatro são links ativos e apontam aos extremos
+    assert 'class="inativo"' not in pagina
+    assert 'pagina=1"' in pagina  # primeira
+    assert 'pagina=3"' in pagina  # última
+
+
+def test_primeira_pagina_desativa_retrocesso(client, admin):
+    for i in range(25):
+        _log(f"acao_{i:02d}", quando=datetime(2026, 7, 20, 10, 0) + timedelta(minutes=i))
+    login(client, "admin@teste.br")
+    pagina = client.get("/admin/auditoria").data.decode()
+    assert '<span class="inativo">« Primeira</span>' in pagina
+    assert '<span class="inativo">‹ Anterior</span>' in pagina
+
+
+def test_pagina_alem_do_fim_leva_a_ultima(client, admin):
+    for i in range(25):
+        _log(f"acao_{i:02d}", quando=datetime(2026, 7, 20, 10, 0) + timedelta(minutes=i))
+    login(client, "admin@teste.br")
+    resp = client.get("/admin/auditoria?pagina=99")
+    assert resp.status_code == 302
+    assert "pagina=2" in resp.headers["Location"]
+
+
+def test_filtro_preservado_ao_mudar_de_pagina(client, admin, orientador):
+    for i in range(25):
+        _log(
+            "acao_filtrada",
+            usuario=orientador,
+            quando=datetime(2026, 7, 20, 10, 0) + timedelta(minutes=i),
+        )
+    _log("acao_de_outro", usuario=admin)
+    login(client, "admin@teste.br")
+    pagina = client.get(f"/admin/auditoria?usuario_id={orientador.id}").data.decode()
+
+    # os links de página carregam o filtro adiante
+    assert f"usuario_id={orientador.id}" in pagina
+    acoes = _linhas(
+        client.get(
+            f"/admin/auditoria?usuario_id={orientador.id}&pagina=2"
+        ).data.decode()
+    )
+    assert "acao_de_outro" not in acoes
+
+
+def test_sem_paginacao_quando_cabe_em_uma_pagina(client, admin):
+    _log("unica")
+    login(client, "admin@teste.br")
+    pagina = client.get("/admin/auditoria").data.decode()
+    assert 'class="paginacao"' not in pagina
 
 
 def test_filtro_por_acao(client, admin):

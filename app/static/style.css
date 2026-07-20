@@ -58,6 +58,13 @@ form.inline { display: inline; }
 .badge-atrasado { background: #f8d7da; }
 .badge-concluido { background: #d8f0d8; }
 .acoes form { display: inline; }
+.paginacao { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; margin: 1rem 0 2rem; }
+.paginacao a, .paginacao strong, .paginacao span { padding: .3rem .6rem; border: 1px solid var(--borda); border-radius: 4px; background: #fff; font-size: .9rem; line-height: 1; }
+.paginacao a { color: var(--azul); text-decoration: none; }
+.paginacao a:hover { background: #e6ebf1; }
+.paginacao .pagina-atual { background: var(--azul); color: #fff; border-color: var(--azul); }
+.paginacao .inativo { color: #9aa0a6; background: #f5f6f7; }
+.paginacao .reticencias { border: 0; background: none; padding: .3rem .2rem; color: #666; }
 .card { background: #fff; border: 1px solid var(--borda); border-radius: 6px; padding: 1rem; margin-bottom: 1rem; }
 .ajuda-sumario ol { margin: .5rem 0 0; padding-left: 1.4rem; }
 .ajuda-sumario a { color: var(--azul); }

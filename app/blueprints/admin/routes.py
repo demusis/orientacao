@@ -363,16 +363,28 @@ def listar_auditoria():
         if form.acao.data:
             consulta = consulta.filter(LogAuditoria.acao == form.acao.data)
 
-    total = consulta.count()
-    logs = (
-        consulta.order_by(LogAuditoria.timestamp.desc())
-        .limit(LIMITE_AUDITORIA)
-        .all()
+    # parâmetros de filtro repassados aos links de página; 'pagina' fica de fora
+    # para não se acumular, e valores vazios são descartados para encurtar a URL
+    filtros = {
+        chave: valor
+        for chave, valor in request.args.items()
+        if chave not in ("pagina", "submit") and valor
+    }
+    pagina = max(1, request.args.get("pagina", 1, type=int))
+    paginacao = consulta.order_by(LogAuditoria.timestamp.desc()).paginate(
+        page=pagina, per_page=LIMITE_AUDITORIA, error_out=False
     )
+    # página além do fim (filtro estreitado, por exemplo): leva à última existente
+    if paginacao.pages and pagina > paginacao.pages:
+        return redirect(
+            url_for("admin.listar_auditoria", pagina=paginacao.pages, **filtros)
+        )
+
     return render_template(
         "admin/auditoria.html",
-        logs=logs,
+        paginacao=paginacao,
+        logs=paginacao.items,
         form=form,
-        total=total,
+        filtros=filtros,
         limite=LIMITE_AUDITORIA,
     )
