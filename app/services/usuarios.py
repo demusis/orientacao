@@ -9,6 +9,7 @@ from app.models import (
     Documento,
     LogAuditoria,
     Orientacao,
+    OrientacaoOrientador,
     Parecer,
     Reagendamento,
     Usuario,
@@ -49,6 +50,10 @@ def motivo_bloqueio_exclusao(usuario: Usuario) -> str | None:
         (
             Reagendamento.query.filter_by(registrado_por=usuario.id),
             "registrou reagendamentos",
+        ),
+        (
+            OrientacaoOrientador.query.filter_by(usuario_id=usuario.id),
+            "integra equipe de orientação (coorientação)",
         ),
         (Usuario.query.filter_by(criado_por=usuario.id), "criou outras contas"),
     ]

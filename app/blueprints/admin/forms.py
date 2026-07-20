@@ -56,9 +56,11 @@ class EventoVinculoForm(FlaskForm):
 
 
 class EncerrarOrientacaoForm(FlaskForm):
+    # Suspensão não é oferecida aqui: exige trancamento fundamentado
+    # (evento formal do vínculo), preservando o histórico obrigatório.
     status = SelectField(
         "Novo status",
-        choices=[("concluida", "Concluída"), ("suspensa", "Suspensa"), ("cancelada", "Cancelada")],
+        choices=[("concluida", "Concluída"), ("cancelada", "Cancelada")],
     )
     submit = SubmitField("Aplicar")
 

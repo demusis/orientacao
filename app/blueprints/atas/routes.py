@@ -33,10 +33,27 @@ def _ata_da_orientacao(orientacao, ata_id: int) -> Ata:
     return ata
 
 
-def _orienta_ata(ata: Ata) -> bool:
-    """Usuário corrente integra a equipe de orientação (principal ou
-    coorientador) de algum vínculo participante da ata."""
-    return any(o.orienta(current_user) for o in ata.orientacoes)
+def _pode_editar_conteudo(ata: Ata) -> bool:
+    """Edição do texto da ata: admin, o orientador convocante ou quem integra a
+    equipe de TODOS os vínculos participantes. Coorientador de apenas um dos
+    vínculos de uma ata de grupo não controla o registro dos demais."""
+    if current_user.papel == "admin" or current_user.id == ata.orientador_id:
+        return True
+    return bool(ata.orientacoes) and all(
+        o.orienta(current_user) for o in ata.orientacoes
+    )
+
+
+def _orientacoes_geriveis(ata: Ata) -> set[int]:
+    """Vínculos cuja presença o usuário corrente pode assinalar: todos, para o
+    convocante e o admin; apenas os próprios, para coorientadores."""
+    if current_user.papel == "admin" or current_user.id == ata.orientador_id:
+        return {p.orientacao_id for p in ata.participacoes}
+    return {
+        p.orientacao_id
+        for p in ata.participacoes
+        if p.orientacao.orienta(current_user)
+    }
 
 
 @bp.route("/atas")
@@ -79,7 +96,7 @@ def criar_ata(orientacao_id: int):
 def detalhe_ata(orientacao_id: int, ata_id: int):
     orientacao = orientacao_autorizada(orientacao_id)
     ata = _ata_da_orientacao(orientacao, ata_id)
-    pode_editar = (_orienta_ata(ata) or current_user.papel == "admin") and not ata.imutavel
+    pode_editar = _pode_editar_conteudo(ata) and not ata.imutavel
 
     form = AtaEdicaoForm(obj=ata)
     finalizar_form = FinalizarAtaForm()
@@ -107,7 +124,7 @@ def detalhe_ata(orientacao_id: int, ata_id: int):
         form=form,
         finalizar_form=finalizar_form,
         pode_editar=pode_editar,
-        pode_gerir=_orienta_ata(ata) or current_user.papel == "admin",
+        geriveis=_orientacoes_geriveis(ata),
         pode_finalizar=current_user.id == ata.orientador_id
         or current_user.papel == "admin",
         acao_form=AcaoForm(),
@@ -151,11 +168,12 @@ def reagendar(orientacao_id: int, ata_id: int):
 def marcar_presenca(orientacao_id: int, ata_id: int, alvo_id: int, presenca: str):
     orientacao = orientacao_autorizada(orientacao_id)
     ata = _ata_da_orientacao(orientacao, ata_id)
-    if not _orienta_ata(ata) and current_user.papel != "admin":
-        abort(403)
     participacao = ata.participacao_de(alvo_id)
     if participacao is None:
         abort(404)
+    # a autorização é sobre o vínculo-alvo, não sobre a ata como um todo
+    if alvo_id not in _orientacoes_geriveis(ata):
+        abort(403)
     form = AcaoForm()
     if form.validate_on_submit():
         try:

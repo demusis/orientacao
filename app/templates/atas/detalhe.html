@@ -16,7 +16,7 @@
   <h2>Agendamento</h2>
   <p><strong>Data:</strong> {{ ata.data_reuniao }}
      {% if ata.hora_reuniao %} às {{ ata.hora_reuniao.strftime('%H:%M') }}{% endif %}
-     {% if pode_editar %}
+     {% if pode_finalizar and not ata.imutavel %}
        — <a href="{{ url_for('atas.reagendar', orientacao_id=orientacao.id, ata_id=ata.id) }}">Reagendar</a>
      {% endif %}
   </p>
@@ -39,9 +39,10 @@
 
 <div class="card">
   <h2>Participantes e presenças</h2>
+  {% set mostrar_acoes = geriveis and not ata.imutavel %}
   <table>
     <tr><th>Orientando</th><th>Presença</th><th>Registro</th>
-      {% if pode_gerir and not ata.imutavel %}<th>Ações</th>{% endif %}</tr>
+      {% if mostrar_acoes %}<th>Ações</th>{% endif %}</tr>
     {% for p in ata.participacoes %}
     <tr>
       <td>{{ p.orientacao.orientando.nome }}</td>
@@ -51,14 +52,16 @@
           {{ p.presenca_registrada_em.strftime('%Y-%m-%d %H:%M') }} (UTC) por {{ p.registrador.nome }}
         {% else %}—{% endif %}
       </td>
-      {% if pode_gerir and not ata.imutavel %}
+      {% if mostrar_acoes %}
       <td class="acoes">
+        {% if p.orientacao_id in geriveis %}
         <form method="post" action="{{ url_for('atas.marcar_presenca', orientacao_id=orientacao.id, ata_id=ata.id, alvo_id=p.orientacao_id, presenca='presente') }}">
           {{ acao_form.hidden_tag() }}<button type="submit" class="link">Presente</button>
         </form>
         <form method="post" action="{{ url_for('atas.marcar_presenca', orientacao_id=orientacao.id, ata_id=ata.id, alvo_id=p.orientacao_id, presenca='ausente') }}">
           {{ acao_form.hidden_tag() }}<button type="submit" class="link">Ausente</button>
         </form>
+        {% endif %}
       </td>
       {% endif %}
     </tr>

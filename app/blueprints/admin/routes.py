@@ -151,13 +151,6 @@ def criar_orientacao():
             )
             db.session.add(orientacao)
             db.session.flush()
-            db.session.add(
-                OrientacaoOrientador(
-                    orientacao_id=orientacao.id,
-                    usuario_id=orientacao.orientador_id,
-                    funcao="principal",
-                )
-            )
             auditoria.registrar(
                 "criacao_orientacao",
                 "orientacao",

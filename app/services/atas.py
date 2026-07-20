@@ -83,5 +83,5 @@ def registrar_presenca(participacao: AtaParticipacao, presenca: str, usuario):
 
 
 # Nota LGPD: o registro de justificativa de ausência foi retirado por decisão de
-# 19/07/2026 (potencial dado sensível). As colunas justificativa/justificativa_em
-# permanecem dormentes no esquema, sem via de escrita.
+# 19/07/2026 (potencial dado sensível). As colunas e os dados eventualmente
+# gravados foram expurgados do esquema pela migração f2b6d81c4a55.

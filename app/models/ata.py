@@ -17,8 +17,9 @@ PRESENCAS = ("pendente", "presente", "ausente")
 
 
 class AtaParticipacao(db.Model):
-    """Associação ata↔vínculo com registro de presença. A presença é assinalada
-    pelo orientador; a justificativa de ausência, facultativa, pelo orientando."""
+    """Associação ata↔vínculo com registro de presença, assinalada pela equipe
+    de orientação. As colunas de justificativa de ausência foram expurgadas do
+    esquema em 19/07/2026 (LGPD: potencial dado sensível)."""
 
     __tablename__ = "ata_orientacao"
 
@@ -33,8 +34,6 @@ class AtaParticipacao(db.Model):
     presenca_registrada_por = db.Column(
         db.Integer, db.ForeignKey("usuario.id"), nullable=True
     )
-    justificativa = db.Column(db.Text, nullable=True)
-    justificativa_em = db.Column(db.DateTime, nullable=True)
 
     ata = db.relationship("Ata", back_populates="participacoes")
     orientacao = db.relationship("Orientacao")

@@ -3,7 +3,9 @@ e hash de integridade verificável por rota pública. O PDF destina-se à
 assinatura eletrônica externa (gov.br/SEI); o hash permite conferir que o
 documento impresso corresponde ao registro interno."""
 import hashlib
+import json
 from io import BytesIO
+from xml.sax.saxutils import escape
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -20,30 +22,52 @@ from reportlab.platypus import (
 from app.models import Ata, Parecer
 from app.models.ata import RESULTADO_LABEL
 
-_SEP = "\x1f"
+def _texto(valor: str) -> "str":
+    """Texto de usuário para Paragraph: escape XML (o paraparser do reportlab
+    interpreta '&'/'<' como marcação) e quebras de linha preservadas."""
+    return escape(valor or "").replace("\n", "<br/>")
 
 
-def _sha256(partes: list[str]) -> str:
-    return hashlib.sha256(_SEP.join(partes).encode("utf-8")).hexdigest()
+def _sha256(partes) -> str:
+    """Serialização canônica por JSON: delimitação inequívoca de campos
+    (imune a caracteres de controle no conteúdo) e estrutura aninhada estável."""
+    canonico = json.dumps(partes, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(canonico.encode("utf-8")).hexdigest()
 
 
 def hash_ata(ata: Ata) -> str:
+    """Cobre TODO o conteúdo impresso no PDF: qualquer diferença visual entre
+    dois PDFs do mesmo registro implica hashes distintos."""
     partes = [
         "ata",
         str(ata.id),
         ata.tipo,
         str(ata.data_reuniao),
         str(ata.hora_reuniao or ""),
+        ata.orientador.nome,
+        ata.redator.nome,
         ata.pauta,
         ata.deliberacoes,
         str(ata.finalizada_em or ""),
+        [
+            [
+                str(p.orientacao_id),
+                p.orientacao.orientando.nome,
+                p.orientacao.titulo_projeto,
+                p.presenca,
+            ]
+            for p in sorted(ata.participacoes, key=lambda x: x.orientacao_id)
+        ],
+        [
+            [str(r.data_anterior), str(r.data_nova), r.motivo or "", str(r.registrado_em)]
+            for r in ata.reagendamentos
+        ],
     ]
-    for p in sorted(ata.participacoes, key=lambda x: x.orientacao_id):
-        partes.append(f"{p.orientacao_id}:{p.presenca}")
     return _sha256(partes)
 
 
 def hash_parecer(parecer: Parecer) -> str:
+    versao = parecer.versao_documento
     return _sha256(
         [
             "parecer",
@@ -53,7 +77,10 @@ def hash_parecer(parecer: Parecer) -> str:
             parecer.conteudo,
             str(parecer.emitido_em),
             str(parecer.orientacao_id),
-            str(parecer.versao_documento_id or ""),
+            parecer.orientacao.titulo_projeto,
+            parecer.orientacao.orientando.nome,
+            parecer.emissor.nome,
+            f"{versao.documento.titulo}|v{versao.numero_versao}" if versao else "",
         ]
     )
 
@@ -132,8 +159,8 @@ def gerar_pdf_ata(ata: Ata, url_verificacao: str) -> bytes:
                         else ""
                     ),
                 ],
-                ["Orientador responsável", ata.orientador.nome],
-                ["Redigida por", ata.redator.nome],
+                ["Orientador responsável", _texto(ata.orientador.nome)],
+                ["Redigida por", _texto(ata.redator.nome)],
                 [
                     "Finalizada em (UTC)",
                     ata.finalizada_em.strftime("%Y-%m-%d %H:%M") if ata.finalizada_em else "—",
@@ -147,8 +174,8 @@ def gerar_pdf_ata(ata: Ata, url_verificacao: str) -> bytes:
             [["Orientando", "Projeto", "Presença"]]
             + [
                 [
-                    p.orientacao.orientando.nome,
-                    Paragraph(p.orientacao.titulo_projeto, estilos["BodyText"]),
+                    _texto(p.orientacao.orientando.nome),
+                    Paragraph(_texto(p.orientacao.titulo_projeto), estilos["BodyText"]),
                     p.presenca,
                 ]
                 for p in sorted(ata.participacoes, key=lambda x: x.orientacao_id)
@@ -157,10 +184,10 @@ def gerar_pdf_ata(ata: Ata, url_verificacao: str) -> bytes:
         ),
         Spacer(1, 5 * mm),
         Paragraph("Pauta", estilos["Heading2"]),
-        Paragraph(ata.pauta.replace("\n", "<br/>"), estilos["BodyText"]),
+        Paragraph(_texto(ata.pauta), estilos["BodyText"]),
         Spacer(1, 3 * mm),
         Paragraph("Deliberações", estilos["Heading2"]),
-        Paragraph(ata.deliberacoes.replace("\n", "<br/>"), estilos["BodyText"]),
+        Paragraph(_texto(ata.deliberacoes), estilos["BodyText"]),
     ]
     if ata.reagendamentos:
         fluxo += [
@@ -172,7 +199,7 @@ def gerar_pdf_ata(ata: Ata, url_verificacao: str) -> bytes:
                     [
                         str(r.data_anterior),
                         str(r.data_nova),
-                        Paragraph(r.motivo or "—", estilos["BodyText"]),
+                        Paragraph(_texto(r.motivo or "—"), estilos["BodyText"]),
                         r.registrado_em.strftime("%Y-%m-%d %H:%M"),
                     ]
                     for r in ata.reagendamentos
@@ -198,20 +225,20 @@ def gerar_pdf_parecer(parecer: Parecer, url_verificacao: str) -> bytes:
                 ["Identificador", f"parecer-{parecer.id}"],
                 ["Tipo", parecer.tipo],
                 ["Resultado", RESULTADO_LABEL[parecer.resultado]],
-                ["Projeto", parecer.orientacao.titulo_projeto],
-                ["Orientando", parecer.orientacao.orientando.nome],
+                ["Projeto", _texto(parecer.orientacao.titulo_projeto)],
+                ["Orientando", _texto(parecer.orientacao.orientando.nome)],
                 [
                     "Documento avaliado",
-                    f"{versao.documento.titulo} (v{versao.numero_versao})" if versao else "—",
+                    _texto(f"{versao.documento.titulo} (v{versao.numero_versao})") if versao else "—",
                 ],
-                ["Emitido por", parecer.emissor.nome],
+                ["Emitido por", _texto(parecer.emissor.nome)],
                 ["Emitido em (UTC)", parecer.emitido_em.strftime("%Y-%m-%d %H:%M")],
             ],
             larguras=[45 * mm, 115 * mm],
         ),
         Spacer(1, 5 * mm),
         Paragraph("Parecer", estilos["Heading2"]),
-        Paragraph(parecer.conteudo.replace("\n", "<br/>"), estilos["BodyText"]),
+        Paragraph(_texto(parecer.conteudo), estilos["BodyText"]),
     ]
     fluxo += _rodape_verificacao(estilos, "parecer", parecer.id, h, url_verificacao)
     doc.build(fluxo)

@@ -84,7 +84,10 @@ FUNCOES_ORIENTADOR = ("principal", "coorientador")
 
 
 class OrientacaoOrientador(db.Model):
-    """Equipe de orientação do vínculo: orientador principal e coorientadores."""
+    """Coorientadores do vínculo. O orientador principal tem fonte única em
+    Orientacao.orientador_id — esta tabela registra APENAS coorientadores
+    (funcao='coorientador'); linhas 'principal' foram removidas na migração
+    f2b6d81c4a55 para eliminar a dupla representação."""
 
     __tablename__ = "orientacao_orientador"
 

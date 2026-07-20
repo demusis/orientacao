@@ -31,9 +31,12 @@ def registrar_evento(
             raise EventoInvalido("Prorrogação aplica-se apenas a vínculo ativo.")
         if data_nova is None:
             raise EventoInvalido("Prorrogação exige o novo fim previsto.")
-        if orientacao.data_fim_prevista and data_nova <= orientacao.data_fim_prevista:
+        # sem fim previsto anterior, a referência de posterioridade é o início
+        referencia = orientacao.data_fim_prevista or orientacao.data_inicio
+        if data_nova <= referencia:
             raise EventoInvalido(
-                "O novo fim previsto deve ser posterior ao fim vigente."
+                "O novo fim previsto deve ser posterior ao fim vigente "
+                "(ou ao início do vínculo, quando não há fim previsto)."
             )
         evento.data_anterior = orientacao.data_fim_prevista
         evento.data_nova = data_nova
