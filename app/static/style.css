@@ -23,7 +23,10 @@ th { background: #e6ebf1; }
 input[type=text], input[type=password], input[type=email], input[type=date], input[type=number], select, textarea { padding: .45rem; border: 1px solid var(--borda); border-radius: 4px; font: inherit; }
 textarea { min-height: 6rem; }
 button, input[type=submit] { background: var(--azul); color: #fff; border: 0; padding: .5rem 1rem; border-radius: 4px; cursor: pointer; font: inherit; }
-button.link { background: none; padding: 0; text-decoration: underline; }
+/* a cor precisa ser redeclarada: sem ela o botão herda o branco da regra
+   genérica de button e fica ilegível sobre fundo claro (tabelas) */
+button.link { background: none; padding: 0; text-decoration: underline; color: var(--azul); }
+header button.link { color: #fff; }
 form.inline { display: inline; }
 .flash { padding: .6rem .9rem; border-radius: 4px; margin-bottom: 1rem; }
 .flash-success { background: #d8f0d8; border: 1px solid #7fbf7f; }

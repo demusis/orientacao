@@ -8,9 +8,10 @@ from app.models import Orientacao, Usuario
 from app.services.rbac import role_required
 from app.services.usuarios import (
     GestaoUsuarioInvalida,
-    criar_usuario,
+    criar_orientando_com_vinculo,
     excluir_usuario,
     motivo_bloqueio_exclusao,
+    vinculos_descartaveis,
 )
 
 
@@ -31,12 +32,20 @@ def listar():
     excluiveis = {
         u.id
         for u in orientandos
-        if u.criado_por == current_user.id and motivo_bloqueio_exclusao(u) is None
+        if u.criado_por == current_user.id
+        and motivo_bloqueio_exclusao(u, vinculos_descartaveis(u, current_user)) is None
+    }
+    vinculos = {
+        o.orientando_id: o
+        for o in Orientacao.query.filter_by(
+            orientador_id=current_user.id, status="ativa"
+        )
     }
     return render_template(
         "orientandos/listar.html",
         orientandos=orientandos,
         excluiveis=excluiveis,
+        vinculos=vinculos,
         excluir_form=ExcluirForm(),
     )
 
@@ -47,17 +56,19 @@ def criar():
     form = OrientandoForm()
     if form.validate_on_submit():
         try:
-            criar_usuario(
+            criar_orientando_com_vinculo(
                 nome=form.nome.data,
                 email=form.email.data.lower().strip(),
-                papel="orientando",
                 senha=form.senha.data,
-                autor=current_user,
+                orientador=current_user,
+                modalidade=form.modalidade.data,
+                titulo_projeto=form.titulo_projeto.data,
+                data_inicio=form.data_inicio.data,
+                data_fim_prevista=form.data_fim_prevista.data,
             )
             db.session.commit()
             flash(
-                "Orientando criado. Solicite ao administrador a criação do vínculo "
-                "de orientação.",
+                "Orientando criado e vínculo de orientação atribuído a você.",
                 "success",
             )
             return redirect(url_for("orientandos.listar"))
@@ -76,9 +87,11 @@ def excluir(usuario_id: int):
     form = ExcluirForm()
     if form.validate_on_submit():
         try:
-            excluir_usuario(usuario, current_user)
+            excluir_usuario(
+                usuario, current_user, vinculos_descartaveis(usuario, current_user)
+            )
             db.session.commit()
-            flash("Conta de orientando excluída.", "success")
+            flash("Conta de orientando e respectivo vínculo excluídos.", "success")
         except GestaoUsuarioInvalida as exc:
             db.session.commit()  # persiste o log da recusa
             flash(str(exc), "danger")

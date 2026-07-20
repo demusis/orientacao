@@ -23,16 +23,51 @@ class GestaoUsuarioInvalida(Exception):
     pass
 
 
-def motivo_bloqueio_exclusao(usuario: Usuario) -> str | None:
-    """Retorna o motivo que impede a exclusão física, ou None se a conta é limpa."""
+def vinculo_sem_registros(orientacao: Orientacao) -> bool:
+    """Vínculo que nada acumulou: nenhum marco, documento, ata, parecer, evento
+    ou coorientador. Só um vínculo assim pode ser descartado com a conta."""
+    return not (
+        orientacao.marcos.first()
+        or orientacao.documentos.first()
+        or orientacao.atas.first()
+        or orientacao.pareceres.first()
+        or orientacao.eventos
+        or orientacao.equipe
+    )
+
+
+def vinculos_descartaveis(usuario: Usuario, orientador: Usuario) -> list[int]:
+    """Vínculos entre o orientando e o orientador que o criou, ainda sem
+    qualquer registro. Como o vínculo nasce junto com a conta (o orientador que
+    cria o orientando torna-se seu orientador), exigir ausência de vínculo para
+    excluir tornaria a exclusão impossível; o que se exige é ausência de
+    histórico."""
+    return [
+        o.id
+        for o in Orientacao.query.filter_by(
+            orientando_id=usuario.id, orientador_id=orientador.id
+        )
+        if vinculo_sem_registros(o)
+    ]
+
+
+def motivo_bloqueio_exclusao(
+    usuario: Usuario, descartaveis: list[int] | None = None
+) -> str | None:
+    """Retorna o motivo que impede a exclusão física, ou None se a conta é
+    limpa. `descartaveis` lista vínculos vazios que serão removidos junto e
+    que, portanto, não contam como vestígio."""
+    descartaveis = descartaveis or []
+    consulta_vinculos = Orientacao.query.filter(
+        (Orientacao.orientador_id == usuario.id)
+        | (Orientacao.orientando_id == usuario.id)
+    )
+    if descartaveis:
+        consulta_vinculos = consulta_vinculos.filter(
+            Orientacao.id.notin_(descartaveis)
+        )
     verificacoes = [
-        (
-            Orientacao.query.filter(
-                (Orientacao.orientador_id == usuario.id)
-                | (Orientacao.orientando_id == usuario.id)
-            ),
-            "participa de vínculo de orientação",
-        ),
+        (consulta_vinculos, "participa de vínculo de orientação"),
         (LogAuditoria.query.filter_by(usuario_id=usuario.id), "possui ações auditadas"),
         (Documento.query.filter_by(criado_por=usuario.id), "criou documentos"),
         (VersaoDocumento.query.filter_by(enviado_por=usuario.id), "enviou versões"),
@@ -78,7 +113,53 @@ def criar_usuario(*, nome, email, papel, senha, autor, ativo=True) -> Usuario:
     return usuario
 
 
-def excluir_usuario(usuario: Usuario, executor: Usuario) -> None:
+def criar_orientando_com_vinculo(
+    *,
+    nome,
+    email,
+    senha,
+    orientador: Usuario,
+    modalidade,
+    titulo_projeto,
+    data_inicio,
+    data_fim_prevista=None,
+) -> Orientacao:
+    """Cria a conta do orientando e, no mesmo ato, o vínculo de orientação com
+    quem a criou. Dispensa a intermediação do administrador."""
+    usuario = criar_usuario(
+        nome=nome,
+        email=email,
+        papel="orientando",
+        senha=senha,
+        autor=orientador,
+    )
+    orientacao = Orientacao(
+        orientador_id=orientador.id,
+        orientando_id=usuario.id,
+        modalidade=modalidade,
+        titulo_projeto=titulo_projeto,
+        data_inicio=data_inicio,
+        data_fim_prevista=data_fim_prevista,
+    )
+    db.session.add(orientacao)
+    db.session.flush()
+    auditoria.registrar(
+        "criacao_orientacao",
+        "orientacao",
+        orientacao.id,
+        {
+            "orientador_id": orientador.id,
+            "orientando_id": usuario.id,
+            "modalidade": modalidade,
+            "origem": "criacao_de_orientando",
+        },
+    )
+    return orientacao
+
+
+def excluir_usuario(
+    usuario: Usuario, executor: Usuario, descartaveis: list[int] | None = None
+) -> None:
     if usuario.id == executor.id:
         auditoria.registrar("autoexclusao_recusada", "usuario", usuario.id)
         raise GestaoUsuarioInvalida("Não é possível excluir a própria conta.")
@@ -91,7 +172,15 @@ def excluir_usuario(usuario: Usuario, executor: Usuario) -> None:
         raise GestaoUsuarioInvalida(
             "O sistema deve manter ao menos um administrador ativo."
         )
-    motivo = motivo_bloqueio_exclusao(usuario)
+    # revalida no serviço: só vínculos efetivamente vazios podem ser descartados
+    descartaveis = [
+        oid
+        for oid in (descartaveis or [])
+        if (o := db.session.get(Orientacao, oid)) is not None
+        and o.orientando_id == usuario.id
+        and vinculo_sem_registros(o)
+    ]
+    motivo = motivo_bloqueio_exclusao(usuario, descartaveis)
     if motivo:
         auditoria.registrar(
             "exclusao_recusada", "usuario", usuario.id, {"motivo": motivo}
@@ -104,6 +193,12 @@ def excluir_usuario(usuario: Usuario, executor: Usuario) -> None:
         "exclusao_usuario",
         "usuario",
         usuario.id,
-        {"email": usuario.email, "papel": usuario.papel},
+        {
+            "email": usuario.email,
+            "papel": usuario.papel,
+            "vinculos_removidos": descartaveis,
+        },
     )
+    for oid in descartaveis:
+        db.session.delete(db.session.get(Orientacao, oid))
     db.session.delete(usuario)

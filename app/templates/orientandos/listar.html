@@ -3,16 +3,28 @@
 {% block content %}
 <h1>Meus orientandos</h1>
 <p><a href="{{ url_for('orientandos.criar') }}">+ Novo orientando</a></p>
-<p><small>A exclusão só é possível para contas criadas por você e ainda sem
-histórico (sem vínculo, conteúdo ou ações). Nos demais casos, solicite a
-desativação ao administrador. Após criar a conta, solicite ao administrador o
-vínculo de orientação.</small></p>
+<p><small>Ao criar um orientando, o vínculo de orientação é atribuído a você
+automaticamente. A exclusão só é possível para contas criadas por você e ainda
+sem histórico — nesse caso o vínculo é removido junto. Havendo qualquer
+registro (marco, documento, ata ou parecer), solicite a desativação ao
+administrador, que preserva o histórico.</small></p>
 <table>
-  <tr><th>Nome</th><th>E-mail</th><th>Ativo</th><th></th></tr>
+  <tr>
+    <th>Nome</th><th>E-mail</th><th>Projeto</th><th>Ativo</th><th></th>
+  </tr>
   {% for u in orientandos %}
   <tr>
     <td>{{ u.nome }}</td>
     <td>{{ u.email }}</td>
+    <td>
+      {% set o = vinculos.get(u.id) %}
+      {% if o %}
+        <a href="{{ url_for('main.orientacao_detalhe', orientacao_id=o.id) }}">{{ o.titulo_projeto }}</a>
+        <span class="badge">{{ MODALIDADE_LABEL[o.modalidade] }}</span>
+      {% else %}
+        <span class="badge">sem vínculo ativo</span>
+      {% endif %}
+    </td>
     <td>{{ 'sim' if u.ativo else 'não' }}</td>
     <td class="acoes">
       {% if u.id in excluiveis %}
@@ -24,7 +36,7 @@ vínculo de orientação.</small></p>
     </td>
   </tr>
   {% else %}
-  <tr><td colspan="4">Nenhum orientando vinculado ou criado por você.</td></tr>
+  <tr><td colspan="5">Nenhum orientando vinculado ou criado por você.</td></tr>
   {% endfor %}
 </table>
 {% endblock %}

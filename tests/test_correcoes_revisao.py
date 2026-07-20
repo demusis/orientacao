@@ -161,6 +161,19 @@ def test_finalizacao_congela_conteudo_da_ata(client, orientacao, orientador):
     assert resp.data.startswith(b"%PDF")
 
 
+def test_botao_link_tem_cor_propria(app):
+    """Regressão visual: `button.link` sem `color` herda o branco da regra
+    genérica de `button` e some sobre o fundo claro das tabelas (a coluna de
+    ações aparecia vazia embora o botão estivesse no HTML)."""
+    import pathlib
+    import re
+
+    css = pathlib.Path(app.root_path, "static", "style.css").read_text(encoding="utf-8")
+    regra = re.search(r"button\.link\s*\{([^}]*)\}", css)
+    assert regra, "regra button.link ausente"
+    assert "color:" in regra.group(1), "button.link precisa declarar color"
+
+
 # 4. serialização canônica sem ambiguidade de fronteira entre campos
 
 def test_hash_sem_colisao_por_deslocamento_de_fronteira(app):
