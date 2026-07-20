@@ -1,4 +1,4 @@
-{% macro render_form(form, action='', enctype=None) %}
+{% macro render_form(form, action='', enctype=None, method='post') %}
 {#- largura de cada campo na grade de 12 colunas, derivada do tipo: texto
     longo e listas de seleção ocupam a linha inteira; datas, horas e números
     ocupam um quarto; seleções curtas, um terço. -#}
@@ -17,7 +17,7 @@
      'EmailField': 'campo-l',
      'FileField': 'campo-l'
    } %}
-<form class="form-grid" method="post" action="{{ action }}" {% if enctype %}enctype="{{ enctype }}"{% endif %}>
+<form class="form-grid" method="{{ method }}" action="{{ action }}" {% if enctype %}enctype="{{ enctype }}"{% endif %}>
   {{ form.hidden_tag() }}
   {% for campo in form if campo.widget.input_type not in ('hidden', 'submit') %}
     <div class="campo {{ larguras.get(campo.type, 'campo-l') }}">

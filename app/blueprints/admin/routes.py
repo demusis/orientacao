@@ -1,4 +1,4 @@
-from flask import abort, flash, redirect, render_template, url_for
+from flask import abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user
 
 from app.blueprints.admin import bp
@@ -8,6 +8,7 @@ from app.blueprints.admin.forms import (
     EncerrarOrientacaoForm,
     EventoVinculoForm,
     ExcluirForm,
+    FiltroAuditoriaForm,
     OrientacaoForm,
     RemoverForm,
     UsuarioForm,
@@ -331,10 +332,47 @@ def eventos_orientacao(orientacao_id: int):
     )
 
 
+LIMITE_AUDITORIA = 20
+
+
 @bp.route("/auditoria")
 @role_required("admin")
 def listar_auditoria():
     from app.models import LogAuditoria
 
-    logs = LogAuditoria.query.order_by(LogAuditoria.timestamp.desc()).limit(200).all()
-    return render_template("admin/auditoria.html", logs=logs)
+    form = FiltroAuditoriaForm(formdata=request.args)
+    form.usuario_id.choices = [(0, "— todos —")] + [
+        (u.id, u.nome) for u in Usuario.query.order_by(Usuario.nome)
+    ]
+    acoes = [
+        a
+        for (a,) in db.session.query(LogAuditoria.acao)
+        .distinct()
+        .order_by(LogAuditoria.acao)
+    ]
+    form.acao.choices = [("", "— todas —")] + [(a, a) for a in acoes]
+
+    consulta = LogAuditoria.query
+    if form.validate():
+        if form.de.data:
+            consulta = consulta.filter(LogAuditoria.timestamp >= form.de.data)
+        if form.ate.data:
+            consulta = consulta.filter(LogAuditoria.timestamp <= form.ate.data)
+        if form.usuario_id.data:
+            consulta = consulta.filter(LogAuditoria.usuario_id == form.usuario_id.data)
+        if form.acao.data:
+            consulta = consulta.filter(LogAuditoria.acao == form.acao.data)
+
+    total = consulta.count()
+    logs = (
+        consulta.order_by(LogAuditoria.timestamp.desc())
+        .limit(LIMITE_AUDITORIA)
+        .all()
+    )
+    return render_template(
+        "admin/auditoria.html",
+        logs=logs,
+        form=form,
+        total=total,
+        limite=LIMITE_AUDITORIA,
+    )

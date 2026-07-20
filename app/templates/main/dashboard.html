@@ -1,11 +1,88 @@
 {% extends "base.html" %}
 {% block title %}Painel — ARIADNE{% endblock %}
 {% block content %}
+{% set avalia = current_user.papel in ('orientador', 'admin') %}
 <h1>Painel — {{ current_user.papel.capitalize() }}</h1>
 
-{% if marcos_atrasados %}
-<div class="flash flash-danger">
-  <strong>{{ marcos_atrasados|length }} marco(s) em atraso.</strong>
+{% if pendencias.total == 0 %}
+<div class="flash flash-success">Nenhuma pendência em aberto.</div>
+{% endif %}
+
+{% if pendencias.entregas_a_confirmar %}
+<div class="card">
+  <h2>{% if avalia %}Entregas aguardando sua confirmação{% else %}Suas entregas aguardando avaliação{% endif %}
+    <span class="badge">{{ pendencias.entregas_a_confirmar|length }}</span></h2>
+  <table>
+    <tr><th>Tarefa</th><th>Etapa</th>{% if avalia %}<th>Orientando</th>{% endif %}<th>Prazo</th><th></th></tr>
+    {% for m in pendencias.entregas_a_confirmar %}
+    <tr>
+      <td>{{ m.titulo }}</td>
+      <td>{{ ETAPA_MARCO_LABEL.get(m.etapa, '—') }}</td>
+      {% if avalia %}<td>{{ m.orientacao.orientando.nome }}</td>{% endif %}
+      <td>{{ m.data_prevista }}{% if m.atrasado %} <span class="badge badge-atrasado">atrasado</span>{% endif %}</td>
+      <td><a href="{{ url_for('cronogramas.listar', orientacao_id=m.orientacao_id) }}">Abrir cronograma</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+{% if pendencias.tarefas_abertas %}
+<div class="card">
+  <h2>Tarefas em aberto <span class="badge">{{ pendencias.tarefas_abertas|length }}</span></h2>
+  <table>
+    <tr><th>Tarefa</th><th>Etapa</th>{% if avalia %}<th>Orientando</th>{% endif %}<th>Prazo</th><th></th></tr>
+    {% for m in pendencias.tarefas_abertas %}
+    <tr>
+      <td>{{ m.titulo }}</td>
+      <td>{{ ETAPA_MARCO_LABEL.get(m.etapa, '—') }}</td>
+      {% if avalia %}<td>{{ m.orientacao.orientando.nome }}</td>{% endif %}
+      <td>{{ m.data_prevista }}{% if m.atrasado %} <span class="badge badge-atrasado">atrasado</span>{% endif %}</td>
+      <td><a href="{{ url_for('cronogramas.listar', orientacao_id=m.orientacao_id) }}">Abrir cronograma</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+{% if pendencias.atas_rascunho %}
+<div class="card">
+  <h2>Atas em rascunho{% if avalia %} (a finalizar){% endif %}
+    <span class="badge">{{ pendencias.atas_rascunho|length }}</span></h2>
+  <table>
+    <tr><th>Reunião</th><th>Tipo</th><th>Pauta</th><th></th></tr>
+    {% for a in pendencias.atas_rascunho %}
+    <tr>
+      <td>{{ a.data_reuniao }}</td>
+      <td><span class="badge">{{ a.tipo }}</span></td>
+      <td>{{ a.pauta | truncate(60) }}</td>
+      <td>
+        {% if a.orientacoes %}
+        <a href="{{ url_for('atas.detalhe_ata', orientacao_id=a.orientacoes[0].id, ata_id=a.id) }}">Abrir ata</a>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+{% if pendencias.versoes_sem_parecer %}
+<div class="card">
+  <h2>{% if avalia %}Versões aguardando parecer{% else %}Suas versões aguardando parecer{% endif %}
+    <span class="badge">{{ pendencias.versoes_sem_parecer|length }}</span></h2>
+  <table>
+    <tr><th>Documento</th><th>Versão</th>{% if avalia %}<th>Orientando</th>{% endif %}<th>Enviada em</th><th></th></tr>
+    {% for v in pendencias.versoes_sem_parecer %}
+    <tr>
+      <td>{{ v.documento.titulo }}</td>
+      <td>v{{ v.numero_versao }}</td>
+      {% if avalia %}<td>{{ v.documento.orientacao.orientando.nome }}</td>{% endif %}
+      <td>{{ v.enviado_em.strftime('%Y-%m-%d %H:%M') }}</td>
+      <td><a href="{{ url_for('documentos.detalhe', orientacao_id=v.documento.orientacao_id, documento_id=v.documento_id) }}">Abrir documento</a></td>
+    </tr>
+    {% endfor %}
+  </table>
 </div>
 {% endif %}
 

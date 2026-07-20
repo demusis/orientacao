@@ -15,6 +15,18 @@ def create_app(config_name: str | None = None) -> Flask:
     if config_name == "development":
         os.makedirs(app.instance_path, exist_ok=True)
 
+    # atrás de proxy reverso, request.remote_addr é o endereço do próprio proxy;
+    # x_for=N faz o Werkzeug tomar o N-ésimo valor a partir da direita em
+    # X-Forwarded-For — o mais à direita é o que o proxy confiável escreveu,
+    # portanto não é falseável por cabeçalho enviado pelo cliente
+    proxies = app.config.get("TRUSTED_PROXY_COUNT", 0)
+    if proxies:
+        from werkzeug.middleware.proxy_fix import ProxyFix
+
+        app.wsgi_app = ProxyFix(
+            app.wsgi_app, x_for=proxies, x_proto=proxies, x_host=proxies
+        )
+
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)

@@ -1,9 +1,27 @@
 {% extends "base.html" %}
+{% from "_macros.html" import render_form %}
 {% block title %}Auditoria — ARIADNE{% endblock %}
 {% block content %}
-<h1>Trilha de auditoria (200 mais recentes)</h1>
+<h1>Trilha de auditoria</h1>
+<div class="card">
+  <h2>Filtros</h2>
+  {{ render_form(form, method='get') }}
+  <p><small>Os carimbos de data/hora são gravados em UTC; o intervalo acima segue a
+  mesma referência. Deixe um campo em branco para não restringi-lo.</small></p>
+</div>
+
+<p>
+  {% if total > limite %}
+    Exibindo os <strong>{{ limite }}</strong> registros mais recentes de
+    <strong>{{ total }}</strong> que atendem ao filtro — restrinja o intervalo para
+    alcançar os demais.
+  {% else %}
+    <strong>{{ total }}</strong> registro(s) atendem ao filtro.
+  {% endif %}
+</p>
+
 <table>
-  <tr><th>Data/hora (UTC)</th><th>Usuário</th><th>Ação</th><th>Entidade</th><th>Dados</th><th>IP</th></tr>
+  <tr><th>Data/hora (UTC)</th><th>Usuário</th><th>Ação</th><th>Entidade</th><th>Dados</th><th>IP de origem</th></tr>
   {% for log in logs %}
   <tr>
     <td>{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
@@ -13,6 +31,8 @@
     <td><small>{{ log.dados_json or '' }}</small></td>
     <td>{{ log.ip or '—' }}</td>
   </tr>
+  {% else %}
+  <tr><td colspan="6">Nenhum registro para o filtro informado.</td></tr>
   {% endfor %}
 </table>
 {% endblock %}

@@ -9,6 +9,10 @@ class Config:
     MAX_CONTENT_LENGTH = 20 * 1024 * 1024  # 20 MB
     UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", os.path.join(BASE_DIR, "uploads"))
     ALLOWED_EXTENSIONS = {"pdf", "doc", "docx", "odt", "txt", "zip"}
+    # Número de proxies reversos confiáveis à frente da aplicação. Zero desativa
+    # a leitura de X-Forwarded-For: sem proxy, o cabeçalho é forjável pelo
+    # cliente e registrar seu conteúdo como origem falsearia a auditoria.
+    TRUSTED_PROXY_COUNT = int(os.environ.get("TRUSTED_PROXY_COUNT", "0"))
 
 
 class DevelopmentConfig(Config):
@@ -27,6 +31,10 @@ class TestingConfig(Config):
 class ProductionConfig(Config):
     DEBUG = False
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", "")
+    # em produção a aplicação fica atrás do proxy do PythonAnywhere, que
+    # acrescenta o endereço do cliente a X-Forwarded-For; sem isto a auditoria
+    # grava o IP interno do proxy (10.x.x.x) em vez da origem real
+    TRUSTED_PROXY_COUNT = int(os.environ.get("TRUSTED_PROXY_COUNT", "1"))
     SESSION_COOKIE_SECURE = True
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"

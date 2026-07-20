@@ -29,6 +29,22 @@ def client(app):
     return app.test_client()
 
 
+@pytest.fixture
+def app_com_proxy(monkeypatch):
+    """Aplicação configurada como em produção: um proxy reverso confiável à
+    frente, de modo que X-Forwarded-For passe a valer como origem."""
+    from config import TestingConfig
+
+    monkeypatch.setattr(TestingConfig, "TRUSTED_PROXY_COUNT", 1, raising=False)
+    app = create_app("testing")
+    app.config["UPLOAD_FOLDER"] = tempfile.mkdtemp(prefix="ariadne-test-uploads-")
+    with app.app_context():
+        db.create_all()
+        yield app
+        db.session.remove()
+        db.drop_all()
+
+
 def _criar_usuario(nome, email, papel, senha="senha-teste-123"):
     u = Usuario(nome=nome, email=email, papel=papel)
     u.set_senha(senha)

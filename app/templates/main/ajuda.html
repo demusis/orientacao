@@ -70,11 +70,24 @@
 
 <section id="painel" class="card">
   <h2>3. Painel</h2>
-  <p>O <strong>Painel</strong> lista os vínculos visíveis ao seu papel (o administrador vê
-  todos; orientador e orientando veem apenas os próprios) e alerta sobre
-  <strong>marcos em atraso</strong> — marcos com data prevista vencida e ainda não
-  concluídos. O botão <em>Abrir</em> conduz à página do vínculo, que reúne os quatro
-  módulos: Cronograma, Documentos, Atas e Pareceres.</p>
+  <p>O <strong>Painel</strong> reúne o que está pendente nos seus vínculos ativos, em
+  quatro quadros, e em seguida lista os vínculos visíveis ao seu papel (o administrador
+  vê todos; orientador e orientando veem apenas os próprios). O botão <em>Abrir</em>
+  conduz à página do vínculo, que reúne os quatro módulos: Cronograma, Documentos, Atas
+  e Pareceres.</p>
+  <ul>
+    <li><strong>Entregas aguardando confirmação</strong> — marcos que o orientando
+    sinalizou como concluídos e que esperam a confirmação do orientador. Para o
+    orientando, o mesmo quadro aparece como "suas entregas aguardando avaliação".</li>
+    <li><strong>Tarefas em aberto</strong> — marcos ainda não concluídos, em ordem de
+    prazo, com selo <em>atrasado</em> quando a data prevista já venceu.</li>
+    <li><strong>Atas em rascunho</strong> — reuniões registradas cuja ata ainda não foi
+    finalizada.</li>
+    <li><strong>Versões aguardando parecer</strong> — a versão mais recente de cada
+    documento que ainda não recebeu parecer. Versões superadas por outra não aparecem.</li>
+  </ul>
+  <p>Não havendo nada pendente, o Painel informa isso expressamente. Cada linha leva ao
+  módulo correspondente.</p>
 </section>
 
 <section id="administracao" class="card">
@@ -280,9 +293,15 @@
   <p>Toda operação relevante — login e tentativas falhas, criação e alteração de
   usuários e vínculos, marcos, envios e downloads de documentos, atas, pareceres e
   tentativas de operação recusada — gera um registro com autor, ação, entidade, data/hora
-  (UTC) e endereço IP. A trilha é <em>append-only</em>: o sistema não possui função de
-  edição ou exclusão de registros. O administrador a consulta no menu
+  (UTC) e endereço IP de origem. A trilha é <em>append-only</em>: o sistema não possui
+  função de edição ou exclusão de registros. O administrador a consulta no menu
   <strong>Auditoria</strong>.</p>
+  <p>A consulta exibe os <strong>20 registros mais recentes</strong> que atendem ao
+  filtro, informando quantos registros existem ao todo no recorte. Os filtros são
+  <em>intervalo de data e hora</em> (início e fim, em UTC, ambos opcionais),
+  <em>usuário</em> e <em>ação</em>. Para alcançar registros mais antigos, estreite o
+  intervalo. O endereço da consulta reflete o filtro aplicado, de modo que um recorte
+  pode ser guardado ou compartilhado como link.</p>
 </section>
 
 <section id="faq" class="card">

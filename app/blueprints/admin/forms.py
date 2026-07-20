@@ -2,6 +2,7 @@ from flask_wtf import FlaskForm
 from wtforms import (
     BooleanField,
     DateField,
+    DateTimeLocalField,
     PasswordField,
     SelectField,
     StringField,
@@ -98,3 +99,25 @@ class ExcluirForm(FlaskForm):
     """Exclusão de conta — privativa do administrador."""
 
     submit = SubmitField("Excluir")
+
+
+class FiltroAuditoriaForm(FlaskForm):
+    """Filtro da trilha, submetido por GET para que o recorte seja endereçável.
+    Os carimbos são gravados em UTC; os campos abaixo seguem a mesma referência."""
+
+    class Meta:
+        csrf = False  # consulta sem efeito colateral
+
+    de = DateTimeLocalField(
+        "De (UTC)", validators=[Optional()], format="%Y-%m-%dT%H:%M"
+    )
+    ate = DateTimeLocalField(
+        "Até (UTC)", validators=[Optional()], format="%Y-%m-%dT%H:%M"
+    )
+    usuario_id = SelectField("Usuário", coerce=int, default=0, validators=[Optional()])
+    acao = SelectField("Ação", default="", validators=[Optional()])
+    submit = SubmitField("Filtrar")
+
+    def validate_ate(self, field):
+        if field.data and self.de.data and field.data < self.de.data:
+            raise ValidationError("O fim do intervalo deve ser posterior ao início.")

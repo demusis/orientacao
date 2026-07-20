@@ -6,6 +6,7 @@ from app.blueprints.main.forms import TituloProjetoForm
 from app.extensions import db
 from app.models import Orientacao
 from app.services import eventos as eventos_service
+from app.services import painel
 from app.services.eventos import EventoInvalido
 from app.services.rbac import orientacao_autorizada, orientacoes_do_usuario
 
@@ -28,13 +29,10 @@ def index():
 @login_required
 def dashboard():
     orientacoes = orientacoes_do_usuario().order_by(Orientacao.criado_em.desc()).all()
-    marcos_atrasados = [
-        m for o in orientacoes if o.status == "ativa" for m in o.marcos if m.atrasado
-    ]
     return render_template(
         "main/dashboard.html",
         orientacoes=orientacoes,
-        marcos_atrasados=marcos_atrasados,
+        pendencias=painel.pendencias(),
     )
 
 
