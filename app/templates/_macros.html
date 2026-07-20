@@ -1,8 +1,26 @@
 {% macro render_form(form, action='', enctype=None) %}
-<form method="post" action="{{ action }}" {% if enctype %}enctype="{{ enctype }}"{% endif %}>
+{#- largura de cada campo na grade de 12 colunas, derivada do tipo: texto
+    longo e listas de seleção ocupam a linha inteira; datas, horas e números
+    ocupam um quarto; seleções curtas, um terço. -#}
+{% set larguras = {
+     'TextAreaField': 'campo-xl',
+     'MultiCheckboxField': 'campo-xl',
+     'SelectMultipleField': 'campo-xl',
+     'DateField': 'campo-s',
+     'TimeField': 'campo-s',
+     'IntegerField': 'campo-s',
+     'DecimalField': 'campo-s',
+     'SelectField': 'campo-m',
+     'BooleanField': 'campo-m campo-check',
+     'StringField': 'campo-l',
+     'PasswordField': 'campo-l',
+     'EmailField': 'campo-l',
+     'FileField': 'campo-l'
+   } %}
+<form class="form-grid" method="post" action="{{ action }}" {% if enctype %}enctype="{{ enctype }}"{% endif %}>
   {{ form.hidden_tag() }}
   {% for campo in form if campo.widget.input_type not in ('hidden', 'submit') %}
-    <div class="campo">
+    <div class="campo {{ larguras.get(campo.type, 'campo-l') }}">
       {{ campo.label }}
       {{ campo() }}
       {% for erro in campo.errors %}<span class="erro">{{ erro }}</span>{% endfor %}
