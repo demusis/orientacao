@@ -49,7 +49,20 @@ def _link_visivel(no: dict) -> str:
 
 
 def _texto_dos_filhos(no: dict) -> str:
-    return "".join(f.get("raw", "") for f in no.get("children", []))
+    """Texto de toda a subárvore, e não apenas dos filhos imediatos.
+
+    A versão anterior lia só a chave `raw` dos filhos diretos. Nós de ênfase
+    (`strong`, `emphasis`, `codespan`) guardam o texto em `children`, não em
+    `raw`, de modo que `[**o edital** aqui](url)` produzia " aqui (url)" — as
+    palavras dentro do negrito sumiam do rótulo, na tela e no documento
+    assinado, sem erro algum. Daí a recursão."""
+    partes = []
+    for filho in no.get("children", []):
+        if filho.get("children"):
+            partes.append(_texto_dos_filhos(filho))
+        else:
+            partes.append(filho.get("raw", ""))
+    return "".join(partes)
 
 
 def _html_inline(nos: list) -> str:
@@ -247,6 +260,13 @@ def _pdf_lista(no: dict, estilos, recuo: float) -> list:
                 marca = ""  # só o primeiro bloco do item recebe a marca
             elif filho["type"] == "list":
                 saida += _pdf_lista(filho, estilos, recuo + 6 * mm)
+            else:
+                # Qualquer outro bloco dentro do item — citação, código, título,
+                # tabela — segue pelo caminho geral. Sem este ramo o conteúdo era
+                # DESCARTADO em silêncio, aparecendo na tela e faltando no PDF
+                # assinado: exatamente a divergência que este módulo promete
+                # impedir. Nenhum tipo de nó pode terminar sem tratamento.
+                saida += _pdf_blocos([filho], estilos, recuo + 6 * mm)
     return saida
 
 

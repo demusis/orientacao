@@ -96,19 +96,33 @@ def register_avisos_diarios(app: Flask) -> None:
         from app.services import auditoria, avisos
 
         estado["proxima_verificacao"] = agora + avisos.INTERVALO_ENTRE_TENTATIVAS
+        resumo = None
         try:
             if not ConfiguracaoEmail.vigente().operante:
                 db.session.commit()
                 return
+            # confirma internamente a reserva antes da rede e o registro de
+            # entrega logo após; o que sobra para cá é só a auditoria
             resumo = avisos.disparar_se_devido()
-            if resumo is not None:
-                auditoria.registrar(
-                    "envio_avisos", "configuracao_email", 1, resumo
-                )
-            db.session.commit()
         except Exception:  # noqa: BLE001 — nada aqui pode quebrar a requisição
             db.session.rollback()
             app.logger.exception("Falha ao disparar os avisos do dia")
+            return
+
+        if resumo is None:
+            return
+        try:
+            # Transação própria, posterior à que registrou as entregas. Antes,
+            # uma falha aqui provocava rollback das marcas de envio e o lote
+            # inteiro era reenviado na janela seguinte — perder uma linha da
+            # trilha é muito menos grave que duplicar aviso a todos.
+            auditoria.registrar(
+                "envio_avisos", "configuracao_email", 1, resumo, automatico=True
+            )
+            db.session.commit()
+        except Exception:  # noqa: BLE001
+            db.session.rollback()
+            app.logger.exception("Avisos enviados, mas a auditoria falhou: %s", resumo)
 
 
 def register_cli(app: Flask) -> None:

@@ -29,6 +29,11 @@ class ConfiguracaoEmail(db.Model):
     # a trava contra disparo concorrente e o intervalo entre repetições: sem ele,
     # rede instável faria toda requisição tentar de novo.
     avisos_tentados_em = db.Column(db.DateTime, nullable=True)
+    # JSON {"dia": "AAAA-MM-DD", "emails": [...]} com quem já recebeu no dia.
+    # É o que permite repetir uma tentativa parcialmente falha sem reenviar a
+    # quem já foi atendido — sem isto, ou se abandonava o destinatário que
+    # falhou, ou se duplicava a mensagem dos demais.
+    avisos_entregues = db.Column(db.Text, nullable=True)
     atualizado_em = db.Column(db.DateTime, nullable=True)
     atualizado_por = db.Column(db.Integer, db.ForeignKey("usuario.id"), nullable=True)
 

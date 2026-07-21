@@ -10,16 +10,24 @@ O que isso promete e o que não promete: **no máximo um envio por dia, havendo 
 menos uma visita**. Um dia sem nenhum acesso não gera envio, e a pendência é
 comunicada no dia seguinte. Não é "todo dia às 8h".
 
-A trava contra envio duplo é a atualização condicional em
-`marcar_dia_como_enviado`: duas requisições simultâneas tentam gravar a data de
-hoje, mas só uma altera linha, e apenas essa envia.
+Três marcas coordenam o disparo, e a distinção entre elas é o que evita tanto o
+aviso perdido quanto o aviso repetido:
+
+- `avisos_tentados_em` reserva a tentativa e impõe o intervalo entre repetições.
+  É confirmada **antes** de falar com a rede, para não segurar a trava de escrita
+  do SQLite durante a sessão SMTP — do contrário, qualquer outra requisição que
+  gravasse esperaria pela rede e poderia receber `database is locked`.
+- `avisos_entregues` guarda quem já recebeu no dia, de modo que repetir uma
+  tentativa parcialmente falha atinja apenas quem faltou.
+- `avisos_enviados_em` encerra o dia, e só avança quando nada ficou pendente.
 
 Cada pessoa recebe **uma** mensagem reunindo suas pendências, e não uma por
 categoria — quatro e-mails no mesmo minuto seriam ignorados como ruído.
 """
+import json
 from datetime import date, datetime, timedelta, timezone
 
-from flask import current_app, has_request_context, render_template, request
+from flask import current_app, render_template
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
@@ -35,6 +43,7 @@ from app.models import (
     VersaoDocumento,
 )
 from app.services import email as email_service
+
 # uma reunião registrada e não formalizada por mais de duas semanas
 DIAS_RASCUNHO_VELHO = 15
 # Espera entre tentativas quando o envio falha. A saída de rede desta
@@ -232,6 +241,14 @@ def versoes_sem_parecer(destino: dict) -> None:
 def atas_em_rascunho(destino: dict) -> None:
     """Ao orientador: reunião registrada e nunca formalizada."""
     limite = date.today() - timedelta(days=DIAS_RASCUNHO_VELHO)
+    # O filtro de vínculo ativo, presente nas outras três categorias, faltava
+    # aqui: ata em rascunho de vínculo encerrado gerava aviso diário perpétuo,
+    # mandando finalizar algo cuja tela já não oferece caminho.
+    ativas = (
+        select(AtaParticipacao.ata_id)
+        .join(Orientacao, Orientacao.id == AtaParticipacao.orientacao_id)
+        .where(Orientacao.status == "ativa")
+    )
     itens = (
         Ata.query.options(
             joinedload(Ata.orientador),
@@ -239,7 +256,11 @@ def atas_em_rascunho(destino: dict) -> None:
             .joinedload(AtaParticipacao.orientacao)
             .joinedload(Orientacao.orientando),
         )
-        .filter(Ata.status == "rascunho", Ata.data_reuniao < limite)
+        .filter(
+            Ata.status == "rascunho",
+            Ata.data_reuniao < limite,
+            Ata.id.in_(ativas),
+        )
         .order_by(Ata.data_reuniao)
         .all()
     )
@@ -270,11 +291,18 @@ CATEGORIAS = (
 
 
 def coletar() -> dict:
-    """{Usuario: {"Título da seção": [linha, ...]}} para todos os pendentes."""
+    """{Usuario: {chave_da_seção: [item, ...]}} para todos os pendentes.
+
+    Conta desativada é excluída aqui, num ponto só, valendo para toda categoria:
+    quem perdeu o acesso ao sistema não pode seguir recebendo nomes de
+    orientandos, títulos de projeto e datas de reunião — é dado pessoal
+    trafegando para fora, e sem meio de o titular fazer parar."""
     destino: dict = {}
     for categoria in CATEGORIAS:
         categoria(destino)
-    return destino
+    return {
+        pessoa: secoes for pessoa, secoes in destino.items() if pessoa.ativo
+    }
 
 
 ACRONIMO = (
@@ -304,17 +332,23 @@ RODAPE_FREQUENCIA = (
 
 
 def endereco_do_sistema() -> str:
-    """Endereço para o destinatário chegar ao sistema.
+    """Endereço para o destinatário chegar ao sistema, **apenas** de `URL_BASE`.
 
-    Sem isto o aviso é inútil: informa a pendência e não dá como tratá-la — foi
-    o defeito da primeira versão. Preferência ao valor configurado; na falta
-    dele, o host da requisição que disparou o envio, que é o correto por
-    construção."""
+    Deduzir do `request.url_root` era vulnerabilidade, não conveniência: o
+    cabeçalho `Host` vem do cliente, e como o disparo é acionado por tráfego
+    qualquer, bastava uma requisição com `Host: sitio-falso` no instante certo
+    para que o botão "Abrir o ARIADNE" de todos os e-mails do dia apontasse ao
+    domínio do atacante — página de captura de senha entregue por mensagem
+    legítima, com o remetente institucional, à hora escolhida por ele.
+
+    Sem `URL_BASE` configurado, a mensagem sai sem link. Perde-se conveniência;
+    não se entrega ninguém."""
     configurado = current_app.config.get("URL_BASE")
     if configurado:
         return configurado.rstrip("/")
-    if has_request_context():
-        return request.url_root.rstrip("/")
+    current_app.logger.warning(
+        "URL_BASE não configurado: os avisos sairão sem link para o sistema."
+    )
     return ""
 
 
@@ -376,7 +410,15 @@ def reservar_tentativa() -> bool:
     depois, e só havendo entrega. Assim um lote perdido por rede indisponível não
     consome o aviso do dia, e a requisição seguinte, passado o intervalo, tenta
     de novo. É o que torna o mecanismo tolerável numa rede intermitente — e a
-    desta hospedagem é."""
+    desta hospedagem é.
+
+    **Confirma a própria transação antes de devolver.** No SQLite o UPDATE toma
+    trava de escrita sobre o arquivo inteiro; mantê-la aberta durante a sessão
+    SMTP faria qualquer outra requisição que gravasse — salvar rascunho, enviar
+    documento, registrar login — esperar pela rede e, esgotado o tempo, receber
+    `database is locked` e devolver erro 500. Quem dispara o envio não pode
+    penalizar quem apenas usa o sistema. Confirmada a reserva, a trava fica com
+    quem a obteve mesmo que o processo caia no meio do lote."""
     agora = _agora()
     resultado = db.session.execute(
         db.text(
@@ -394,8 +436,33 @@ def reservar_tentativa() -> bool:
     return resultado.rowcount == 1
 
 
+def entregues_hoje() -> set:
+    """Endereços já atendidos hoje. Registro de outro dia é descartado."""
+    bruto = ConfiguracaoEmail.vigente().avisos_entregues
+    if not bruto:
+        return set()
+    try:
+        guardado = json.loads(bruto)
+    except ValueError:
+        return set()
+    if guardado.get("dia") != date.today().isoformat():
+        return set()
+    return set(guardado.get("emails", []))
+
+
+def registrar_entregues(enderecos: list) -> None:
+    config = ConfiguracaoEmail.vigente()
+    config.avisos_entregues = json.dumps(
+        {
+            "dia": date.today().isoformat(),
+            "emails": sorted(entregues_hoje() | set(enderecos)),
+        },
+        ensure_ascii=False,
+    )
+
+
 def marcar_dia_como_enviado() -> None:
-    """Encerra os disparos do dia. Chamado só após entrega efetiva."""
+    """Encerra os disparos do dia. Chamado só quando nada ficou pendente."""
     db.session.execute(
         db.text(
             "UPDATE configuracao_email SET avisos_enviados_em = :hoje WHERE id = 1"
@@ -405,23 +472,43 @@ def marcar_dia_como_enviado() -> None:
 
 
 def disparar_se_devido() -> dict | None:
-    """Tenta o envio do dia, respeitando trava e intervalo.
+    """Tenta o envio do dia, respeitando trava, intervalo e quem já recebeu.
 
-    Devolve o resumo quando houve tentativa, ou None quando não era hora. O
-    chamador não precisa conhecer as regras — só repassar o resumo à auditoria."""
+    Devolve o resumo quando houve tentativa, ou None quando não era hora.
+
+    A ordem das confirmações é o que torna isto seguro. A reserva é confirmada
+    **antes** do SMTP, para não segurar a trava de escrita do SQLite durante a
+    rede. O registro de quem recebeu é confirmado **logo após** o envio, e antes
+    de qualquer outra coisa: se a auditoria falhasse depois e arrastasse tudo num
+    rollback, o lote inteiro seria reenviado na janela seguinte."""
     if not reservar_tentativa():
         return None
-    resumo = enviar_pendentes()
-    # sem destinatário algum, o dia está resolvido: não há o que reenviar
-    if resumo["enviados"] or resumo["destinatarios"] == 0:
+    db.session.commit()  # libera a trava de escrita antes de falar com a rede
+
+    resumo = enviar_pendentes(ja_atendidos=entregues_hoje())
+
+    if resumo["enviados"]:
+        registrar_entregues(resumo["enviados"])
+    # o dia se encerra quando nada ficou por entregar; havendo falha, a próxima
+    # janela repete apenas para quem faltou
+    if not resumo["falhas"]:
         marcar_dia_como_enviado()
+    db.session.commit()
     return resumo
 
 
-def enviar_pendentes() -> dict:
+def enviar_pendentes(ja_atendidos: set | None = None) -> dict:
     """Monta e envia as mensagens do dia. Uma conexão SMTP para todas — abrir uma
-    por destinatário multiplicaria a espera da requisição que disparou."""
-    destinatarios = coletar()
+    por destinatário multiplicaria a espera da requisição que disparou.
+
+    `ja_atendidos` exclui quem já recebeu hoje, de modo que repetir uma tentativa
+    parcialmente falha não duplique mensagem."""
+    atendidos = ja_atendidos or set()
+    destinatarios = {
+        pessoa: secoes
+        for pessoa, secoes in coletar().items()
+        if pessoa.email not in atendidos
+    }
     if not destinatarios:
         return {"destinatarios": 0, "itens": 0, "enviados": [], "falhas": []}
 

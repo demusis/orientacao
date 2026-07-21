@@ -4,13 +4,23 @@ from datetime import datetime, timezone
 from app.extensions import db
 
 
-def _formato_congelado(conteudo_congelado: str | None) -> str:
-    """Formato dos campos longos declarado no snapshot. A ausência da chave
-    indica registro anterior à adoção do markdown, que deve continuar sendo
-    exibido literalmente — a tela precisa mostrar o mesmo que o PDF assinado.
-    Enquanto não há congelamento, vale o formato corrente."""
+FORMATOS_CONTEUDO = ("texto", "markdown")
+
+
+def _formato_congelado(conteudo_congelado: str | None, formato_gravado: str) -> str:
+    """Formato dos campos longos.
+
+    Congelado o registro, manda o snapshot: é ele que o PDF assinado imprime, e
+    a ausência da chave indica documento anterior à adoção do markdown.
+
+    Ainda em rascunho, manda a coluna `formato`, gravada na criação. A versão
+    anterior devolvia "markdown" para todo rascunho, o que reinterpretava como
+    marcação os rascunhos redigidos ANTES da adoção — uma pauta com
+    "# de participantes: 4" perdia o "#", e a perda virava permanente ao
+    finalizar. A coluna é o que distingue um rascunho antigo de um novo, coisa
+    que nenhuma heurística sobre o conteúdo faria com segurança."""
     if not conteudo_congelado:
-        return "markdown"
+        return formato_gravado or "texto"
     try:
         return json.loads(conteudo_congelado).get("formato", "texto")
     except ValueError:
@@ -82,6 +92,14 @@ class Ata(db.Model):
     # do PDF e do hash de integridade, estável a alterações externas posteriores
     # (título do projeto, nomes)
     conteudo_congelado = db.Column(db.Text, nullable=True)
+    # Formato dos campos longos na redação. Registro criado antes da adoção do
+    # markdown fica em "texto" pela migração de backfill, e assim permanece,
+    # ainda que só venha a ser finalizado depois.
+    formato = db.Column(
+        db.Enum(*FORMATOS_CONTEUDO, name="formato_conteudo"),
+        nullable=False,
+        default="markdown",
+    )
     criada_em = db.Column(
         db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
     )
@@ -104,7 +122,7 @@ class Ata(db.Model):
 
     @property
     def formato_conteudo(self) -> str:
-        return _formato_congelado(self.conteudo_congelado)
+        return _formato_congelado(self.conteudo_congelado, self.formato)
 
     def participacao_de(self, orientacao_id: int):
         return next(
@@ -158,6 +176,14 @@ class Parecer(db.Model):
     )
     # congelado na emissão (o parecer é imutável desde a criação)
     conteudo_congelado = db.Column(db.Text, nullable=True)
+    # Formato dos campos longos na redação. Registro criado antes da adoção do
+    # markdown fica em "texto" pela migração de backfill, e assim permanece,
+    # ainda que só venha a ser finalizado depois.
+    formato = db.Column(
+        db.Enum(*FORMATOS_CONTEUDO, name="formato_conteudo"),
+        nullable=False,
+        default="markdown",
+    )
 
     orientacao = db.relationship("Orientacao", back_populates="pareceres")
     versao_documento = db.relationship("VersaoDocumento")
@@ -165,7 +191,7 @@ class Parecer(db.Model):
 
     @property
     def formato_conteudo(self) -> str:
-        return _formato_congelado(self.conteudo_congelado)
+        return _formato_congelado(self.conteudo_congelado, self.formato)
 
     def __repr__(self) -> str:
         return f"<Parecer {self.id} {self.tipo} {self.resultado}>"
