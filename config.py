@@ -24,6 +24,8 @@ class Config:
     # de senha), contadas por origem na própria trilha de auditoria.
     LOGIN_JANELA_MINUTOS = 15
     LOGIN_MAX_TENTATIVAS = 10
+    # Itens por página nas listagens administrativas
+    ITENS_POR_PAGINA = 25
 
 
 class DevelopmentConfig(Config):

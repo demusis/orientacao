@@ -3,6 +3,7 @@ import json
 from flask import (
     Response,
     abort,
+    current_app,
     flash,
     redirect,
     render_template,
@@ -45,9 +46,16 @@ from app.services.usuarios import GestaoUsuarioInvalida
 @bp.route("/usuarios")
 @role_required("admin")
 def listar_usuarios():
-    usuarios = Usuario.query.order_by(Usuario.nome).all()
+    paginacao = Usuario.query.order_by(Usuario.nome).paginate(
+        page=request.args.get("pagina", 1, type=int),
+        per_page=current_app.config["ITENS_POR_PAGINA"],
+        error_out=False,
+    )
     return render_template(
-        "admin/usuarios.html", usuarios=usuarios, excluir_form=ExcluirForm()
+        "admin/usuarios.html",
+        usuarios=paginacao.items,
+        paginacao=paginacao,
+        excluir_form=ExcluirForm(),
     )
 
 
@@ -144,8 +152,16 @@ def editar_usuario(usuario_id: int):
 @bp.route("/orientacoes")
 @role_required("admin")
 def listar_orientacoes():
-    orientacoes = Orientacao.query.order_by(Orientacao.criado_em.desc()).all()
-    return render_template("admin/orientacoes.html", orientacoes=orientacoes)
+    paginacao = Orientacao.query.order_by(Orientacao.criado_em.desc()).paginate(
+        page=request.args.get("pagina", 1, type=int),
+        per_page=current_app.config["ITENS_POR_PAGINA"],
+        error_out=False,
+    )
+    return render_template(
+        "admin/orientacoes.html",
+        orientacoes=paginacao.items,
+        paginacao=paginacao,
+    )
 
 
 @bp.route("/orientacoes/nova", methods=["GET", "POST"])

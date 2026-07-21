@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import paginacao_nav %}
 {% block title %}Usuários — ARIADNE{% endblock %}
 {% block content %}
 <h1>Usuários</h1>
@@ -26,4 +27,5 @@ Editar, que preserva o histórico.</small></p>
   </tr>
   {% endfor %}
 </table>
+{{ paginacao_nav(paginacao, 'admin.listar_usuarios', rotulo="páginas de usuários") }}
 {% endblock %}

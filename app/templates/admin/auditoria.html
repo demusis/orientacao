@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import render_form %}
+{% from "_macros.html" import render_form, paginacao_nav %}
 {% block title %}Auditoria — ARIADNE{% endblock %}
 {% block content %}
 <h1>Trilha de auditoria</h1>
@@ -36,36 +36,5 @@
   {% endfor %}
 </table>
 
-{% if paginacao.pages > 1 %}
-{% macro pagina_url(n) %}{{ url_for('admin.listar_auditoria', pagina=n, **filtros) }}{% endmacro %}
-<nav class="paginacao" aria-label="Navegação entre páginas da trilha">
-  {% if paginacao.has_prev %}
-    <a href="{{ pagina_url(1) }}" title="Primeira página">« Primeira</a>
-    <a href="{{ pagina_url(paginacao.prev_num) }}" title="Página anterior">‹ Anterior</a>
-  {% else %}
-    <span class="inativo">« Primeira</span>
-    <span class="inativo">‹ Anterior</span>
-  {% endif %}
-
-  {% for p in paginacao.iter_pages(left_edge=2, left_current=2, right_current=3, right_edge=2) %}
-    {% if p %}
-      {% if p == paginacao.page %}
-        <strong class="pagina-atual" aria-current="page">{{ p }}</strong>
-      {% else %}
-        <a href="{{ pagina_url(p) }}">{{ p }}</a>
-      {% endif %}
-    {% else %}
-      <span class="reticencias">…</span>
-    {% endif %}
-  {% endfor %}
-
-  {% if paginacao.has_next %}
-    <a href="{{ pagina_url(paginacao.next_num) }}" title="Próxima página">Próxima ›</a>
-    <a href="{{ pagina_url(paginacao.pages) }}" title="Última página">Última »</a>
-  {% else %}
-    <span class="inativo">Próxima ›</span>
-    <span class="inativo">Última »</span>
-  {% endif %}
-</nav>
-{% endif %}
+{{ paginacao_nav(paginacao, 'admin.listar_auditoria', filtros, rotulo="páginas da trilha") }}
 {% endblock %}
