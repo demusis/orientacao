@@ -1,6 +1,21 @@
+import json
 from datetime import datetime, timezone
 
 from app.extensions import db
+
+
+def _formato_congelado(conteudo_congelado: str | None) -> str:
+    """Formato dos campos longos declarado no snapshot. A ausência da chave
+    indica registro anterior à adoção do markdown, que deve continuar sendo
+    exibido literalmente — a tela precisa mostrar o mesmo que o PDF assinado.
+    Enquanto não há congelamento, vale o formato corrente."""
+    if not conteudo_congelado:
+        return "markdown"
+    try:
+        return json.loads(conteudo_congelado).get("formato", "texto")
+    except ValueError:
+        return "texto"
+
 
 STATUS_ATA = ("rascunho", "finalizada")
 TIPOS_ATA = ("individual", "grupo")
@@ -87,6 +102,10 @@ class Ata(db.Model):
     def imutavel(self) -> bool:
         return self.status == "finalizada"
 
+    @property
+    def formato_conteudo(self) -> str:
+        return _formato_congelado(self.conteudo_congelado)
+
     def participacao_de(self, orientacao_id: int):
         return next(
             (p for p in self.participacoes if p.orientacao_id == orientacao_id), None
@@ -143,6 +162,10 @@ class Parecer(db.Model):
     orientacao = db.relationship("Orientacao", back_populates="pareceres")
     versao_documento = db.relationship("VersaoDocumento")
     emissor = db.relationship("Usuario", foreign_keys=[emitido_por])
+
+    @property
+    def formato_conteudo(self) -> str:
+        return _formato_congelado(self.conteudo_congelado)
 
     def __repr__(self) -> str:
         return f"<Parecer {self.id} {self.tipo} {self.resultado}>"

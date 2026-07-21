@@ -71,6 +71,15 @@
 
 {% if pode_editar %}
   <div class="card">
+    <h2>Conteúdo atual</h2>
+    <p><small>É assim que o texto sairá no PDF assinável. Salve o rascunho para
+    conferir a formatação antes de finalizar.</small></p>
+    <h3>Pauta</h3>
+    <div class="prosa">{{ ata.pauta | marcacao(ata.formato_conteudo) }}</div>
+    <h3>Deliberações</h3>
+    <div class="prosa">{{ ata.deliberacoes | marcacao(ata.formato_conteudo) }}</div>
+  </div>
+  <div class="card">
     <h2>Editar conteúdo (rascunho)</h2>
     {{ render_form(form) }}
   </div>
@@ -85,9 +94,9 @@
 {% else %}
   <div class="card">
     <h2>Pauta</h2>
-    <p>{{ ata.pauta }}</p>
+    <div class="prosa">{{ ata.pauta | marcacao(ata.formato_conteudo) }}</div>
     <h2>Deliberações</h2>
-    <p>{{ ata.deliberacoes }}</p>
+    <div class="prosa">{{ ata.deliberacoes | marcacao(ata.formato_conteudo) }}</div>
     <p><small>Redigida por {{ ata.redator.nome }}.</small></p>
   </div>
 {% endif %}

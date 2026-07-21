@@ -23,6 +23,7 @@
     <div class="campo {{ larguras.get(campo.type, 'campo-l') }}">
       {{ campo.label }}
       {{ campo() }}
+      {% if campo.description %}<span class="ajuda-campo">{{ campo.description }}</span>{% endif %}
       {% for erro in campo.errors %}<span class="erro">{{ erro }}</span>{% endfor %}
     </div>
   {% endfor %}

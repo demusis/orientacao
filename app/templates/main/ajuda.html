@@ -4,9 +4,9 @@
 <h1>Ajuda</h1>
 <p class="ajuda-intro">
   Este manual descreve o funcionamento completo do ARIADNE
-  (<strong>A</strong>plicativo de <strong>R</strong>egistro, <strong>I</strong>ntegração e
-  <strong>A</strong>companhamento <strong>D</strong>ocente para <strong>N</strong>ivelamento
-  <strong>E</strong>studantil). As seções marcadas com
+  (<strong>A</strong>mbiente de <strong>R</strong>evisão, <strong>I</strong>ntegração,
+  <strong>A</strong>companhamento <strong>D</strong>iscente e
+  <strong>N</strong>ormatização de <strong>E</strong>studos). As seções marcadas com
   <span class="badge badge-papel">seu papel</span> correspondem ao seu perfil de acesso
   (<strong>{{ current_user.papel }}</strong>).
 </p>
@@ -259,14 +259,37 @@
     <strong>imutável</strong>: não pode ser editada nem excluída por ninguém, inclusive
     quem a redigiu. Tentativas de alteração são recusadas e registradas em auditoria.</li>
   </ol>
-  <h3>7.1 Reagendamento</h3>
+  <h3>7.1 Formatação do texto</h3>
+  <p>A <strong>pauta</strong>, as <strong>deliberações</strong> e o texto do
+  <strong>parecer</strong> aceitam marcação. O que se digita é interpretado tanto na
+  tela quanto no <strong>PDF assinável</strong>, a partir da mesma leitura — o documento
+  conferido na tela é o documento assinado no papel.</p>
+  <table>
+    <tr><th>Para obter</th><th>Digite</th></tr>
+    <tr><td>Título de seção</td><td><code># Título</code> (ou <code>##</code>, <code>###</code> para subníveis)</td></tr>
+    <tr><td>Negrito</td><td><code>**texto**</code></td></tr>
+    <tr><td>Itálico</td><td><code>*texto*</code></td></tr>
+    <tr><td>Lista</td><td><code>- item</code> em cada linha</td></tr>
+    <tr><td>Lista numerada</td><td><code>1. item</code> em cada linha</td></tr>
+    <tr><td>Citação</td><td><code>&gt; texto citado</code></td></tr>
+    <tr><td>Linha divisória</td><td><code>---</code> em linha isolada</td></tr>
+    <tr><td>Tabela</td><td><code>| Coluna | Coluna |</code> e, na linha seguinte, <code>|---|---|</code></td></tr>
+  </table>
+  <p>Quebras de linha são preservadas: o texto sai como foi digitado.
+  <strong>Imagens e HTML não são aceitos</strong> — um documento destinado à assinatura
+  não deve buscar recurso externo nem conter marcação arbitrária; se digitados, aparecem
+  como texto literal. <strong>Links</strong> são impressos com o endereço à vista
+  (<em>texto (endereço)</em>), para que o destino não fique oculto atrás da palavra.</p>
+  <p>Enquanto a ata está em rascunho, a página mostra o texto já formatado acima do
+  formulário: salve o rascunho para conferir o resultado antes de finalizar.</p>
+  <h3>7.2 Reagendamento</h3>
   <p>Enquanto a ata está em rascunho, o orientador pode <strong>reagendar</strong> a
   reunião (nova data e hora, com motivo opcional) pelo botão <em>Reagendar</em> na
   página da ata. Cada reagendamento fica no histórico da própria ata — de/para, autor,
   motivo e data/hora do registro — além da trilha de auditoria. A edição comum do
   rascunho não altera a data: toda mudança de agenda passa pelo reagendamento, o que
   garante o registro. Ata finalizada não se reagenda.</p>
-  <h3>7.2 Presenças e justificativas</h3>
+  <h3>7.3 Presenças e justificativas</h3>
   <ul>
     <li>O <strong>orientador</strong> assinala, na página da ata, a
     <em>presença</em> ou <em>ausência</em> de cada orientando participante. O sistema
@@ -276,7 +299,7 @@
   <p><small>Nota: o registro de justificativa de ausência foi retirado do sistema por
   precaução relativa a dados pessoais sensíveis (LGPD); eventual ausência pode ser
   contextualizada nas deliberações da ata, a critério do orientador.</small></p>
-  <h3>7.3 Exportação em PDF e verificação</h3>
+  <h3>7.4 Exportação em PDF e verificação</h3>
   <p>Atas finalizadas e pareceres podem ser <strong>exportados em PDF</strong> para
   assinatura eletrônica externa (gov.br/SEI). O PDF traz identificador e
   <em>hash</em> de integridade; qualquer pessoa com o documento pode conferir, pelo

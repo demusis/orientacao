@@ -27,12 +27,19 @@ from reportlab.platypus import (
 
 from app.models import Ata, Parecer
 from app.models.ata import RESULTADO_LABEL
+from app.services import marcacao
+
+# Formato dos campos longos gravado no snapshot dos documentos novos. Registro
+# anterior à adoção do markdown não traz a chave e é lido como "texto".
+FORMATO_CORRENTE = "markdown"
 
 
 def _texto(valor: str) -> str:
     """Texto de usuário para Paragraph: escape XML (o paraparser do reportlab
     interpreta '&'/'<' como marcação) e quebras de linha preservadas. Células
-    planas de Table não passam por paraparser e recebem o texto sem escape."""
+    planas de Table não passam por paraparser e recebem o texto sem escape.
+
+    Vale para os campos curtos; os longos passam por `marcacao.para_flowables`."""
     return escape(valor or "").replace("\n", "<br/>")
 
 
@@ -55,6 +62,10 @@ def dados_ata(ata: Ata) -> dict:
     return {
         "registro": "ata",
         "id": ata.id,
+        # Formato dos campos longos, congelado junto do conteúdo: um documento
+        # assinado declara como deve ser lido, de modo que mudança futura no
+        # repertório de marcação não altere a aparência do que já foi assinado.
+        "formato": FORMATO_CORRENTE,
         "tipo": ata.tipo,
         "data_reuniao": str(ata.data_reuniao),
         "hora_reuniao": ata.hora_reuniao.strftime("%H:%M") if ata.hora_reuniao else "",
@@ -91,6 +102,7 @@ def dados_parecer(parecer: Parecer) -> dict:
     return {
         "registro": "parecer",
         "id": parecer.id,
+        "formato": FORMATO_CORRENTE,
         "tipo": parecer.tipo,
         "resultado": parecer.resultado,
         "orientacao_id": parecer.orientacao_id,
@@ -242,10 +254,12 @@ def gerar_pdf_ata(ata: Ata, url_verificacao: str) -> bytes:
         ),
         Spacer(1, 5 * mm),
         Paragraph("Pauta", estilos["Heading2"]),
-        Paragraph(_texto(d["pauta"]), estilos["BodyText"]),
+        *marcacao.para_flowables(d["pauta"], estilos, d.get("formato", "texto")),
         Spacer(1, 3 * mm),
         Paragraph("Deliberações", estilos["Heading2"]),
-        Paragraph(_texto(d["deliberacoes"]), estilos["BodyText"]),
+        *marcacao.para_flowables(
+            d["deliberacoes"], estilos, d.get("formato", "texto")
+        ),
     ]
     if d["reagendamentos"]:
         fluxo += [
@@ -298,7 +312,7 @@ def gerar_pdf_parecer(parecer: Parecer, url_verificacao: str) -> bytes:
         ),
         Spacer(1, 5 * mm),
         Paragraph("Parecer", estilos["Heading2"]),
-        Paragraph(_texto(d["conteudo"]), estilos["BodyText"]),
+        *marcacao.para_flowables(d["conteudo"], estilos, d.get("formato", "texto")),
     ]
     fluxo += _rodape_verificacao(estilos, "parecer", d["id"], h, url_verificacao)
     doc.build(fluxo)

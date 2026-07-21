@@ -54,6 +54,27 @@ form.inline { display: inline; }
 .flash-danger { background: #f8d7da; border: 1px solid #d9838d; }
 .flash-warning, .flash-info { background: #fff3cd; border: 1px solid #e0c96a; }
 .erro { color: #b02a37; font-size: .85rem; }
+.ajuda-campo { color: #5a6570; font-size: .8rem; }
+
+/* Bloco de conteúdo com marcação (pauta, deliberações, parecer). O mesmo texto
+   é impresso no PDF assinável pelo emissor de flowables — os estilos daqui
+   apenas espelham na tela a hierarquia que o papel também mostra. */
+.prosa > :first-child { margin-top: 0; }
+.prosa > :last-child { margin-bottom: 0; }
+.prosa h3, .prosa h4, .prosa h5, .prosa h6 { margin: .9rem 0 .3rem; color: var(--azul); }
+.prosa h3 { font-size: 1.05rem; }
+.prosa h4 { font-size: .98rem; }
+.prosa h5, .prosa h6 { font-size: .92rem; }
+.prosa p { margin: .5rem 0; }
+.prosa ul, .prosa ol { margin: .5rem 0 .5rem 1.4rem; }
+.prosa li { margin: .2rem 0; }
+.prosa blockquote { margin: .6rem 0; padding: .1rem 0 .1rem .8rem; border-left: 3px solid var(--borda); color: #4a545e; }
+.prosa code { background: var(--cinza); padding: .05rem .3rem; border-radius: 3px; font-size: .9em; }
+.prosa pre { background: var(--cinza); padding: .6rem; border-radius: 4px; overflow-x: auto; }
+.prosa pre code { background: none; padding: 0; }
+.prosa hr { border: 0; border-top: 1px solid var(--borda); margin: .9rem 0; }
+/* tabela larga rola dentro do bloco, sem empurrar a página */
+.prosa table { display: block; overflow-x: auto; max-width: 100%; }
 .badge { display: inline-block; padding: .1rem .5rem; border-radius: 8px; font-size: .78rem; background: #e2e6ea; }
 .badge-atrasado { background: #f8d7da; }
 .badge-concluido { background: #d8f0d8; }

@@ -12,7 +12,7 @@
     <span class="badge">{{ RESULTADO_LABEL[p.resultado] }}</span>
     {% if p.versao_documento %} — {{ p.versao_documento.documento.titulo }} (v{{ p.versao_documento.numero_versao }}){% endif %}
   </p>
-  <p>{{ p.conteudo }}</p>
+  <div class="prosa">{{ p.conteudo | marcacao(p.formato_conteudo) }}</div>
   <p><small>Emitido por {{ p.emissor.nome }} em {{ p.emitido_em.strftime('%Y-%m-%d %H:%M') }} (UTC). Registro imutável.
   <a href="{{ url_for('atas.pdf_parecer', orientacao_id=orientacao.id, parecer_id=p.id) }}">Exportar PDF</a></small></p>
 </div>

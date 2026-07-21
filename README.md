@@ -1,6 +1,6 @@
 # ARIADNE
 
-**A**plicativo de **R**egistro, **I**ntegração e **A**companhamento **D**ocente para **N**ivelamento **E**studantil.
+**A**mbiente de **R**evisão, **I**ntegração, **A**companhamento **D**iscente e **N**ormatização de **E**studos.
 
 Aplicação web para mediação institucional e controle de fluxo de trabalho entre orientadores acadêmicos e discentes (Iniciação Científica, Mestrado e Doutorado).
 

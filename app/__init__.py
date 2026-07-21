@@ -117,3 +117,8 @@ def register_template_globals(app: Flask) -> None:
         TIPO_EVENTO_LABEL=TIPO_EVENTO_LABEL,
         TIPO_MARCO_LABEL=TIPO_MARCO_LABEL,
     )
+
+    # mesmo emissor que alimenta o PDF, para que a tela não divirja do assinado
+    from app.services.marcacao import para_html
+
+    app.jinja_env.filters["marcacao"] = para_html
