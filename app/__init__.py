@@ -66,13 +66,14 @@ def register_avisos_diarios(app: Flask) -> None:
     no primeiro acesso de cada dia; um dia inteiro sem visitas adia para o
     seguinte.
 
-    Três cuidados: a consulta ao banco ocorre **uma vez por dia por processo**,
-    graças ao marcador em memória; a trava de concorrência é o UPDATE condicional
-    de `marcar_dia_como_enviado`; e falha alguma pode derrubar a requisição do
-    usuário, que nada tem a ver com o envio."""
-    from datetime import date
+    Três cuidados: o banco é consultado no máximo uma vez por intervalo de
+    repetição, graças ao marcador em memória; a trava de concorrência é o UPDATE
+    condicional de `avisos.reservar_tentativa`; e falha alguma pode derrubar a
+    requisição do usuário, que nada tem a ver com o envio."""
+    from datetime import datetime, timezone
 
-    estado = {"verificado_em": None}
+    # até quando não vale a pena nem consultar o banco
+    estado = {"proxima_verificacao": None}
 
     @app.before_request
     def disparar_avisos_do_dia():
@@ -86,24 +87,24 @@ def register_avisos_diarios(app: Flask) -> None:
         # arquivo estático não deve pagar nem a comparação de data
         if request.endpoint == "static":
             return
-        hoje = date.today()
-        if estado["verificado_em"] == hoje:
+        agora = datetime.now(timezone.utc).replace(tzinfo=None)
+        if estado["proxima_verificacao"] and agora < estado["proxima_verificacao"]:
             return
-        estado["verificado_em"] = hoje
 
         from app.extensions import db
         from app.models import ConfiguracaoEmail
         from app.services import auditoria, avisos
 
+        estado["proxima_verificacao"] = agora + avisos.INTERVALO_ENTRE_TENTATIVAS
         try:
-            config = ConfiguracaoEmail.vigente()
-            if not config.operante or not avisos.marcar_dia_como_enviado():
+            if not ConfiguracaoEmail.vigente().operante:
                 db.session.commit()
                 return
-            resumo = avisos.enviar_pendentes()
-            auditoria.registrar(
-                "envio_avisos", "configuracao_email", config.id, resumo
-            )
+            resumo = avisos.disparar_se_devido()
+            if resumo is not None:
+                auditoria.registrar(
+                    "envio_avisos", "configuracao_email", 1, resumo
+                )
             db.session.commit()
         except Exception:  # noqa: BLE001 — nada aqui pode quebrar a requisição
             db.session.rollback()

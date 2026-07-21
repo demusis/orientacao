@@ -21,10 +21,14 @@ class ConfiguracaoEmail(db.Model):
     # senha de app do Google, cifrada; ver services/cripto.py quanto ao alcance
     senha_cifrada = db.Column(db.Text, nullable=True)
     remetente_nome = db.Column(db.String(120), nullable=False, default="ARIADNE")
-    # Data do último disparo dos avisos. É também a trava contra envio duplo:
-    # `avisos.marcar_dia_como_enviado` a atualiza por UPDATE condicional, de modo
-    # que apenas uma requisição concorrente altera linha e envia.
+    # Dia em que os avisos foram entregues com sucesso. Só avança quando ao
+    # menos uma mensagem chega ao servidor SMTP — lote que falha por rede não
+    # consome o disparo do dia.
     avisos_enviados_em = db.Column(db.Date, nullable=True)
+    # Instante da última tentativa (UTC ingênuo, como o resto do banco). Sustenta
+    # a trava contra disparo concorrente e o intervalo entre repetições: sem ele,
+    # rede instável faria toda requisição tentar de novo.
+    avisos_tentados_em = db.Column(db.DateTime, nullable=True)
     atualizado_em = db.Column(db.DateTime, nullable=True)
     atualizado_por = db.Column(db.Integer, db.ForeignKey("usuario.id"), nullable=True)
 

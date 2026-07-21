@@ -172,17 +172,80 @@ def test_vinculo_encerrado_nao_gera_aviso(client, orientacao, orientando):
 # --- trava do disparo diário ---
 
 
-def test_disparo_ocorre_uma_vez_por_dia(client, envio_habilitado):
-    assert avisos.marcar_dia_como_enviado() is True
+def test_tentativas_respeitam_o_intervalo(client, envio_habilitado):
+    assert avisos.reservar_tentativa() is True
     db.session.commit()
-    assert avisos.marcar_dia_como_enviado() is False
+    assert avisos.reservar_tentativa() is False  # cedo demais
+
+
+def test_intervalo_vencido_libera_nova_tentativa(client, envio_habilitado):
+    assert avisos.reservar_tentativa() is True
+    config = ConfiguracaoEmail.vigente()
+    config.avisos_tentados_em = avisos._agora() - avisos.INTERVALO_ENTRE_TENTATIVAS - timedelta(minutes=1)
+    db.session.commit()
+    assert avisos.reservar_tentativa() is True
+
+
+def test_dia_ja_entregue_nao_tenta_de_novo(client, envio_habilitado):
+    config = ConfiguracaoEmail.vigente()
+    config.avisos_enviados_em = date.today()
+    db.session.commit()
+    assert avisos.reservar_tentativa() is False
 
 
 def test_novo_dia_libera_o_disparo(client, envio_habilitado):
     config = ConfiguracaoEmail.vigente()
     config.avisos_enviados_em = date.today() - timedelta(days=1)
     db.session.commit()
-    assert avisos.marcar_dia_como_enviado() is True
+    assert avisos.reservar_tentativa() is True
+
+
+def test_falha_de_rede_nao_consome_o_dia(
+    client, orientacao, orientando, envio_habilitado, monkeypatch
+):
+    """Regressão do defeito observado em produção em 21/07/2026.
+
+    O marcador do dia era gravado **antes** do envio, de modo que um lote
+    perdido por `Network is unreachable` consumia o aviso do dia inteiro — e
+    ninguém era avisado, sem que nada parecesse errado. A marca de sucesso agora
+    só avança havendo entrega."""
+    _marco_atrasado(orientacao)
+    monkeypatch.setattr(
+        email_service, "enviar_lote", lambda m: ([], [d for d, _, _ in m])
+    )
+
+    resumo = avisos.disparar_se_devido()
+    db.session.commit()
+
+    assert resumo["falhas"] and not resumo["enviados"]
+    # o dia continua em aberto
+    assert ConfiguracaoEmail.vigente().avisos_enviados_em != date.today()
+    # e, vencido o intervalo, tenta-se de novo
+    ConfiguracaoEmail.vigente().avisos_tentados_em = (
+        avisos._agora() - avisos.INTERVALO_ENTRE_TENTATIVAS - timedelta(minutes=1)
+    )
+    db.session.commit()
+    assert avisos.reservar_tentativa() is True
+
+
+def test_entrega_bem_sucedida_encerra_o_dia(
+    client, orientacao, orientando, envio_habilitado, lote_capturado
+):
+    _marco_atrasado(orientacao)
+    avisos.disparar_se_devido()
+    db.session.commit()
+
+    assert ConfiguracaoEmail.vigente().avisos_enviados_em == date.today()
+    assert avisos.reservar_tentativa() is False
+
+
+def test_sem_pendencia_tambem_encerra_o_dia(client, envio_habilitado, lote_capturado):
+    """Nada a enviar não é falha: insistir o dia todo consultaria o banco à toa."""
+    resumo = avisos.disparar_se_devido()
+    db.session.commit()
+
+    assert resumo["destinatarios"] == 0
+    assert ConfiguracaoEmail.vigente().avisos_enviados_em == date.today()
 
 
 # --- gatilho por requisição ---

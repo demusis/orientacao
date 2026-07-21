@@ -17,7 +17,7 @@ hoje, mas só uma altera linha, e apenas essa envia.
 Cada pessoa recebe **uma** mensagem reunindo suas pendências, e não uma por
 categoria — quatro e-mails no mesmo minuto seriam ignorados como ruído.
 """
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
@@ -37,6 +37,11 @@ from app.services import email as email_service
 ASSUNTO = "ARIADNE — pendências do seu acompanhamento"
 # uma reunião registrada e não formalizada por mais de duas semanas
 DIAS_RASCUNHO_VELHO = 15
+# Espera entre tentativas quando o envio falha. A saída de rede desta
+# hospedagem é intermitente — em 21/07/2026 o mesmo destino conectou e, minutos
+# depois, devolveu ENETUNREACH. Repetir de meia em meia hora dá dezenas de
+# chances ao longo do dia; repetir a cada requisição castigaria os usuários.
+INTERVALO_ENTRE_TENTATIVAS = timedelta(minutes=30)
 
 
 # ---------------------------------------------------------------------------
@@ -199,21 +204,62 @@ def _corpo(pessoa, secoes: dict) -> str:
     return "\n".join(linhas)
 
 
-def marcar_dia_como_enviado() -> bool:
-    """Trava atômica: devolve True apenas a quem conseguiu gravar a data de hoje.
+def _agora() -> datetime:
+    """UTC ingênuo, como o restante das colunas de data e hora do banco."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
-    Um único UPDATE condicional. Duas requisições simultâneas executam a mesma
-    instrução, mas só uma encontra a linha ainda com data anterior e altera
-    algo — a outra recebe rowcount 0 e não envia."""
-    hoje = date.today()
+
+def reservar_tentativa() -> bool:
+    """Trava atômica: devolve True apenas a quem obteve o direito de tentar.
+
+    Um único UPDATE condicional grava o instante da tentativa. Duas requisições
+    simultâneas executam a mesma instrução, mas só uma encontra a linha
+    elegível e altera algo — a outra recebe rowcount 0 e não envia.
+
+    O que se reserva é a **tentativa**, não o dia: a marca de sucesso é gravada
+    depois, e só havendo entrega. Assim um lote perdido por rede indisponível não
+    consome o aviso do dia, e a requisição seguinte, passado o intervalo, tenta
+    de novo. É o que torna o mecanismo tolerável numa rede intermitente — e a
+    desta hospedagem é."""
+    agora = _agora()
     resultado = db.session.execute(
         db.text(
-            "UPDATE configuracao_email SET avisos_enviados_em = :hoje "
-            "WHERE id = 1 AND (avisos_enviados_em IS NULL OR avisos_enviados_em < :hoje)"
+            "UPDATE configuracao_email SET avisos_tentados_em = :agora "
+            "WHERE id = 1 "
+            "  AND (avisos_enviados_em IS NULL OR avisos_enviados_em < :hoje) "
+            "  AND (avisos_tentados_em IS NULL OR avisos_tentados_em < :limite)"
         ),
-        {"hoje": hoje},
+        {
+            "agora": agora,
+            "hoje": date.today(),
+            "limite": agora - INTERVALO_ENTRE_TENTATIVAS,
+        },
     )
     return resultado.rowcount == 1
+
+
+def marcar_dia_como_enviado() -> None:
+    """Encerra os disparos do dia. Chamado só após entrega efetiva."""
+    db.session.execute(
+        db.text(
+            "UPDATE configuracao_email SET avisos_enviados_em = :hoje WHERE id = 1"
+        ),
+        {"hoje": date.today()},
+    )
+
+
+def disparar_se_devido() -> dict | None:
+    """Tenta o envio do dia, respeitando trava e intervalo.
+
+    Devolve o resumo quando houve tentativa, ou None quando não era hora. O
+    chamador não precisa conhecer as regras — só repassar o resumo à auditoria."""
+    if not reservar_tentativa():
+        return None
+    resumo = enviar_pendentes()
+    # sem destinatário algum, o dia está resolvido: não há o que reenviar
+    if resumo["enviados"] or resumo["destinatarios"] == 0:
+        marcar_dia_como_enviado()
+    return resumo
 
 
 def enviar_pendentes() -> dict:
