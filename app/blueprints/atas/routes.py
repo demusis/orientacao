@@ -1,4 +1,12 @@
-from flask import Response, abort, flash, redirect, render_template, url_for
+from flask import (
+    Response,
+    abort,
+    flash,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 from flask_login import current_user, login_required
 
 from app.services import exportacao
@@ -286,6 +294,20 @@ def emitir_parecer(orientacao_id: int):
     form.versao_documento_id.choices = [(0, "— nenhuma —")] + [
         (v.id, f"{v.documento.titulo} (v{v.numero_versao})") for v in versoes
     ]
+
+    # Chegada pelo Painel: a versão vem no endereço já escolhida. O parâmetro é
+    # confrontado com as versões DESTA orientação — o acesso já passou por
+    # `orientacao_autorizada`, mas identificador de outro vínculo não pode ser
+    # pré-selecionado nem revelar na tela o título de documento alheio.
+    avaliada = next(
+        (v for v in versoes if v.id == request.args.get("versao", type=int)), None
+    )
+    if request.method == "GET" and avaliada:
+        form.versao_documento_id.data = avaliada.id
+        # avaliar uma entrega é justamente o caso do tipo "documento", que fixa
+        # exatamente o que foi apreciado
+        form.tipo.data = "documento"
+
     if form.validate_on_submit():
         parecer = Parecer(
             orientacao_id=orientacao.id,
@@ -307,4 +329,17 @@ def emitir_parecer(orientacao_id: int):
         db.session.commit()
         flash("Parecer emitido. O registro é imutável.", "success")
         return redirect(url_for("atas.listar_pareceres", orientacao_id=orientacao.id))
-    return render_template("atas/parecer_form.html", form=form, orientacao=orientacao)
+
+    return render_template(
+        "atas/parecer_form.html",
+        form=form,
+        orientacao=orientacao,
+        avaliada=avaliada,
+        # o Painel é leitura de momento: pode-se chegar por link envelhecido,
+        # depois de a versão já ter sido avaliada
+        parecer_existente=(
+            Parecer.query.filter_by(versao_documento_id=avaliada.id).first()
+            if avaliada
+            else None
+        ),
+    )

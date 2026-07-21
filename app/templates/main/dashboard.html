@@ -79,7 +79,15 @@
       <td>v{{ v.numero_versao }}</td>
       {% if avalia %}<td>{{ v.documento.orientacao.orientando.nome }}</td>{% endif %}
       <td>{{ v.enviado_em.strftime('%Y-%m-%d %H:%M') }}</td>
-      <td><a href="{{ url_for('documentos.detalhe', orientacao_id=v.documento.orientacao_id, documento_id=v.documento_id) }}">Abrir documento</a></td>
+      <td>
+        {# quem avalia vai direto ao parecer, já vinculado a esta versão; o
+           orientando acompanha a própria entrega e vai ao documento #}
+        {% if avalia %}
+        <a href="{{ url_for('atas.emitir_parecer', orientacao_id=v.documento.orientacao_id, versao=v.id) }}">Emitir parecer</a>
+        {% else %}
+        <a href="{{ url_for('documentos.detalhe', orientacao_id=v.documento.orientacao_id, documento_id=v.documento_id) }}">Abrir documento</a>
+        {% endif %}
+      </td>
     </tr>
     {% endfor %}
   </table>

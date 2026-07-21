@@ -14,7 +14,13 @@
     <td>{{ v.remetente.nome }}</td>
     <td>{{ v.enviado_em.strftime('%Y-%m-%d %H:%M') }}</td>
     <td>{{ v.comentario or '' }}</td>
-    <td><a href="{{ url_for('documentos.download', orientacao_id=orientacao.id, documento_id=documento.id, versao_id=v.id) }}">Baixar</a></td>
+    <td class="acoes">
+      <a href="{{ url_for('documentos.download', orientacao_id=orientacao.id, documento_id=documento.id, versao_id=v.id) }}">Baixar</a>
+      {# mesmo atalho do Painel: a intenção de avaliar também nasce aqui #}
+      {% if current_user.id == orientacao.orientador_id or current_user.papel == 'admin' %}
+      <a href="{{ url_for('atas.emitir_parecer', orientacao_id=orientacao.id, versao=v.id) }}">Emitir parecer</a>
+      {% endif %}
+    </td>
   </tr>
   {% endfor %}
 </table>

@@ -2,9 +2,31 @@
 {% from "_macros.html" import render_form %}
 {% block title %}Emitir parecer — ARIADNE{% endblock %}
 {% block content %}
+
+{% if avaliada %}
 <div class="card">
-  <h1>Emitir parecer — {{ orientacao.titulo_projeto }}</h1>
-  <p><small>O parecer é imutável após a emissão.</small></p>
+  <h1>Emitir parecer</h1>
+  <p><strong>{{ avaliada.documento.titulo }}</strong> — versão {{ avaliada.numero_versao }}</p>
+  <p><small>
+    Enviada por {{ avaliada.documento.orientacao.orientando.nome }}
+    em {{ avaliada.enviado_em.strftime('%d/%m/%Y às %H:%M') }} (UTC) ·
+    {{ avaliada.nome_original }} ·
+    <a href="{{ url_for('documentos.download', orientacao_id=orientacao.id, documento_id=avaliada.documento_id, versao_id=avaliada.id) }}">Baixar arquivo</a>
+  </small></p>
+  {% if parecer_existente %}
+  <p class="flash flash-warning">Esta versão <strong>já recebeu parecer</strong>
+  em {{ parecer_existente.emitido_em.strftime('%d/%m/%Y') }}
+  ({{ RESULTADO_LABEL[parecer_existente.resultado] }}), emitido por
+  {{ parecer_existente.emissor.nome }}. Emitir outro é possível, e o anterior
+  permanece no histórico — mas confira se não chegou aqui por um link antigo.</p>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="card">
+  {% if not avaliada %}<h1>Emitir parecer — {{ orientacao.titulo_projeto }}</h1>{% endif %}
+  <p><small>O parecer é imutável após a emissão e pode ser exportado em PDF para
+  assinatura eletrônica.</small></p>
   {{ render_form(form) }}
 </div>
 {% endblock %}

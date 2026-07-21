@@ -125,9 +125,11 @@ def test_apenas_a_versao_corrente_conta_como_pendencia(client, orientacao, orien
 
     resp = client.get("/dashboard")
     assert resp.status_code == 200
-    # duas versões, uma única pendência (a corrente)
+    # duas versões, uma única pendência (a corrente). O orientador vê "Emitir
+    # parecer" no lugar de "Abrir documento" desde que o Painel passou a levar
+    # direto ao parecer; o que se afere aqui é a contagem, não o rótulo.
     assert doc.versoes.count() == 2
-    assert resp.data.decode().count("Abrir documento") == 1
+    assert resp.data.decode().count("Emitir parecer") == 1
 
 
 def test_pendencia_de_vinculo_alheio_nao_vaza(client, orientacao, orientador, intruso):
