@@ -27,9 +27,15 @@ class EnvioIndisponivel(Exception):
 
 
 def _credenciais(config: ConfiguracaoEmail) -> tuple:
-    if not config.operante:
+    """Exige apenas que haja credencial, e não que o envio esteja habilitado.
+
+    A distinção não é sutil: o administrador precisa **testar antes de ligar**.
+    Exigir `operante` aqui tornava impossível conferir a configuração sem antes
+    habilitá-la às cegas — foi o defeito que produziu erro 500 em 21/07/2026. O
+    interruptor `ativo` governa o envio automático, verificado em `enviar`."""
+    if not config.configurado:
         raise EnvioIndisponivel(
-            "Envio de e-mail não está configurado ou está desabilitado."
+            "Informe a conta de envio e a senha de app antes de enviar."
         )
     return config.usuario, decifrar(config.senha_cifrada)
 
@@ -68,6 +74,10 @@ def enviar(destinatario: str, assunto: str, corpo: str) -> bool:
     falha de rede ou de autenticação: a operação que disparou o envio segue seu
     curso, e o motivo fica no log."""
     config = ConfiguracaoEmail.vigente()
+    if not config.ativo:
+        # o interruptor vale para o envio automático; o teste manual o ignora
+        current_app.logger.info("E-mail não enviado: envio desabilitado.")
+        return False
     try:
         _entregar(config, montar(destinatario, assunto, corpo))
         return True
@@ -85,8 +95,6 @@ def testar(destinatario: str) -> str:
     falha. Diferente de `enviar`, aqui o erro **deve** chegar ao administrador:
     ele está justamente tentando descobrir se a configuração funciona."""
     config = ConfiguracaoEmail.vigente()
-    if not config.configurado:
-        return "Informe usuário e senha de app antes de testar."
     try:
         _entregar(
             config,
@@ -98,6 +106,9 @@ def testar(destinatario: str) -> str:
             ),
         )
         return ""
+    except EnvioIndisponivel as exc:
+        # captura indispensável: sem ela a exceção escapava como erro 500
+        return str(exc)
     except SegredoIlegivel:
         return (
             "A senha guardada não pôde ser decifrada — provavelmente a chave do "

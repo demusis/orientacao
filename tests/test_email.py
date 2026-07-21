@@ -176,6 +176,47 @@ def test_envio_desabilitado_nao_tenta_conectar(client, admin, monkeypatch):
     assert email_service.enviar("x@y.br", "assunto", "corpo") is False
 
 
+def test_teste_funciona_com_envio_ainda_desabilitado(client, admin, monkeypatch):
+    """Regressão do erro 500 de 21/07/2026 em produção.
+
+    O administrador salva a configuração, deixa o interruptor desligado e clica
+    em testar — que é a ordem natural, conferir antes de ligar. `_credenciais`
+    exigia `operante` (configurado E ativo) enquanto `testar` só verificava
+    `configurado`; a `EnvioIndisponivel` daí resultante não era capturada e
+    escapava como erro 500. O teste manual deve ignorar o interruptor."""
+    _configurar(ativo=False)
+    entregues = []
+    monkeypatch.setattr(
+        email_service, "_entregar", lambda c, m: entregues.append(m)
+    )
+    assert email_service.testar("x@y.br") == ""
+    assert len(entregues) == 1
+
+
+def test_teste_sem_credencial_devolve_mensagem_e_nao_estoura(client, admin):
+    """Configuração vazia: a `EnvioIndisponivel` precisa virar texto na tela."""
+    assert "senha de app" in email_service.testar("x@y.br")
+
+
+def test_rota_de_teste_nao_devolve_500(client, admin, monkeypatch):
+    """Percorre a rota inteira no estado que quebrou: configurado, desabilitado.
+    O teste anterior cobria o serviço; este cobre o que o usuário aciona.
+
+    `_entregar` é substituído para que a suíte não dependa de rede — sem isso o
+    teste tentaria alcançar smtp.gmail.com de verdade, ficando lento e instável."""
+    _configurar(ativo=False)
+    monkeypatch.setattr(
+        email_service, "_entregar",
+        lambda *a, **k: (_ for _ in ()).throw(OSError("rede indisponível")),
+    )
+    login(client, "admin@teste.br")
+    resposta = client.post(
+        "/admin/email/teste", data={"destinatario": "x@y.br"}, follow_redirects=True
+    )
+    assert resposta.status_code == 200
+    assert "rede indispon" in resposta.data.decode()
+
+
 def test_falha_de_rede_e_engolida_pelo_envio(client, admin, monkeypatch):
     _configurar()
     monkeypatch.setattr(
