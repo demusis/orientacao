@@ -7,7 +7,6 @@ from app.blueprints.cronogramas import bp
 from app.blueprints.cronogramas.forms import ConfirmacaoForm, MarcoForm
 from app.extensions import db
 from app.models import Marco
-from app.models.cronograma import tipo_do_marco
 from app.services import auditoria
 from app.services.rbac import orientacao_autorizada
 
@@ -43,7 +42,7 @@ def criar(orientacao_id: int):
         marco = Marco(
             orientacao_id=orientacao.id,
             titulo=form.titulo.data,
-            tipo=tipo_do_marco(form.tipo.data, form.etapa.data),
+            tipo=form.tipo.data,
             descricao=form.descricao.data,
             data_prevista=form.data_prevista.data,
             etapa=form.etapa.data,
@@ -67,7 +66,6 @@ def editar(orientacao_id: int, marco_id: int):
     form = MarcoForm(obj=marco)
     if form.validate_on_submit():
         form.populate_obj(marco)
-        marco.tipo = tipo_do_marco(form.tipo.data, form.etapa.data)
         auditoria.registrar("edicao_marco", "marco", marco.id)
         db.session.commit()
         flash("Marco atualizado.", "success")

@@ -1,5 +1,7 @@
 from datetime import date
 
+import pytest
+
 from app.extensions import db
 from app.models import (
     Ata,
@@ -30,81 +32,60 @@ def test_marco_criado_com_tipo(client, orientacao, orientador):
     assert Marco.query.one().tipo == "qualificacao"
 
 
-def test_prorrogacao_altera_prazo_com_historico(client, admin, orientacao):
-    orientacao.data_fim_prevista = date(2028, 2, 28)
-    db.session.commit()
-    login(client, "admin@teste.br")
-    resp = client.post(
-        f"/admin/orientacoes/{orientacao.id}/eventos",
-        data={
-            "tipo": "prorrogacao",
-            "fundamentacao": "Afastamento por licença saúde no semestre anterior.",
-            "data_nova": "2028-08-31",
-            "texto_novo": "",
-        },
-        follow_redirects=True,
-    )
-    assert resp.status_code == 200
-    assert orientacao.data_fim_prevista == date(2028, 8, 31)
-    ev = EventoVinculo.query.one()
-    assert ev.data_anterior == date(2028, 2, 28)
-    assert ev.registrado_em is not None
-    assert LogAuditoria.query.filter_by(acao="evento_vinculo").count() == 1
-
-
-def test_prorrogacao_para_data_anterior_recusada(client, admin, orientacao):
-    orientacao.data_fim_prevista = date(2028, 2, 28)
-    db.session.commit()
-    login(client, "admin@teste.br")
-    resp = client.post(
-        f"/admin/orientacoes/{orientacao.id}/eventos",
-        data={
-            "tipo": "prorrogacao",
-            "fundamentacao": "x",
-            "data_nova": "2027-01-01",
-            "texto_novo": "",
-        },
-        follow_redirects=True,
-    )
-    assert "posterior ao fim vigente".encode() in resp.data
-    assert EventoVinculo.query.count() == 0
-
-
-def test_trancamento_e_destrancamento(client, admin, orientacao):
-    login(client, "admin@teste.br")
+def test_mudanca_titulo_preserva_anterior(client, orientacao, orientador):
+    login(client, "orientador@teste.br")
     client.post(
-        f"/admin/orientacoes/{orientacao.id}/eventos",
-        data={"tipo": "trancamento", "fundamentacao": "Solicitação do discente.", "texto_novo": ""},
-    )
-    assert orientacao.status == "suspensa"
-    client.post(
-        f"/admin/orientacoes/{orientacao.id}/eventos",
-        data={"tipo": "destrancamento", "fundamentacao": "Retorno.", "texto_novo": ""},
-    )
-    assert orientacao.status == "ativa"
-    assert EventoVinculo.query.count() == 2
-
-
-def test_mudanca_titulo_preserva_anterior(client, admin, orientacao):
-    login(client, "admin@teste.br")
-    client.post(
-        f"/admin/orientacoes/{orientacao.id}/eventos",
+        f"/orientacoes/{orientacao.id}/titulo",
         data={
-            "tipo": "mudanca_titulo",
+            "titulo_projeto": "Novo Título do Projeto",
             "fundamentacao": "Redelimitação do objeto após qualificação.",
-            "texto_novo": "Novo Título do Projeto",
         },
     )
     assert orientacao.titulo_projeto == "Novo Título do Projeto"
     ev = EventoVinculo.query.one()
     assert ev.texto_anterior == "Projeto de Teste"
+    assert LogAuditoria.query.filter_by(acao="evento_vinculo").count() == 1
 
 
-def test_eventos_restritos_ao_admin(client, orientacao, orientador):
-    login(client, "orientador@teste.br")
-    assert (
-        client.get(f"/admin/orientacoes/{orientacao.id}/eventos").status_code == 403
+def test_tela_de_eventos_do_admin_nao_existe_mais(client, admin, orientacao):
+    """Prorrogação, trancamento e destrancamento saíram: registravam decisões
+    que o sistema depois ignorava. O prazo passou a ser alterado pelo ajuste de
+    datas, que exige fundamentação."""
+    login(client, "admin@teste.br")
+    assert client.get(f"/admin/orientacoes/{orientacao.id}/eventos").status_code == 404
+
+
+def test_servico_recusa_os_tipos_removidos(app, admin, orientacao):
+    """Guarda o serviço contra o retorno dos ramos por outro caminho."""
+    from app.services.eventos import EventoInvalido, registrar_evento
+
+    for tipo in ("prorrogacao", "trancamento", "destrancamento"):
+        with pytest.raises(EventoInvalido, match="desconhecido"):
+            registrar_evento(
+                orientacao, tipo=tipo, fundamentacao="x", usuario=admin
+            )
+    assert EventoVinculo.query.count() == 0
+
+
+def test_historico_de_evento_legado_continua_legivel(client, admin, orientacao):
+    """Registro gravado antes da remoção precisa continuar renderizando: a
+    tela do vínculo faz TIPO_EVENTO_LABEL[e.tipo], que levantaria KeyError se o
+    mapa tivesse sido podado junto com os ramos do serviço."""
+    db.session.add(
+        EventoVinculo(
+            orientacao_id=orientacao.id,
+            tipo="prorrogacao",
+            fundamentacao="Licença saúde.",
+            data_anterior=date(2028, 2, 28),
+            data_nova=date(2028, 8, 31),
+            registrado_por=admin.id,
+        )
     )
+    db.session.commit()
+    login(client, "admin@teste.br")
+    resp = client.get(f"/orientacoes/{orientacao.id}")
+    assert resp.status_code == 200
+    assert "Prorrogação de prazo".encode() in resp.data
 
 
 # ---------- Sprint C: coorientação ----------

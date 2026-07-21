@@ -3,56 +3,55 @@ from datetime import date
 from app.extensions import db
 
 STATUS_MARCO = ("pendente", "em_andamento", "concluido")
+
+# Os dois eixos de classificação do marco respondem a perguntas distintas e não
+# compartilham rótulo algum — a sobreposição anterior (qualificação, publicação
+# e defesa figuravam nas duas listas) permitia registrar a mesma informação em
+# dois lugares, ou em nenhum.
+#
+# TIPO é o ato ou produto devido na data do marco. Só entra aqui o que o
+# orientador aprecia, assina ou julga em banca: o campo não altera permissão,
+# prazo nem documento exigido, de modo que uma categoria a mais custa atenção em
+# toda abertura da caixa de seleção e rende apenas uma contagem agregada. O que
+# fica de fora (apresentação em evento, proficiência em idioma) continua a ser
+# registrável como "outro", com o título descrevendo o caso.
 TIPOS_MARCO = (
     "outro",
+    "projeto",
+    "comite_etica",
     "qualificacao",
-    "defesa",
-    "relatorio_anual",
-    "proficiencia",
+    "relatorio",
     "publicacao",
+    "defesa",
 )
 
 TIPO_MARCO_LABEL = {
     "outro": "Outro",
+    "projeto": "Projeto de pesquisa",
+    "comite_etica": "Comitê de Ética",
     "qualificacao": "Qualificação",
-    "defesa": "Defesa",
-    "relatorio_anual": "Relatório anual",
-    "proficiencia": "Proficiência",
+    "relatorio": "Relatório (parcial, anual ou final)",
     "publicacao": "Publicação",
+    "defesa": "Defesa",
 }
 
-# Etapa do projeto: substitui a antiga "ordem" numérica livre. Os códigos são
+# ETAPA é o período em que o marco se insere — dura semanas ou meses e abriga
+# vários marcos. Substitui a antiga "ordem" numérica livre. Os códigos são
 # inteiros espaçados de 10 — a ordenação do cronograma continua sendo feita no
 # banco (sem expressão condicional) e novas etapas cabem entre as atuais sem
 # renumerar as existentes. O código 0 é o padrão e agrupa o que ainda não foi
 # classificado, aparecendo no topo do cronograma.
-ETAPAS_MARCO = (0, 10, 20, 30, 40, 50, 60, 70, 80)
+ETAPAS_MARCO = (0, 10, 20, 30, 40, 50, 60)
 
 ETAPA_MARCO_LABEL = {
     0: "Não classificada",
     10: "Planejamento",
     20: "Revisão de literatura",
-    30: "Qualificação",
-    40: "Coleta / Experimentos",
-    50: "Análise de resultados",
-    60: "Redação",
-    70: "Publicação",
-    80: "Defesa",
+    30: "Coleta / Experimentos",
+    40: "Análise de resultados",
+    50: "Redação",
+    60: "Encerramento",
 }
-
-# Etapas que correspondem a um ato formal já previsto em TIPOS_MARCO: quando o
-# tipo não foi especificado, deriva-se dele para não exigir a mesma informação
-# duas vezes.
-TIPO_IMPLICADO_PELA_ETAPA = {30: "qualificacao", 70: "publicacao", 80: "defesa"}
-
-
-def tipo_do_marco(tipo_informado: str, etapa: int) -> str:
-    """Completa o tipo a partir da etapa quando ele foi deixado em 'outro'
-    (valor padrão, que significa 'não especificado'). Tipo escolhido de forma
-    explícita nunca é sobrescrito."""
-    if tipo_informado != "outro":
-        return tipo_informado
-    return TIPO_IMPLICADO_PELA_ETAPA.get(etapa, "outro")
 
 
 class Marco(db.Model):

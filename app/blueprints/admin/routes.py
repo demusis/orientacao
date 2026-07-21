@@ -14,7 +14,6 @@ from app.blueprints.admin.forms import (
     AjusteDatasForm,
     CoorientadorForm,
     EncerrarOrientacaoForm,
-    EventoVinculoForm,
     ExcluirForm,
     ExpurgarBaseForm,
     FiltroAuditoriaForm,
@@ -24,8 +23,6 @@ from app.blueprints.admin.forms import (
     RemoverForm,
     UsuarioForm,
 )
-from app.services import eventos as eventos_service
-from app.services.eventos import EventoInvalido
 from app.extensions import db
 from app.models import Orientacao, OrientacaoOrientador, Usuario
 from app.services import auditoria
@@ -213,7 +210,9 @@ def encerrar_orientacao(orientacao_id: int):
 @role_required("admin")
 def ajustar_datas(orientacao_id: int):
     """Alteração das datas de início e fim do projeto — privativa do
-    administrador; o orientador altera apenas o título."""
+    administrador; o orientador altera apenas o título. É o único caminho para o
+    prazo do vínculo desde que o registro de eventos foi removido, daí exigir
+    fundamentação: a trilha guardava as datas, mas não o motivo."""
     orientacao = db.session.get(Orientacao, orientacao_id) or abort(404)
     form = AjusteDatasForm(obj=orientacao)
     if form.validate_on_submit():
@@ -233,6 +232,7 @@ def ajustar_datas(orientacao_id: int):
                     "data_inicio": str(orientacao.data_inicio),
                     "data_fim_prevista": str(orientacao.data_fim_prevista or ""),
                 },
+                "fundamentacao": form.fundamentacao.data,
             },
         )
         db.session.commit()
@@ -314,33 +314,6 @@ def remover_coorientador(orientacao_id: int, usuario_id: int):
         db.session.commit()
         flash("Coorientador removido.", "success")
     return redirect(url_for("admin.coorientadores", orientacao_id=orientacao.id))
-
-
-@bp.route("/orientacoes/<int:orientacao_id>/eventos", methods=["GET", "POST"])
-@role_required("admin")
-def eventos_orientacao(orientacao_id: int):
-    orientacao = db.session.get(Orientacao, orientacao_id) or abort(404)
-    form = EventoVinculoForm()
-    if form.validate_on_submit():
-        try:
-            eventos_service.registrar_evento(
-                orientacao,
-                tipo=form.tipo.data,
-                fundamentacao=form.fundamentacao.data,
-                usuario=current_user,
-                data_nova=form.data_nova.data,
-                texto_novo=form.texto_novo.data or None,
-            )
-            db.session.commit()
-            flash("Evento registrado e aplicado ao vínculo.", "success")
-            return redirect(
-                url_for("admin.eventos_orientacao", orientacao_id=orientacao.id)
-            )
-        except EventoInvalido as exc:
-            flash(str(exc), "danger")
-    return render_template(
-        "admin/eventos.html", orientacao=orientacao, form=form
-    )
 
 
 @bp.route("/backup", methods=["GET"])

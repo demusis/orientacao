@@ -117,14 +117,11 @@ def test_mudanca_de_titulo_nao_invalida_parecer_emitido(client, admin, orientaca
     h_antes = hash_parecer(parecer)
     titulo_original = orientacao.titulo_projeto
 
-    client.post("/auth/logout")
-    login(client, "admin@teste.br")
     client.post(
-        f"/admin/orientacoes/{orientacao.id}/eventos",
+        f"/orientacoes/{orientacao.id}/titulo",
         data={
-            "tipo": "mudanca_titulo",
+            "titulo_projeto": "Título Alterado",
             "fundamentacao": "Redelimitação.",
-            "texto_novo": "Título Alterado",
         },
     )
     assert orientacao.titulo_projeto == "Título Alterado"
@@ -208,22 +205,9 @@ def test_encerrar_nao_oferece_suspensao(client, admin, orientacao):
 
 # 7. prorrogação com fim previsto nulo valida contra o início
 
-def test_prorrogacao_sem_fim_previsto_valida_contra_inicio(client, admin, orientacao):
-    assert orientacao.data_fim_prevista is None
-    login(client, "admin@teste.br")
-    resp = client.post(
-        f"/admin/orientacoes/{orientacao.id}/eventos",
-        data={
-            "tipo": "prorrogacao",
-            "fundamentacao": "x",
-            "data_nova": "2020-01-01",  # anterior ao início (2026-01-05)
-            "texto_novo": "",
-        },
-        follow_redirects=True,
-    )
-    assert "posterior".encode() in resp.data
-    assert orientacao.data_fim_prevista is None
-    assert EventoVinculo.query.count() == 0
+# A prorrogação saiu junto com a tela de eventos; a guarda de posterioridade do
+# prazo passou a ser exercida por AjusteDatasForm.validate_data_fim_prevista,
+# coberta em test_competencias_vinculo.test_fim_anterior_ao_inicio_e_recusado.
 
 
 # 8. link Reagendar coerente com a rota (coorientador não vê nem acessa)

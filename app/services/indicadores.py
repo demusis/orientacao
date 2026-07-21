@@ -128,10 +128,18 @@ def fluxo_de_marcos() -> dict:
             select(Marco.etapa, func.count()).group_by(Marco.etapa)
         ).all()
     }
+    # o tipo só rende contagem agregada — é aqui que ele justifica existir
+    por_tipo = {
+        tipo: total
+        for tipo, total in db.session.execute(
+            select(Marco.tipo, func.count()).group_by(Marco.tipo)
+        ).all()
+    }
     return {
         "total": _contar(select(func.count()).select_from(Marco)),
         "por_status": por_status,
         "por_etapa": por_etapa,
+        "por_tipo": por_tipo,
         "atrasados": _contar(
             select(func.count())
             .select_from(Marco)

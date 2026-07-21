@@ -45,31 +45,15 @@ class OrientacaoForm(FlaskForm):
     submit = SubmitField("Salvar")
 
 
-class EventoVinculoForm(FlaskForm):
-    tipo = SelectField(
-        "Tipo do evento",
-        choices=[
-            ("prorrogacao", "Prorrogação de prazo"),
-            ("trancamento", "Trancamento"),
-            ("destrancamento", "Destrancamento"),
-            ("mudanca_titulo", "Mudança de título"),
-        ],
-    )
-    fundamentacao = TextAreaField("Fundamentação", validators=[DataRequired()])
-    data_nova = DateField("Novo fim previsto (prorrogação)", validators=[Optional()])
-    texto_novo = StringField(
-        "Novo título (mudança de título)", validators=[Optional(), Length(max=255)]
-    )
-    submit = SubmitField("Registrar evento")
-
-
 class AjusteDatasForm(FlaskForm):
-    """Correção das datas do vínculo, privativa do administrador. Para
-    dilatação de prazo prefira o evento de prorrogação, que exige fundamentação
-    e preserva o prazo anterior no histórico."""
+    """Alteração das datas do vínculo, privativa do administrador — inclusive a
+    dilatação de prazo, que antes passava pelo evento de prorrogação. A
+    fundamentação é obrigatória porque a trilha de auditoria já guarda as datas
+    anterior e nova, mas não guardaria o motivo."""
 
     data_inicio = DateField("Data de início", validators=[DataRequired()])
     data_fim_prevista = DateField("Fim previsto", validators=[Optional()])
+    fundamentacao = TextAreaField("Fundamentação", validators=[DataRequired()])
     submit = SubmitField("Aplicar datas")
 
     def validate_data_fim_prevista(self, field):
@@ -78,8 +62,11 @@ class AjusteDatasForm(FlaskForm):
 
 
 class EncerrarOrientacaoForm(FlaskForm):
-    # Suspensão não é oferecida aqui: exige trancamento fundamentado
-    # (evento formal do vínculo), preservando o histórico obrigatório.
+    # "suspensa" existe em STATUS_ORIENTACAO mas nenhuma tela a apõe desde que o
+    # registro de eventos saiu: o trancamento não alterava o comportamento do
+    # sistema — marcos de vínculo suspenso continuavam contando como atrasados —,
+    # de modo que era rótulo, não estado. O valor permanece no Enum apenas para
+    # que registro legado continue legível (ver avaliacoes/DECISOES.md).
     status = SelectField(
         "Novo status",
         choices=[("concluida", "Concluída"), ("cancelada", "Cancelada")],

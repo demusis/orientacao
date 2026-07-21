@@ -114,7 +114,7 @@ def test_listagem_exibe_rotulo_da_etapa(client, orientacao, orientador):
             orientacao_id=orientacao.id,
             titulo="Escrita",
             data_prevista=date(2026, 9, 30),
-            etapa=60,
+            etapa=50,
         )
     )
     db.session.commit()
@@ -125,34 +125,54 @@ def test_listagem_exibe_rotulo_da_etapa(client, orientacao, orientador):
     assert "Redação" in pagina
 
 
-def test_tipo_derivado_da_etapa_quando_nao_especificado(client, orientacao, orientador):
-    """Etapa de ato formal preenche o tipo deixado em 'outro'; tipo escolhido
-    explicitamente é preservado."""
+def test_listas_de_classificacao_nao_se_sobrepoem():
+    """Tipo e etapa respondem a perguntas distintas — o ato datado e o período.
+    Rótulo repetido nas duas listas permitiria registrar a mesma informação em
+    dois lugares, ou em nenhum, que foi o defeito corrigido em d7b3f915a6c8.
+    Sem esta asserção a sobreposição volta no primeiro rótulo acrescentado."""
+    from app.models.cronograma import ETAPA_MARCO_LABEL, TIPO_MARCO_LABEL
+
+    def normaliza(rotulos):
+        # "Relatório (parcial, anual ou final)" compara pelo termo, não pela glosa
+        return {r.split(" (")[0].strip().casefold() for r in rotulos}
+
+    comuns = normaliza(TIPO_MARCO_LABEL.values()) & normaliza(
+        ETAPA_MARCO_LABEL.values()
+    )
+    assert not comuns, f"rótulos em ambas as listas: {sorted(comuns)}"
+
+
+def test_tipo_novo_e_aceito_pelo_formulario(client, orientacao, orientador):
+    """Cobre o Enum novo: comitê de ética não existia na tipologia anterior."""
     login(client, "orientador@teste.br")
     client.post(
         f"/orientacoes/{orientacao.id}/cronograma/novo",
         data={
-            "titulo": "Banca de qualificação",
+            "titulo": "Submissão ao CEP",
             "descricao": "",
-            "tipo": "outro",
+            "tipo": "comite_etica",
             "data_prevista": "2026-09-30",
-            "etapa": 30,
+            "etapa": 10,
         },
     )
-    assert Marco.query.one().tipo == "qualificacao"
+    db.session.commit()
+    assert Marco.query.one().tipo == "comite_etica"
 
+
+def test_tipo_fora_da_lista_e_recusado(client, orientacao, orientador):
+    """Proficiência saiu da tipologia; o SelectField não pode mais aceitá-la."""
+    login(client, "orientador@teste.br")
     client.post(
         f"/orientacoes/{orientacao.id}/cronograma/novo",
         data={
-            "titulo": "Relatório antes da defesa",
+            "titulo": "Exame de idioma",
             "descricao": "",
-            "tipo": "relatorio_anual",  # explícito: não pode ser sobrescrito
-            "data_prevista": "2026-10-30",
-            "etapa": 80,
+            "tipo": "proficiencia",
+            "data_prevista": "2026-09-30",
+            "etapa": 10,
         },
     )
-    marco = Marco.query.filter_by(titulo="Relatório antes da defesa").one()
-    assert marco.tipo == "relatorio_anual"
+    assert Marco.query.count() == 0
 
 
 def test_fluxo_sinalizacao_e_confirmacao(client, orientacao, orientador, orientando):
