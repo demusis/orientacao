@@ -1,4 +1,4 @@
-from flask import abort, flash, redirect, render_template, url_for
+from flask import Response, abort, flash, redirect, render_template, url_for
 from flask_login import current_user, login_required
 
 from app.blueprints.main import bp
@@ -6,7 +6,7 @@ from app.blueprints.main.forms import TituloProjetoForm
 from app.extensions import db
 from app.models import Orientacao
 from app.services import eventos as eventos_service
-from app.services import painel
+from app.services import painel, relatorio
 from app.services.eventos import EventoInvalido
 from app.services.rbac import orientacao_autorizada, orientacoes_do_usuario
 
@@ -44,6 +44,23 @@ def orientacao_detalhe(orientacao_id: int):
         "main/orientacao_detalhe.html",
         orientacao=orientacao,
         pode_alterar_titulo=_pode_alterar_titulo(orientacao),
+    )
+
+
+@bp.route("/orientacoes/<int:orientacao_id>/relatorio.pdf")
+@login_required
+def relatorio_orientacao(orientacao_id: int):
+    """Retrato consolidado do vínculo. `orientacao_autorizada` já restringe às
+    partes e ao administrador."""
+    orientacao = orientacao_autorizada(orientacao_id)
+    pdf = relatorio.gerar_pdf_relatorio(orientacao)
+    return Response(
+        pdf,
+        mimetype="application/pdf",
+        headers={
+            "Content-Disposition":
+                f'inline; filename="relatorio-vinculo-{orientacao.id}.pdf"'
+        },
     )
 
 
