@@ -38,6 +38,43 @@
 </div>
 
 <div class="card">
+  <h2>Avisos automáticos de pendência</h2>
+  <p>Uma vez por dia, cada pessoa com pendência recebe <strong>uma</strong> mensagem
+  reunindo o que lhe cabe:</p>
+  <table>
+    <tr><th>Quem recebe</th><th>O que é comunicado</th></tr>
+    <tr><td>Orientando</td><td>marcos com prazo vencido</td></tr>
+    <tr><td rowspan="3">Orientador</td><td>entregas aguardando confirmação</td></tr>
+    <tr><td>entregas aguardando parecer</td></tr>
+    <tr><td>atas em rascunho há mais de 15 dias</td></tr>
+  </table>
+  {% if pendentes.destinatarios %}
+    <p>Pendências neste momento: <strong>{{ pendentes.itens }}</strong> item(ns),
+    distribuídos entre <strong>{{ pendentes.destinatarios }}</strong> pessoa(s).</p>
+  {% else %}
+    <p>Nenhuma pendência neste momento — nada seria enviado.</p>
+  {% endif %}
+
+  {% if ultimo_envio %}
+    <p><small>Último disparo em {{ ultimo_envio.timestamp.strftime('%Y-%m-%d %H:%M') }} (UTC).</small></p>
+    {% if resumo_ultimo and resumo_ultimo.falhas %}
+      <p class="flash flash-danger">Nesse disparo, <strong>{{ resumo_ultimo.falhas | length }}</strong>
+      mensagem(ns) não foi(ram) entregue(s): {{ resumo_ultimo.falhas | join(', ') }}.
+      O motivo de cada uma está no log do servidor.</p>
+    {% elif resumo_ultimo %}
+      <p><small>{{ resumo_ultimo.enviados | length }} mensagem(ns) entregue(s), sem falhas.</small></p>
+    {% endif %}
+  {% else %}
+    <p><small>Nenhum disparo registrado até agora.</small></p>
+  {% endif %}
+
+  <p><small>O disparo aproveita o tráfego do site: na primeira visita de cada dia os
+  avisos saem, e nas demais nada acontece. O plano gratuito da hospedagem não oferece
+  tarefas agendadas, de modo que um dia sem nenhum acesso adia o envio para o dia
+  seguinte. Cada disparo fica registrado na trilha de auditoria.</small></p>
+</div>
+
+<div class="card">
   <h2>Como obter a senha de app do Google</h2>
   <ol>
     <li>A senha comum da conta <strong>não funciona</strong>: o Google encerrou esse

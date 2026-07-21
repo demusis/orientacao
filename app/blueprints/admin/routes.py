@@ -1,3 +1,5 @@
+import json
+
 from flask import (
     Response,
     abort,
@@ -26,8 +28,14 @@ from app.blueprints.admin.forms import (
     UsuarioForm,
 )
 from app.extensions import db
-from app.models import ConfiguracaoEmail, Orientacao, OrientacaoOrientador, Usuario
-from app.services import auditoria, cripto
+from app.models import (
+    ConfiguracaoEmail,
+    LogAuditoria,
+    Orientacao,
+    OrientacaoOrientador,
+    Usuario,
+)
+from app.services import auditoria, avisos, cripto
 from app.services import email as email_service
 from app.services import usuarios as usuarios_service
 from app.services.rbac import role_required
@@ -362,8 +370,24 @@ def configurar_email():
         return redirect(url_for("admin.configurar_email"))
 
     db.session.commit()  # persiste a linha criada por vigente() na primeira visita
+    pendentes = avisos.coletar()
+    ultimo_envio = (
+        LogAuditoria.query.filter_by(acao="envio_avisos")
+        .order_by(LogAuditoria.timestamp.desc())
+        .first()
+    )
     return render_template(
-        "admin/email.html", form=form, teste_form=teste_form, config=config
+        "admin/email.html",
+        form=form,
+        teste_form=teste_form,
+        config=config,
+        # a trilha já guarda o histórico dos envios; dispensa coluna própria
+        ultimo_envio=ultimo_envio,
+        resumo_ultimo=json.loads(ultimo_envio.dados_json) if ultimo_envio and ultimo_envio.dados_json else None,
+        pendentes={
+            "destinatarios": len(pendentes),
+            "itens": sum(len(i) for s in pendentes.values() for i in s.values()),
+        },
     )
 
 

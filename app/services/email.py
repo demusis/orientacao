@@ -90,6 +90,60 @@ def enviar(destinatario: str, assunto: str, corpo: str) -> bool:
     return False
 
 
+def _conectar(config: ConfiguracaoEmail):
+    """Abre e autentica a sessão SMTP. Devolve o objeto para uso em `with`."""
+    usuario, senha = _credenciais(config)
+    contexto = ssl.create_default_context()
+    if config.porta == 465:
+        sessao = smtplib.SMTP_SSL(
+            config.servidor, config.porta, timeout=TEMPO_LIMITE, context=contexto
+        )
+    else:
+        sessao = smtplib.SMTP(config.servidor, config.porta, timeout=TEMPO_LIMITE)
+        sessao.starttls(context=contexto)
+    sessao.login(usuario, senha)
+    return sessao, usuario
+
+
+def enviar_lote(mensagens: list[tuple]) -> tuple[list, list]:
+    """Entrega várias mensagens por **uma única conexão**, devolvendo
+    (entregues, falhas) por endereço.
+
+    Abrir uma conexão por destinatário multiplicaria a espera de quem disparou o
+    envio — e quem dispara, aqui, é uma requisição comum de usuário. Falha em um
+    destinatário não interrompe os demais; falha de conexão perde o lote inteiro,
+    e é isso que a lista de falhas informa."""
+    config = ConfiguracaoEmail.vigente()
+    if not config.ativo:
+        return [], [d for d, _, _ in mensagens]
+
+    entregues, falhas = [], []
+    try:
+        sessao, usuario = _conectar(config)
+    except (EnvioIndisponivel, SegredoIlegivel, smtplib.SMTPException, OSError) as exc:
+        current_app.logger.warning("Lote não enviado (conexão): %s", exc)
+        return [], [d for d, _, _ in mensagens]
+
+    try:
+        for destinatario, assunto, corpo in mensagens:
+            mensagem = montar(destinatario, assunto, corpo)
+            mensagem["From"] = f"{config.remetente_nome} <{usuario}>"
+            try:
+                sessao.send_message(mensagem)
+                entregues.append(destinatario)
+            except (smtplib.SMTPException, OSError) as exc:
+                current_app.logger.warning(
+                    "Aviso não entregue a %s: %s", destinatario, exc
+                )
+                falhas.append(destinatario)
+    finally:
+        try:
+            sessao.quit()
+        except (smtplib.SMTPException, OSError):
+            pass
+    return entregues, falhas
+
+
 def testar(destinatario: str) -> str:
     """Envia mensagem de conferência e devolve a causa em linguagem clara quando
     falha. Diferente de `enviar`, aqui o erro **deve** chegar ao administrador:

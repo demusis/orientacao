@@ -54,7 +54,60 @@ def create_app(config_name: str | None = None) -> Flask:
 
     register_cli(app)
     register_template_globals(app)
+    register_avisos_diarios(app)
     return app
+
+
+def register_avisos_diarios(app: Flask) -> None:
+    """Dispara os avisos de pendência uma vez por dia, aproveitando o tráfego.
+
+    O plano gratuito da hospedagem não oferece agendador (ver `services/avisos.py`).
+    Na prática o site recebe centenas de requisições por mês, então o envio sai
+    no primeiro acesso de cada dia; um dia inteiro sem visitas adia para o
+    seguinte.
+
+    Três cuidados: a consulta ao banco ocorre **uma vez por dia por processo**,
+    graças ao marcador em memória; a trava de concorrência é o UPDATE condicional
+    de `marcar_dia_como_enviado`; e falha alguma pode derrubar a requisição do
+    usuário, que nada tem a ver com o envio."""
+    from datetime import date
+
+    estado = {"verificado_em": None}
+
+    @app.before_request
+    def disparar_avisos_do_dia():
+        from flask import request
+
+        # Desligado na suíte por padrão: um gatilho que dispara sozinho em toda
+        # requisição faria testes alheios abrirem conexão SMTP conforme os dados
+        # que montassem. Os testes do próprio gatilho o habilitam explicitamente.
+        if not app.config.get("AVISOS_DIARIOS", True):
+            return
+        # arquivo estático não deve pagar nem a comparação de data
+        if request.endpoint == "static":
+            return
+        hoje = date.today()
+        if estado["verificado_em"] == hoje:
+            return
+        estado["verificado_em"] = hoje
+
+        from app.extensions import db
+        from app.models import ConfiguracaoEmail
+        from app.services import auditoria, avisos
+
+        try:
+            config = ConfiguracaoEmail.vigente()
+            if not config.operante or not avisos.marcar_dia_como_enviado():
+                db.session.commit()
+                return
+            resumo = avisos.enviar_pendentes()
+            auditoria.registrar(
+                "envio_avisos", "configuracao_email", config.id, resumo
+            )
+            db.session.commit()
+        except Exception:  # noqa: BLE001 — nada aqui pode quebrar a requisição
+            db.session.rollback()
+            app.logger.exception("Falha ao disparar os avisos do dia")
 
 
 def register_cli(app: Flask) -> None:

@@ -99,10 +99,13 @@ def test_senha_nao_entra_no_pacote_de_backup(client, admin):
 
     assert "configuracao_email" not in backup.ORDEM_TABELAS
     with zipfile.ZipFile(BytesIO(pacote)) as z:
+        # nenhum arquivo da tabela — a trilha de auditoria pode citar o nome da
+        # entidade, e isso não é vazamento; o que não pode existir é o despejo
+        # da tabela, com a coluna senha_cifrada dentro
+        assert not [n for n in z.namelist() if "configuracao_email" in n]
         for nome in z.namelist():
-            bruto = z.read(nome)
-            assert SENHA_APP.encode() not in bruto
-            assert b"configuracao_email" not in bruto
+            assert SENHA_APP.encode() not in z.read(nome)
+            assert b"senha_cifrada" not in z.read(nome)
 
 
 def test_trilha_registra_a_mudanca_e_nao_o_segredo(client, admin):

@@ -26,6 +26,9 @@ class TestingConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     WTF_CSRF_ENABLED = False
+    # o disparo diário de avisos age em toda requisição; deixá-lo ligado faria
+    # testes alheios abrirem conexão SMTP conforme os dados que montassem
+    AVISOS_DIARIOS = False
 
 
 class ProductionConfig(Config):
