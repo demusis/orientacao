@@ -12,11 +12,14 @@ Aplicação web para mediação institucional e controle de fluxo de trabalho en
 - Repositório documental com validação de upload (extensão, assinatura do arquivo, limite de 20 MB), armazenamento sob UUID e versionamento iterativo.
 - Reuniões individuais e em grupo: ata única compartilhada entre os participantes, presenças e reagendamentos registrados.
 - Atas com fluxo rascunho → finalizada (imutável) e pareceres imutáveis desde a emissão. Exportação em PDF assinável, com hash de integridade conferível por rota pública.
+- Formatação em Markdown nos campos longos de atas e pareceres, interpretada na tela e no PDF a partir de uma única leitura, de modo que o documento conferido seja o documento assinado.
+- Envio de e-mail configurável pelo administrador, com a senha de app guardada cifrada e mantida fora do pacote de backup.
+- Avisos diários de pendência, uma mensagem por pessoa reunindo o que lhe cabe, com orientação de como proceder.
 - Trilha de auditoria *append-only*, paginada e filtrável por intervalo de data e hora, usuário e ação.
 
 ## Stack
 
-Python 3.12+ · Flask 3 · Flask-SQLAlchemy · Flask-Migrate (Alembic) · Flask-Login · Flask-WTF · reportlab · pytest.
+Python 3.12+ · Flask 3 · Flask-SQLAlchemy · Flask-Migrate (Alembic) · Flask-Login · Flask-WTF · reportlab · mistune · cryptography · pytest.
 
 SQLite atende ao desenvolvimento e à homologação em worker único. Para uso concorrente, veja [Migração para um banco servidor](#migração-para-um-banco-servidor).
 
@@ -68,8 +71,13 @@ Variáveis lidas do `.env` (veja `.env.example`):
 | `DATABASE_URL` | em produção | URL SQLAlchemy do banco |
 | `UPLOAD_FOLDER` | recomendada | diretório dos arquivos enviados, fora da árvore do código |
 | `TRUSTED_PROXY_COUNT` | atrás de proxy | número de proxies reversos confiáveis; `0` desativa a leitura de `X-Forwarded-For` |
+| `URL_BASE` | com envio de e-mail | endereço público do sistema, usado nos links das mensagens |
 
 Sobre `TRUSTED_PROXY_COUNT`: atrás de um proxy reverso, o endereço visto pela aplicação é o do próprio proxy, e a auditoria registraria um IP interno. Com o valor `1`, vale o endereço escrito pelo proxy confiável. **Mantenha `0` quando não houver proxy** — nesse caso o cabeçalho é forjável pelo cliente e aceitá-lo permitiria falsear a origem dos registros.
+
+Sobre `URL_BASE`: é o endereço que os avisos por e-mail usam para levar o destinatário ao sistema. **Não é deduzido do cabeçalho `Host` da requisição**, que vem do cliente: como o disparo dos avisos é acionado por tráfego qualquer, uma requisição forjada no instante certo faria os links de todas as mensagens do dia apontarem para o domínio de um atacante. Sem `URL_BASE`, as mensagens saem sem link.
+
+Sobre `SECRET_KEY`: além da sessão e do CSRF, dela deriva a chave que cifra a senha de app do SMTP. Trocá-la torna a senha guardada ilegível — situação tratada com uma mensagem pedindo que o administrador a reinsira, nunca com erro.
 
 ## Testes
 
@@ -79,6 +87,8 @@ python -m pytest
 
 A suíte cobre autenticação, matriz de permissões, validação de upload (extensão proibida e assinatura divergente), versionamento, imutabilidade de atas e pareceres, integridade dos PDFs exportados, pendências do painel, filtros e paginação da auditoria, e a origem do IP registrado.
 
+Cobre também o que é fácil quebrar em silêncio: que a formatação renderizada na tela e a impressa no PDF coincidem; que conteúdo de usuário não atravessa os emissores como marcação; que a senha de SMTP não aparece em claro no banco, na tela nem no pacote de backup; que a trava do disparo de avisos não duplica nem perde mensagem; e que **a cadeia de migrações sobe do zero**, o que nenhum outro teste exercita, pois as bases de teste vêm de `db.create_all()`.
+
 ## Estrutura
 
 ```
@@ -87,8 +97,10 @@ app/
                    documentos, atas, reunioes, orientandos)
   models/          mapeamentos SQLAlchemy
   services/        regras de negócio (rbac, auditoria, uploads, atas,
-                   eventos, usuarios, exportacao, painel)
+                   eventos, usuarios, exportacao, painel, marcacao,
+                   email, avisos, cripto, backup, indicadores)
   templates/       Jinja2
+    emails/        corpo dos avisos, em texto simples e em HTML
   static/          CSS e imagens
 migrations/        migrações Alembic
 scripts/           utilitários operacionais
@@ -235,6 +247,39 @@ palavra de confirmação (`RESTAURAR` e `APAGAR`), não apenas um clique.
 Para backup por linha de comando, fora da aplicação, use `scripts/migrar_banco.py`
 apontando a origem para o banco em uso e o destino para um arquivo novo.
 
+## Envio de e-mail e avisos de pendência
+
+Configurável em **E-mail**, no menu do administrador: servidor, porta, conta de envio e
+senha. Um botão envia mensagem de teste pelo mesmo caminho de código do envio real e, em
+caso de falha, exibe a causa.
+
+O Gmail não aceita mais a senha da conta: é preciso ativar a verificação em duas etapas e
+gerar uma **senha de app**. Prefira uma conta dedicada ao sistema — é o que limita o
+estrago se o servidor for comprometido, mais do que qualquer medida técnica.
+
+**Sobre a cifragem da senha.** Ela é guardada cifrada com chave derivada de `SECRET_KEY`,
+nunca é devolvida à tela e a tabela de configuração **não entra no pacote de backup**.
+Convém entender o alcance: para enviar, a aplicação precisa decifrar a senha, logo precisa
+da chave, logo quem obtiver o servidor inteiro obtém as duas coisas. O que a cifragem
+protege é o vazamento do banco *separado* do servidor — em pacote de backup levado para
+fora, por exemplo —, e essa é a via mais provável.
+
+**Avisos.** Havendo envio configurado e habilitado, cada pessoa com pendência recebe, no
+máximo uma vez por dia, uma mensagem reunindo o que lhe cabe: ao orientando, marcos com
+prazo vencido; ao orientador, entregas aguardando confirmação, entregas aguardando parecer
+e atas em rascunho há mais de quinze dias.
+
+O disparo aproveita o tráfego do site — na primeira visita de cada dia os avisos saem —,
+porque tarefas agendadas exigem conta paga no PythonAnywhere. A promessa é, portanto,
+"no máximo uma vez por dia, havendo ao menos uma visita", e não "todo dia às 8h": um dia
+sem nenhum acesso adia o envio. Falha de entrega não encerra o dia, e a repetição, a cada
+trinta minutos, alcança apenas quem ficou sem receber. Cada disparo fica na trilha de
+auditoria, sem autor — é ato do sistema, não de quem abriu a página —, e a tela de e-mail
+mostra o resultado do último, destacando falhas.
+
+O texto das mensagens está em `app/templates/emails/pendencias.txt` e `.html`; a decisão
+de quais pendências existem fica em `app/services/avisos.py`.
+
 ## Ciclo de avaliação
 
 O sistema tem um procedimento próprio de avaliação periódica, acionado sob demanda pelo
@@ -265,4 +310,6 @@ recusado seja reproposto indefinidamente.
 - Trilha de auditoria *append-only*: a aplicação não expõe alteração nem exclusão de registros.
 - Uploads validados por extensão e assinatura do conteúdo, gravados sob nome UUID e servidos apenas por rota autenticada.
 - Exclusão física de contas restrita ao administrador e apenas para contas sem histórico; do contrário, a via é a desativação, que preserva os registros.
-- PDFs de atas e pareceres derivam de um retrato do conteúdo congelado na finalização/emissão, de modo que alterações posteriores não invalidam documentos já assinados.
+- PDFs de atas e pareceres derivam de um retrato do conteúdo congelado na finalização/emissão, de modo que alterações posteriores não invalidam documentos já assinados. O retrato guarda também o formato de redação, para que mudança futura no repertório de marcação não altere a aparência do que já foi assinado.
+- A marcação dos campos longos é interpretada uma única vez e emitida por dois caminhos — tela e PDF —, de modo que o documento conferido corresponda ao documento assinado. Os emissores produzem apenas um repertório fechado de elementos e escapam todo texto do usuário; HTML e imagens saem literais.
+- Migrações não importam modelos nem serviços da aplicação: o código vivo muda, e uma revisão precisa continuar replicável. Há teste que percorre a cadeia inteira do banco vazio ao topo, e outro que recusa `import app.*` em qualquer revisão.
