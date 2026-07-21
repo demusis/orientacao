@@ -1,14 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ARIADNE">
-  <title>ARIADNE — labirinto com o fio de Ariadne</title>
-  <rect x="0" y="0" width="64" height="64" rx="12" fill="#1a4b7a"/>
-  <!-- muralhas: anéis concêntricos com aberturas alternadas -->
-  <path d="M 38 56 H 56 V 8 H 8 V 56 H 26" fill="none" stroke="#ffffff"
-        stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 26 17 H 17 V 47 H 47 V 17 H 38" fill="none" stroke="#ffffff"
-        stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- fio de Ariadne: entra pela abertura inferior e segue os corredores até o centro -->
-  <path d="M 32 62 V 51.5 H 51.5 V 12.5 H 32 V 30" fill="none" stroke="#e8b84b"
-        stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- novelo no centro -->
-  <circle cx="32" cy="32" r="3.6" fill="#e8b84b"/>
+  <title>ARIADNE — o fio de Ariadne percorrendo o labirinto até o centro</title>
+  <rect x="0" y="0" width="64" height="64" rx="13" fill="#1a4b7a"/>
+  <!-- Muralhas do labirinto: espiral quadrada com abertura embaixo à esquerda.
+       Corredor único (unicursal), que é a essência da metáfora. -->
+  <path d="M 8 56 V 8 H 56 V 56 H 20 V 20 H 44 V 44 H 32"
+        fill="none" stroke="#ffffff" stroke-width="4"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Fio de Ariadne: entra pela abertura e serpenteia pelos corredores até o
+       centro, dobrando a cada muralha. -->
+  <path d="M 14 63 Q 14 58 14 54 V 14 H 50 V 50 H 26 V 26 H 38 V 34 H 33"
+        fill="none" stroke="#e8b84b" stroke-width="2.6"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Novelo no ponto de partida, embaixo -->
+  <circle cx="14" cy="63" r="3.4" fill="#e8b84b"/>
+  <!-- Centro alcançado -->
+  <circle cx="32" cy="32" r="3.4" fill="#e8b84b"/>
 </svg>
