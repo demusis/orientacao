@@ -6,5 +6,6 @@
   <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="ARIADNE" class="logo-login">
   <h1>Acesso ao sistema</h1>
   {{ render_form(form) }}
+  <p><small><a href="{{ url_for('auth.esqueci_senha') }}">Esqueci minha senha</a></small></p>
 </div>
 {% endblock %}

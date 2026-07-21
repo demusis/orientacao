@@ -49,10 +49,27 @@ class Usuario(UserMixin, db.Model):
     def is_active(self) -> bool:
         return self.ativo
 
+    def get_id(self) -> str:
+        """Identidade da sessão: id mais um trecho do hash da senha.
+
+        Trocada a senha, o trecho muda e as sessões abertas com o valor antigo
+        deixam de casar em `load_user` — encerram-se. Sem isto, redefinir a senha
+        por suspeita de acesso indevido deixaria viva a sessão do invasor, que é
+        exatamente o cenário em que a redefinição precisa servir."""
+        return f"{self.id}:{(self.senha_hash or '')[-16:]}"
+
     def __repr__(self) -> str:
         return f"<Usuario {self.email} ({self.papel})>"
 
 
 @login_manager.user_loader
-def load_user(user_id: str):
-    return db.session.get(Usuario, int(user_id))
+def load_user(identidade: str):
+    # tolera o formato antigo (só o id) para não deslogar todos na implantação;
+    # sessões existentes seguem válidas até expirar
+    id_txt, _, marca = identidade.partition(":")
+    usuario = db.session.get(Usuario, int(id_txt))
+    if usuario is None:
+        return None
+    if marca and marca != (usuario.senha_hash or "")[-16:]:
+        return None  # senha trocada desde que a sessão foi aberta
+    return usuario

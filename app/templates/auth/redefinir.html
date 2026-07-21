@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_form %}
+{% block title %}Nova senha — ARIADNE{% endblock %}
+{% block content %}
+<div class="card card-login">
+  <h1>Definir nova senha</h1>
+  <p><small>Escolha uma senha de ao menos 8 caracteres. Ao confirmar, as sessões
+  abertas nesta conta serão encerradas.</small></p>
+  {{ render_form(form) }}
+</div>
+{% endblock %}

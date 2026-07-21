@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_form %}
+{% block title %}Recuperar senha — ARIADNE{% endblock %}
+{% block content %}
+<div class="card card-login">
+  <h1>Recuperar senha</h1>
+  <p><small>Informe o e-mail da sua conta. Se houver uma conta ativa com esse
+  endereço, enviaremos um link para definir uma nova senha, válido por uma
+  hora.</small></p>
+  {{ render_form(form) }}
+  <p><small><a href="{{ url_for('auth.login') }}">Voltar ao acesso</a></small></p>
+</div>
+{% endblock %}
