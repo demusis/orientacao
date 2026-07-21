@@ -1,0 +1,29 @@
+{#-
+  Aviso de pendências, parte em texto simples.
+
+  Não é resumo do HTML nem remete a ele: é o que aparece em leitor de tela, em
+  cliente sem HTML e na pré-visualização da caixa de entrada. Precisa bastar-se.
+
+  O espaçamento é significativo aqui — daí o uso de {%- -%} para controlar cada
+  quebra de linha. Ao editar, confira o resultado; um branco a mais ou a menos
+  muda a leitura de um e-mail em texto.
+-#}
+Olá, {{ pessoa.nome }}.
+
+Você tem {{ total }} pendência{{ 's' if total != 1 else '' }} no ARIADNE, o sistema de acompanhamento da sua orientação acadêmica.
+
+{% for chave, itens in secoes.items() -%}
+{{ SECOES[chave][0] | upper }}
+{% for item in itens %}  - {{ item.titulo }}
+    {{ item.detalhe }}
+{% endfor %}
+{% endfor -%}
+O QUE FAZER
+{% for acao in providencias %}  - {{ acao | capitalize }}.
+{% endfor %}
+{%- if url %}
+  Acesse: {{ url }}
+{% endif %}
+-- {# o espaço após os dois traços é a marca de assinatura do RFC 3676 #}
+ARIADNE — {{ acronimo }}.
+{{ rodape }}

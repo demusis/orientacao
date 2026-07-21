@@ -19,12 +19,14 @@ categoria — quatro e-mails no mesmo minuto seriam ignorados como ruído.
 """
 from datetime import date, datetime, timedelta, timezone
 
+from flask import current_app, has_request_context, render_template, request
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from app.extensions import db
 from app.models import (
     Ata,
+    AtaParticipacao,
     ConfiguracaoEmail,
     Documento,
     Marco,
@@ -33,8 +35,6 @@ from app.models import (
     VersaoDocumento,
 )
 from app.services import email as email_service
-
-ASSUNTO = "ARIADNE — pendências do seu acompanhamento"
 # uma reunião registrada e não formalizada por mais de duas semanas
 DIAS_RASCUNHO_VELHO = 15
 # Espera entre tentativas quando o envio falha. A saída de rede desta
@@ -49,8 +49,35 @@ INTERVALO_ENTRE_TENTATIVAS = timedelta(minutes=30)
 # Acrescentar categoria = escrever a função e incluí-la em CATEGORIAS.
 
 
-def _acumular(destino: dict, pessoa, titulo: str, linha: str) -> None:
-    destino.setdefault(pessoa, {}).setdefault(titulo, []).append(linha)
+# Cada seção declara o rótulo e a providência que cabe a quem a recebe. A
+# providência é agregada no fim da mensagem: dizer o que fazer é o que separa um
+# aviso útil de uma notificação que só informa.
+SECOES = {
+    "marcos_vencidos": (
+        "Marcos com prazo vencido",
+        "sinalizar a conclusão dos marcos já concluídos, no Cronograma do vínculo",
+    ),
+    "a_confirmar": (
+        "Entregas aguardando sua confirmação",
+        "confirmar as conclusões que seus orientandos sinalizaram",
+    ),
+    "sem_parecer": (
+        "Entregas aguardando parecer",
+        "emitir parecer sobre as versões entregues",
+    ),
+    "atas_rascunho": (
+        "Atas em rascunho",
+        "finalizar as atas pendentes, tornando-as registros imutáveis",
+    ),
+}
+
+
+def _acumular(destino: dict, pessoa, secao: str, titulo: str, detalhe: str) -> None:
+    """Item guardado em partes — título e detalhe — para que texto simples e
+    HTML possam formatá-lo cada um a seu modo, sem duplicar a regra."""
+    destino.setdefault(pessoa, {}).setdefault(secao, []).append(
+        {"titulo": titulo, "detalhe": detalhe}
+    )
 
 
 def marcos_atrasados(destino: dict) -> None:
@@ -72,10 +99,11 @@ def marcos_atrasados(destino: dict) -> None:
         _acumular(
             destino,
             m.orientacao.orientando,
-            "Marcos com prazo vencido",
-            f"{m.titulo} — previsto para {m.data_prevista.strftime('%d/%m/%Y')} "
-            f"({dias} {'dia' if dias == 1 else 'dias'} de atraso) "
-            f"· {m.orientacao.titulo_projeto}",
+            "marcos_vencidos",
+            m.titulo,
+            f"Previsto para {m.data_prevista.strftime('%d/%m/%Y')} — "
+            f"{dias} {'dia' if dias == 1 else 'dias'} de atraso · "
+            f"{m.orientacao.titulo_projeto}",
         )
 
 
@@ -99,9 +127,10 @@ def marcos_a_confirmar(destino: dict) -> None:
         _acumular(
             destino,
             m.orientacao.orientador,
-            "Entregas aguardando sua confirmação",
-            f"{m.titulo} — {m.orientacao.orientando.nome} "
-            f"· {m.orientacao.titulo_projeto}",
+            "a_confirmar",
+            m.titulo,
+            f"Sinalizado por {m.orientacao.orientando.nome} · "
+            f"{m.orientacao.titulo_projeto}",
         )
 
 
@@ -145,9 +174,10 @@ def versoes_sem_parecer(destino: dict) -> None:
         _acumular(
             destino,
             orientacao.orientador,
-            "Entregas aguardando parecer",
-            f"{v.documento.titulo} (v{v.numero_versao}) — "
-            f"{orientacao.orientando.nome} · {orientacao.titulo_projeto}",
+            "sem_parecer",
+            f"{v.documento.titulo} (versão {v.numero_versao})",
+            f"Enviado por {orientacao.orientando.nome} em "
+            f"{v.enviado_em.strftime('%d/%m/%Y')} · {orientacao.titulo_projeto}",
         )
 
 
@@ -155,19 +185,28 @@ def atas_em_rascunho(destino: dict) -> None:
     """Ao orientador: reunião registrada e nunca formalizada."""
     limite = date.today() - timedelta(days=DIAS_RASCUNHO_VELHO)
     itens = (
-        Ata.query.options(joinedload(Ata.orientador))
+        Ata.query.options(
+            joinedload(Ata.orientador),
+            joinedload(Ata.participacoes)
+            .joinedload(AtaParticipacao.orientacao)
+            .joinedload(Orientacao.orientando),
+        )
         .filter(Ata.status == "rascunho", Ata.data_reuniao < limite)
         .order_by(Ata.data_reuniao)
         .all()
     )
     for a in itens:
         dias = (date.today() - a.data_reuniao).days
+        participantes = ", ".join(
+            sorted(p.orientacao.orientando.nome for p in a.participacoes)
+        )
         _acumular(
             destino,
             a.orientador,
-            "Atas em rascunho",
-            f"Reunião de {a.data_reuniao.strftime('%d/%m/%Y')} — "
-            f"{dias} dias sem finalização",
+            "atas_rascunho",
+            f"Reunião de {a.data_reuniao.strftime('%d/%m/%Y')}",
+            f"{dias} dias sem finalização"
+            + (f" · com {participantes}" if participantes else ""),
         )
 
 
@@ -190,18 +229,79 @@ def coletar() -> dict:
     return destino
 
 
-def _corpo(pessoa, secoes: dict) -> str:
-    linhas = [f"Olá, {pessoa.nome}.", "", "Há pendências no ARIADNE:", ""]
-    for titulo, itens in secoes.items():
-        linhas.append(f"{titulo}:")
-        linhas += [f"  • {i}" for i in itens]
-        linhas.append("")
-    linhas += [
-        "Acesse o sistema para tratá-las.",
-        "",
-        "Esta é uma mensagem automática; não é necessário respondê-la.",
-    ]
-    return "\n".join(linhas)
+ACRONIMO = (
+    "Ambiente de Revisão, Integração, Acompanhamento Discente e "
+    "Normatização de Estudos"
+)
+RODAPE = (
+    "Mensagem automática do ARIADNE, enviada no máximo uma vez por dia e "
+    "somente quando há pendências. Não é necessário respondê-la."
+)
+
+
+def endereco_do_sistema() -> str:
+    """Endereço para o destinatário chegar ao sistema.
+
+    Sem isto o aviso é inútil: informa a pendência e não dá como tratá-la — foi
+    o defeito da primeira versão. Preferência ao valor configurado; na falta
+    dele, o host da requisição que disparou o envio, que é o correto por
+    construção."""
+    configurado = current_app.config.get("URL_BASE")
+    if configurado:
+        return configurado.rstrip("/")
+    if has_request_context():
+        return request.url_root.rstrip("/")
+    return ""
+
+
+def _contar(secoes: dict) -> int:
+    return sum(len(itens) for itens in secoes.values())
+
+
+def assunto(secoes: dict) -> str:
+    """Assunto com a quantidade: quem recebe decide abrir agora ou depois sem
+    precisar abrir para saber o tamanho."""
+    total = _contar(secoes)
+    return (
+        f"ARIADNE — {total} pendência{'s' if total != 1 else ''} "
+        "no seu acompanhamento"
+    )
+
+
+def _providencias(secoes: dict) -> list:
+    """Providências das seções presentes, sem repetição e em ordem estável."""
+    vistas, saida = set(), []
+    for chave in secoes:
+        acao = SECOES[chave][1]
+        if acao not in vistas:
+            vistas.add(acao)
+            saida.append(acao)
+    return saida
+
+
+def _contexto(pessoa, secoes: dict, url: str) -> dict:
+    """Tudo o que os templates precisam. Reunido num ponto para que as duas
+    versões da mensagem não possam divergir no que dizem — só no como."""
+    return {
+        "pessoa": pessoa,
+        "secoes": secoes,
+        "SECOES": SECOES,
+        "total": _contar(secoes),
+        "providencias": _providencias(secoes),
+        "url": url,
+        "acronimo": ACRONIMO,
+        "rodape": RODAPE,
+    }
+
+
+def corpo_texto(pessoa, secoes: dict, url: str) -> str:
+    """Renderiza `emails/pendencias.txt`. A redação está lá, não aqui."""
+    return render_template("emails/pendencias.txt", **_contexto(pessoa, secoes, url))
+
+
+def corpo_html(pessoa, secoes: dict, url: str) -> str:
+    """Renderiza `emails/pendencias.html`. O Jinja escapa os dados do usuário."""
+    return render_template("emails/pendencias.html", **_contexto(pessoa, secoes, url))
 
 
 def _agora() -> datetime:
@@ -269,8 +369,14 @@ def enviar_pendentes() -> dict:
     if not destinatarios:
         return {"destinatarios": 0, "itens": 0, "enviados": [], "falhas": []}
 
+    url = endereco_do_sistema()
     mensagens = [
-        (pessoa.email, ASSUNTO, _corpo(pessoa, secoes))
+        (
+            pessoa.email,
+            assunto(secoes),
+            corpo_texto(pessoa, secoes, url),
+            corpo_html(pessoa, secoes, url),
+        )
         for pessoa, secoes in destinatarios.items()
     ]
     enviados, falhas = email_service.enviar_lote(mensagens)

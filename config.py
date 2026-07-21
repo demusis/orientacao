@@ -13,6 +13,9 @@ class Config:
     # a leitura de X-Forwarded-For: sem proxy, o cabeçalho é forjável pelo
     # cliente e registrar seu conteúdo como origem falsearia a auditoria.
     TRUSTED_PROXY_COUNT = int(os.environ.get("TRUSTED_PROXY_COUNT", "0"))
+    # Endereço público, usado nos links dos e-mails. Vazio: deduz-se do host da
+    # requisição que disparou o envio.
+    URL_BASE = os.environ.get("URL_BASE", "")
 
 
 class DevelopmentConfig(Config):

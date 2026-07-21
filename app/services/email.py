@@ -61,11 +61,21 @@ def _entregar(config: ConfiguracaoEmail, mensagem: EmailMessage) -> None:
             s.send_message(mensagem)
 
 
-def montar(destinatario: str, assunto: str, corpo: str) -> EmailMessage:
+def montar(
+    destinatario: str, assunto: str, corpo: str, corpo_html: str | None = None
+) -> EmailMessage:
+    """Mensagem em texto simples; havendo `corpo_html`, vira multipart/alternative.
+
+    O texto é sempre a primeira parte, e não um resumo do HTML: é o que aparece
+    em cliente que não exibe HTML, em leitor de tela e na pré-visualização da
+    caixa de entrada. Uma mensagem cujo texto diga "veja a versão HTML" é uma
+    mensagem quebrada para parte dos destinatários."""
     mensagem = EmailMessage()
     mensagem["To"] = destinatario
     mensagem["Subject"] = assunto
     mensagem.set_content(corpo)
+    if corpo_html:
+        mensagem.add_alternative(corpo_html, subtype="html")
     return mensagem
 
 
@@ -107,7 +117,8 @@ def _conectar(config: ConfiguracaoEmail):
 
 def enviar_lote(mensagens: list[tuple]) -> tuple[list, list]:
     """Entrega várias mensagens por **uma única conexão**, devolvendo
-    (entregues, falhas) por endereço.
+    (entregues, falhas) por endereço. Cada item é
+    `(destinatario, assunto, corpo[, corpo_html])`.
 
     Abrir uma conexão por destinatário multiplicaria a espera de quem disparou o
     envio — e quem dispara, aqui, é uma requisição comum de usuário. Falha em um
@@ -115,18 +126,18 @@ def enviar_lote(mensagens: list[tuple]) -> tuple[list, list]:
     e é isso que a lista de falhas informa."""
     config = ConfiguracaoEmail.vigente()
     if not config.ativo:
-        return [], [d for d, _, _ in mensagens]
+        return [], [m[0] for m in mensagens]
 
     entregues, falhas = [], []
     try:
         sessao, usuario = _conectar(config)
     except (EnvioIndisponivel, SegredoIlegivel, smtplib.SMTPException, OSError) as exc:
         current_app.logger.warning("Lote não enviado (conexão): %s", exc)
-        return [], [d for d, _, _ in mensagens]
+        return [], [m[0] for m in mensagens]
 
     try:
-        for destinatario, assunto, corpo in mensagens:
-            mensagem = montar(destinatario, assunto, corpo)
+        for destinatario, assunto, corpo, *html in mensagens:
+            mensagem = montar(destinatario, assunto, corpo, html[0] if html else None)
             mensagem["From"] = f"{config.remetente_nome} <{usuario}>"
             try:
                 sessao.send_message(mensagem)

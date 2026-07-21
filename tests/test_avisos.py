@@ -42,7 +42,7 @@ def lote_capturado(monkeypatch):
 
     def falso_lote(mensagens):
         capturado.extend(mensagens)
-        return [d for d, _, _ in mensagens], []
+        return [m[0] for m in mensagens], []
 
     monkeypatch.setattr(email_service, "enviar_lote", falso_lote)
     return capturado
@@ -71,10 +71,10 @@ def _marco_sinalizado(orientacao):
     return m
 
 
-def _versao_sem_parecer(orientacao):
+def _versao_sem_parecer(orientacao, titulo="Projeto de pesquisa"):
     doc = Documento(
         orientacao_id=orientacao.id,
-        titulo="Projeto de pesquisa",
+        titulo=titulo,
         criado_por=orientacao.orientando_id,
     )
     db.session.add(doc)
@@ -83,7 +83,8 @@ def _versao_sem_parecer(orientacao):
         documento_id=doc.id,
         numero_versao=1,
         nome_original="p.pdf",
-        nome_fisico="a" * 32 + ".pdf",
+        # nome_fisico é único no esquema; deriva-se do id para não colidir
+        nome_fisico=f"{doc.id:032x}.pdf",
         tamanho_bytes=1024,
         mimetype="application/pdf",
         enviado_por=orientacao.orientando_id,
@@ -115,7 +116,7 @@ def test_marco_atrasado_vai_para_o_orientando(client, orientacao, orientando):
     _marco_atrasado(orientacao)
     coletado = avisos.coletar()
     assert orientando in coletado
-    assert "Marcos com prazo vencido" in coletado[orientando]
+    assert "marcos_vencidos" in coletado[orientando]
 
 
 def test_marco_no_prazo_nao_gera_aviso(client, orientacao, orientando):
@@ -136,9 +137,9 @@ def test_categorias_do_orientador(client, orientacao, orientador, orientando):
     _ata_rascunho_velha(orientacao, orientador)
 
     secoes = avisos.coletar()[orientador]
-    assert "Entregas aguardando sua confirmação" in secoes
-    assert "Entregas aguardando parecer" in secoes
-    assert "Atas em rascunho" in secoes
+    assert "a_confirmar" in secoes
+    assert "sem_parecer" in secoes
+    assert "atas_rascunho" in secoes
 
 
 def test_uma_mensagem_por_pessoa_reunindo_tudo(
@@ -157,9 +158,9 @@ def test_uma_mensagem_por_pessoa_reunindo_tudo(
 
     para_orientador = [m for m in lote_capturado if m[0] == orientador.email][0]
     corpo = para_orientador[2]
-    assert corpo.count("aguardando sua confirmação") == 1
-    assert "aguardando parecer" in corpo
-    assert "Atas em rascunho" in corpo
+    assert corpo.count("AGUARDANDO SUA CONFIRMAÇÃO") == 1
+    assert "AGUARDANDO PARECER" in corpo
+    assert "ATAS EM RASCUNHO" in corpo
 
 
 def test_vinculo_encerrado_nao_gera_aviso(client, orientacao, orientando):
@@ -211,7 +212,7 @@ def test_falha_de_rede_nao_consome_o_dia(
     só avança havendo entrega."""
     _marco_atrasado(orientacao)
     monkeypatch.setattr(
-        email_service, "enviar_lote", lambda m: ([], [d for d, _, _ in m])
+        email_service, "enviar_lote", lambda m: ([], [m0[0] for m0 in m])
     )
 
     resumo = avisos.disparar_se_devido()
@@ -319,3 +320,103 @@ def test_tela_mostra_falhas_do_ultimo_disparo(client, admin, envio_habilitado):
     pagina = client.get("/admin/email").data.decode()
     assert "b@x.br" in pagina
     assert "não foi(ram) entregue(s)" in pagina or "entregue" in pagina
+
+
+# --- conteúdo das mensagens ---
+
+
+def test_mensagem_leva_o_endereco_do_sistema(app, client, orientacao, orientando):
+    """Regressão do defeito da primeira versão: a mensagem dizia 'acesse o
+    sistema' sem endereço algum, informando a pendência sem dar como tratá-la."""
+    app.config["URL_BASE"] = "https://orientacao.pythonanywhere.com"
+    _marco_atrasado(orientacao)
+    secoes = avisos.coletar()[orientando]
+    url = avisos.endereco_do_sistema()
+
+    texto = avisos.corpo_texto(orientando, secoes, url)
+    html = avisos.corpo_html(orientando, secoes, url)
+    assert "https://orientacao.pythonanywhere.com" in texto
+    assert 'href="https://orientacao.pythonanywhere.com"' in html
+
+
+def test_assunto_informa_a_quantidade(client, orientacao, orientando):
+    _marco_atrasado(orientacao)
+    assert avisos.assunto(avisos.coletar()[orientando]).startswith(
+        "ARIADNE — 1 pendência"
+    )
+
+
+def test_assunto_no_plural(client, orientacao, orientando):
+    _marco_atrasado(orientacao, dias=3)
+    _marco_atrasado(orientacao, dias=9)
+    assert "2 pendências" in avisos.assunto(avisos.coletar()[orientando])
+
+
+def test_providencias_sem_repeticao(client, orientacao, orientador, orientando):
+    """Duas entregas sem parecer geram uma providência, não duas."""
+    _versao_sem_parecer(orientacao)
+    _versao_sem_parecer(orientacao)
+    secoes = avisos.coletar()[orientador]
+    texto = avisos.corpo_texto(orientador, secoes, "")
+    assert texto.count("Emitir parecer") == 1
+
+
+def test_texto_simples_e_autossuficiente(client, orientacao, orientando):
+    """A parte em texto não pode remeter ao HTML: é o que aparece em leitor de
+    tela, em cliente sem HTML e na pré-visualização da caixa de entrada."""
+    _marco_atrasado(orientacao)
+    secoes = avisos.coletar()[orientando]
+    texto = avisos.corpo_texto(orientando, secoes, "https://x.br")
+
+    assert "Entregar capítulo 1" in texto
+    assert "dias de atraso" in texto
+    assert "O QUE FAZER" in texto
+    for proibido in ("versão HTML", "<div", "<p>", "&nbsp;"):
+        assert proibido not in texto
+
+
+def test_html_escapa_dados_do_usuario(client, orientacao, orientando):
+    orientando.nome = 'André <script>alert(1)</script>'
+    db.session.commit()
+    _marco_atrasado(orientacao)
+    html = avisos.corpo_html(orientando, avisos.coletar()[orientando], "")
+    assert "<script>" not in html
+    assert "&lt;script&gt;" in html
+
+
+def test_mensagem_vai_em_duas_partes(client, orientacao, orientando):
+    from app.services import email as es
+
+    msg = es.montar("x@y.br", "assunto", "texto simples", "<p>html</p>")
+    assert msg.is_multipart()
+    tipos = [p.get_content_type() for p in msg.walk() if not p.is_multipart()]
+    assert tipos == ["text/plain", "text/html"]
+
+
+def test_sem_html_permanece_texto_simples(client):
+    from app.services import email as es
+
+    msg = es.montar("x@y.br", "assunto", "só texto")
+    assert not msg.is_multipart()
+    assert msg.get_content_type() == "text/plain"
+
+
+def test_texto_preserva_a_indentacao_dos_itens(client, orientacao, orientando):
+    """O Jinja consome espaços à esquerda quando o bloco usa `-%}`, e num e-mail
+    em texto simples a indentação é a única hierarquia visível. Ao editar
+    `emails/pendencias.txt`, é este teste que avisa se ela se perdeu."""
+    _marco_atrasado(orientacao)
+    texto = avisos.corpo_texto(orientando, avisos.coletar()[orientando], "")
+
+    assert "\n  - Entregar capítulo 1\n" in texto
+    assert "\n    Previsto para " in texto
+    assert "\n  - Sinalizar a conclusão" in texto
+
+
+def test_texto_traz_a_marca_de_assinatura(client, orientacao, orientando):
+    """RFC 3676: "-- " seguido de espaço delimita a assinatura, e clientes de
+    e-mail a usam para recolher o rodapé. O espaço final é significativo e some
+    fácil ao editar o template."""
+    _marco_atrasado(orientacao)
+    texto = avisos.corpo_texto(orientando, avisos.coletar()[orientando], "")
+    assert "\n-- \n" in texto
