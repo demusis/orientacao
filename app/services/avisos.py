@@ -47,6 +47,9 @@ from app.services.tempo import agora as tempo_agora
 
 # uma reunião registrada e não formalizada por mais de duas semanas
 DIAS_RASCUNHO_VELHO = 15
+# antecedência dos avisos preventivos
+DIAS_ANTECEDENCIA = 7
+HORAS_ANTECEDENCIA_REUNIAO = 48
 # Espera entre tentativas quando o envio falha. A saída de rede desta
 # hospedagem é intermitente — em 21/07/2026 o mesmo destino conectou e, minutos
 # depois, devolveu ENETUNREACH. Repetir de meia em meia hora dá dezenas de
@@ -127,6 +130,31 @@ SECOES = {
             "pode ser exportada em PDF para assinatura.",
         ],
     },
+    "marcos_a_vencer": {
+        "titulo": "Marcos com prazo próximo",
+        "explicacao": (
+            "São tarefas do seu cronograma cujo prazo vence nos próximos dias e "
+            "ainda não constam como concluídas. Aviso preventivo — nada está "
+            "atrasado ainda."
+        ),
+        "passos": [
+            "Abra o sistema, vá em Painel e depois em Cronograma da orientação.",
+            "Ao concluir a tarefa, clique em Sinalizar conclusão.",
+            "Prevendo que o prazo não será cumprido, avise seu orientador com "
+            "antecedência — ele pode ajustar a data prevista.",
+        ],
+    },
+    "reunioes_proximas": {
+        "titulo": "Reuniões nas próximas 48 horas",
+        "explicacao": (
+            "São reuniões de orientação já agendadas cuja data se aproxima."
+        ),
+        "passos": [
+            "Confirme a data e a hora na página da orientação, em Atas.",
+            "Precisando remarcar, use Reagendar enquanto a ata está em rascunho — "
+            "a nova data fica registrada no histórico.",
+        ],
+    },
 }
 
 
@@ -163,6 +191,89 @@ def marcos_atrasados(destino: dict) -> None:
             f"{dias} {'dia' if dias == 1 else 'dias'} de atraso · "
             f"{m.orientacao.titulo_projeto}",
         )
+
+
+def marcos_a_vencer(destino: dict) -> None:
+    """Ao orientando: prazo nos próximos DIAS_ANTECEDENCIA dias, sem conclusão.
+
+    Janela `[hoje, hoje + antecedência]`, aberta no passado: o `>= hoje` não se
+    sobrepõe a `marcos_atrasados`, que cobre `< hoje`. Um marco de hoje entra
+    aqui, não lá."""
+    hoje = date.today()
+    limite = hoje + timedelta(days=DIAS_ANTECEDENCIA)
+    itens = (
+        Marco.query.join(Orientacao, Orientacao.id == Marco.orientacao_id)
+        .options(joinedload(Marco.orientacao).joinedload(Orientacao.orientando))
+        .filter(
+            Orientacao.status == "ativa",
+            Marco.status != "concluido",
+            Marco.data_prevista >= hoje,
+            Marco.data_prevista <= limite,
+        )
+        .order_by(Marco.data_prevista)
+        .all()
+    )
+    for m in itens:
+        dias = (m.data_prevista - hoje).days
+        quando = "hoje" if dias == 0 else (
+            "amanhã" if dias == 1 else f"em {dias} dias"
+        )
+        _acumular(
+            destino,
+            m.orientacao.orientando,
+            "marcos_a_vencer",
+            m.titulo,
+            f"Vence {quando} ({m.data_prevista.strftime('%d/%m/%Y')}) · "
+            f"{m.orientacao.titulo_projeto}",
+        )
+
+
+def reunioes_proximas(destino: dict) -> None:
+    """Ao orientador e a cada orientando participante: reunião nas próximas 48 h.
+
+    A ata em rascunho é o registro da reunião agendada; finalizada, a reunião já
+    ocorreu e não é lembrete. Junta-se a data à hora quando esta existe, para não
+    avisar de reunião cuja hora já passou hoje."""
+    agora = tempo_agora()
+    limite = agora + timedelta(hours=HORAS_ANTECEDENCIA_REUNIAO)
+    atas = (
+        Ata.query.options(
+            joinedload(Ata.orientador),
+            joinedload(Ata.participacoes)
+            .joinedload(AtaParticipacao.orientacao)
+            .joinedload(Orientacao.orientando),
+            joinedload(Ata.participacoes)
+            .joinedload(AtaParticipacao.orientacao),
+        )
+        .filter(
+            Ata.status == "rascunho",
+            Ata.data_reuniao >= agora.date(),
+            Ata.data_reuniao <= limite.date(),
+        )
+        .order_by(Ata.data_reuniao)
+        .all()
+    )
+    for a in atas:
+        quando = datetime.combine(
+            a.data_reuniao, a.hora_reuniao or datetime.min.time()
+        )
+        if not (agora <= quando <= limite):
+            continue  # data na janela, mas o horário exato caiu fora
+        # só participantes de vínculo ativo
+        participantes = [
+            p.orientacao.orientando
+            for p in a.participacoes
+            if p.orientacao.status == "ativa"
+        ]
+        if not participantes:
+            continue
+        rotulo_hora = (
+            f" às {a.hora_reuniao.strftime('%H:%M')}" if a.hora_reuniao else ""
+        )
+        detalhe = f"{a.data_reuniao.strftime('%d/%m/%Y')}{rotulo_hora}"
+        for pessoa in [a.orientador, *participantes]:
+            _acumular(destino, pessoa, "reunioes_proximas", "Reunião de orientação",
+                     detalhe)
 
 
 def marcos_a_confirmar(destino: dict) -> None:
@@ -282,6 +393,8 @@ def atas_em_rascunho(destino: dict) -> None:
 
 CATEGORIAS = (
     marcos_atrasados,
+    marcos_a_vencer,
+    reunioes_proximas,
     marcos_a_confirmar,
     versoes_sem_parecer,
     atas_em_rascunho,

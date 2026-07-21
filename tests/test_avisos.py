@@ -119,12 +119,28 @@ def test_marco_atrasado_vai_para_o_orientando(client, orientacao, orientando):
     assert "marcos_vencidos" in coletado[orientando]
 
 
-def test_marco_no_prazo_nao_gera_aviso(client, orientacao, orientando):
+def test_marco_dentro_da_janela_de_antecedencia_avisa_ao_orientando(
+    client, orientacao, orientando
+):
+    """Vencendo em 5 dias, entra em 'marcos_a_vencer' — aviso preventivo."""
     db.session.add(
         Marco(
             orientacao_id=orientacao.id,
-            titulo="Futuro",
+            titulo="Futuro próximo",
             data_prevista=date.today() + timedelta(days=5),
+        )
+    )
+    db.session.commit()
+    assert "marcos_a_vencer" in avisos.coletar()[orientando]
+
+
+def test_marco_distante_nao_gera_aviso(client, orientacao, orientando):
+    """Além da janela de antecedência, nada — não é hora de avisar."""
+    db.session.add(
+        Marco(
+            orientacao_id=orientacao.id,
+            titulo="Futuro distante",
+            data_prevista=date.today() + timedelta(days=30),
         )
     )
     db.session.commit()
@@ -465,3 +481,66 @@ def test_assinatura_separada_do_conteudo(client, orientacao, orientando):
     _marco_atrasado(orientacao)
     texto = avisos.corpo_texto(orientando, avisos.coletar()[orientando], "")
     assert "\n\n-- \n" in texto
+
+
+# --- avisos preventivos (Lote 3) ---
+
+
+def _reuniao_em(orientacao, orientador, quando, hora=None, status="rascunho"):
+    from datetime import time as _time
+    a = Ata(
+        orientador_id=orientador.id,
+        data_reuniao=quando,
+        hora_reuniao=hora,
+        pauta="p",
+        deliberacoes="d",
+        redigida_por=orientador.id,
+        status=status,
+    )
+    db.session.add(a)
+    db.session.flush()
+    db.session.add(AtaParticipacao(ata_id=a.id, orientacao_id=orientacao.id))
+    db.session.commit()
+    return a
+
+
+def test_marco_de_hoje_avisa_a_vencer_nao_atrasado(client, orientacao, orientando):
+    """Fronteira: marco de hoje entra em 'a_vencer', não em 'vencidos'."""
+    db.session.add(
+        Marco(orientacao_id=orientacao.id, titulo="Hoje", data_prevista=date.today())
+    )
+    db.session.commit()
+    secoes = avisos.coletar()[orientando]
+    assert "marcos_a_vencer" in secoes
+    assert "marcos_vencidos" not in secoes
+
+
+def test_reuniao_proxima_avisa_as_duas_partes(client, orientacao, orientador, orientando):
+    _reuniao_em(orientacao, orientador, date.today() + timedelta(days=1))
+    coletado = avisos.coletar()
+    assert "reunioes_proximas" in coletado[orientador]
+    assert "reunioes_proximas" in coletado[orientando]
+
+
+def test_reuniao_distante_nao_avisa(client, orientacao, orientador, orientando):
+    _reuniao_em(orientacao, orientador, date.today() + timedelta(days=10))
+    assert avisos.coletar() == {}
+
+
+def test_reuniao_ja_finalizada_nao_e_lembrete(client, orientacao, orientador):
+    _reuniao_em(
+        orientacao, orientador, date.today() + timedelta(days=1), status="finalizada"
+    )
+    assert avisos.coletar() == {}
+
+
+def test_reuniao_com_hora_ja_passada_hoje_nao_avisa(client, orientacao, orientador):
+    """Reunião hoje, mas de manhã cedo, com o disparo à tarde: a hora exata caiu
+    fora da janela e não deve ser lembrada como futura."""
+    from datetime import time as _time
+    _reuniao_em(orientacao, orientador, date.today(), hora=_time(0, 1))
+    # 00:01 de hoje está no passado em relação a agora (a menos que rode à meia-noite)
+    coletado = avisos.coletar()
+    # não afirma vazio absoluto (poderia haver outros), mas a reunião não entra
+    reunioes = [s for secoes in coletado.values() for s in secoes if s == "reunioes_proximas"]
+    assert reunioes == []
