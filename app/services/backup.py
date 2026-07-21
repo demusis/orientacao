@@ -44,6 +44,20 @@ ORDEM_TABELAS = [
     "log_auditoria",
 ]
 
+# `configuracao_email` está deliberadamente FORA da lista acima, por dois
+# motivos que se somam:
+#
+# 1. Segurança. O pacote de backup sai do servidor e é guardado noutro lugar —
+#    é a via de vazamento mais provável do sistema, muito mais que a invasão.
+#    Incluir a tabela levaria a senha de app do Gmail (ainda que cifrada) para
+#    dentro de todo arquivo baixado. Mantendo-a fora, o pacote nada contém.
+# 2. Natureza do dado. Credencial de SMTP pertence à instalação, não ao acervo
+#    acadêmico. Restaurar um backup noutro servidor deve trazer os vínculos e as
+#    atas, não reapontar o envio de e-mail para a conta de origem.
+#
+# Consequência aceita: a configuração sobrevive ao expurgo e à restauração, e
+# precisa ser reinformada ao migrar de servidor.
+
 # nome_fisico é sempre "<uuid hex>.<ext>" (services/uploads.py). Restaurar só o
 # que casa com esse padrão fecha a porta a travessia de caminho no ZIP.
 NOME_FISICO = re.compile(r"^[0-9a-f]{32}\.[A-Za-z0-9]{1,10}$")

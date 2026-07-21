@@ -12,6 +12,7 @@ from flask_login import current_user, login_user
 from app.blueprints.admin import bp
 from app.blueprints.admin.forms import (
     AjusteDatasForm,
+    ConfiguracaoEmailForm,
     CoorientadorForm,
     EncerrarOrientacaoForm,
     ExcluirForm,
@@ -21,11 +22,13 @@ from app.blueprints.admin.forms import (
     OrientacaoForm,
     RestaurarBackupForm,
     RemoverForm,
+    TesteEmailForm,
     UsuarioForm,
 )
 from app.extensions import db
-from app.models import Orientacao, OrientacaoOrientador, Usuario
-from app.services import auditoria
+from app.models import ConfiguracaoEmail, Orientacao, OrientacaoOrientador, Usuario
+from app.services import auditoria, cripto
+from app.services import email as email_service
 from app.services import usuarios as usuarios_service
 from app.services.rbac import role_required
 from app.services.usuarios import GestaoUsuarioInvalida
@@ -314,6 +317,73 @@ def remover_coorientador(orientacao_id: int, usuario_id: int):
         db.session.commit()
         flash("Coorientador removido.", "success")
     return redirect(url_for("admin.coorientadores", orientacao_id=orientacao.id))
+
+
+@bp.route("/email", methods=["GET", "POST"])
+@role_required("admin")
+def configurar_email():
+    """Configuração do envio de e-mail. A senha de app é guardada cifrada e
+    nunca devolvida à tela; ver `services/cripto.py` quanto ao que a cifragem
+    protege e ao que ela não protege."""
+    config = ConfiguracaoEmail.vigente()
+    form = ConfiguracaoEmailForm(obj=config)
+    if request.method == "GET":
+        # campo de escrita apenas: chega em branco à tela. Zerar isto também no
+        # POST descartaria a senha recém-digitada — e nenhuma senha jamais seria
+        # gravada.
+        form.senha.data = ""
+    teste_form = TesteEmailForm(destinatario=current_user.email)
+
+    if form.validate_on_submit():
+        config.ativo = form.ativo.data
+        config.servidor = form.servidor.data.strip()
+        config.porta = form.porta.data
+        config.usuario = form.usuario.data.strip()
+        config.remetente_nome = form.remetente_nome.data.strip()
+        if form.senha.data:
+            config.senha_cifrada = cripto.cifrar(form.senha.data)
+        config.registrar_alteracao(current_user.id)
+        # a senha não entra nos dados auditados — a trilha registra a mudança,
+        # não o segredo
+        auditoria.registrar(
+            "configuracao_email",
+            "configuracao_email",
+            config.id,
+            {
+                "servidor": config.servidor,
+                "porta": config.porta,
+                "usuario": config.usuario,
+                "ativo": config.ativo,
+                "senha_alterada": bool(form.senha.data),
+            },
+        )
+        db.session.commit()
+        flash("Configuração de e-mail salva.", "success")
+        return redirect(url_for("admin.configurar_email"))
+
+    db.session.commit()  # persiste a linha criada por vigente() na primeira visita
+    return render_template(
+        "admin/email.html", form=form, teste_form=teste_form, config=config
+    )
+
+
+@bp.route("/email/teste", methods=["POST"])
+@role_required("admin")
+def testar_email():
+    form = TesteEmailForm()
+    if form.validate_on_submit():
+        erro = email_service.testar(form.destinatario.data.strip())
+        if erro:
+            flash(erro, "danger")
+        else:
+            flash(
+                f"E-mail de teste enviado para {form.destinatario.data}. "
+                "Confira a caixa de entrada e o spam.",
+                "success",
+            )
+    else:
+        flash("Informe um endereço válido para o teste.", "danger")
+    return redirect(url_for("admin.configurar_email"))
 
 
 @bp.route("/backup", methods=["GET"])

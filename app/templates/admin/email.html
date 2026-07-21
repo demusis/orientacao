@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_form %}
+{% block title %}Envio de e-mail — ARIADNE{% endblock %}
+{% block content %}
+<h1>Envio de e-mail</h1>
+
+<div class="card">
+  <h2>Situação</h2>
+  <p>
+    {% if config.operante %}
+      <span class="badge badge-concluido">habilitado</span>
+      Enviando como <strong>{{ config.remetente_nome }} &lt;{{ config.usuario }}&gt;</strong>.
+    {% elif config.configurado %}
+      <span class="badge badge-atrasado">desabilitado</span>
+      A configuração está completa, mas o envio está desligado.
+    {% else %}
+      <span class="badge">não configurado</span>
+      Nenhum e-mail será enviado enquanto a conta e a senha de app não forem informadas.
+    {% endif %}
+  </p>
+  {% if config.atualizado_em %}
+  <p><small>Última alteração em {{ config.atualizado_em.strftime('%Y-%m-%d %H:%M') }} (UTC)
+  {% if config.autor %}por {{ config.autor.nome }}{% endif %}.</small></p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Configuração</h2>
+  {{ render_form(form) }}
+</div>
+
+<div class="card">
+  <h2>Conferir</h2>
+  <p><small>Envia uma mensagem de teste pelo mesmo caminho de código do envio real —
+  um teste que exercitasse outro caminho não provaria nada. Falhando, a causa é
+  exibida.</small></p>
+  {{ render_form(teste_form, action=url_for('admin.testar_email')) }}
+</div>
+
+<div class="card">
+  <h2>Como obter a senha de app do Google</h2>
+  <ol>
+    <li>A senha comum da conta <strong>não funciona</strong>: o Google encerrou esse
+    acesso em 2022.</li>
+    <li>Ative a <strong>verificação em duas etapas</strong> na conta que fará os envios.</li>
+    <li>Em <em>myaccount.google.com → Segurança → Senhas de app</em>, gere uma senha de
+    16 caracteres para este uso e cole-a acima.</li>
+    <li>Ela pode ser <strong>revogada isoladamente</strong> a qualquer momento, sem
+    alterar a senha da conta.</li>
+  </ol>
+  <p class="flash flash-warning">Prefira uma <strong>conta dedicada ao sistema</strong>,
+  não a sua pessoal. A senha fica no servidor, e quem obtiver o servidor inteiro consegue
+  enviar mensagens como a conta configurada. Guardá-la cifrada protege contra o
+  vazamento do banco isolado — em pacote de backup, por exemplo, do qual esta
+  configuração é deliberadamente excluída —, mas não contra o comprometimento do
+  servidor, porque a aplicação precisa saber decifrar a senha para usá-la. A conta
+  dedicada é o que limita o estrago.</p>
+</div>
+{% endblock %}

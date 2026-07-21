@@ -4,6 +4,7 @@ from wtforms import (
     BooleanField,
     DateField,
     DateTimeLocalField,
+    IntegerField,
     PasswordField,
     SelectField,
     StringField,
@@ -14,6 +15,7 @@ from wtforms.validators import (
     DataRequired,
     Email,
     Length,
+    NumberRange,
     Optional,
     ValidationError,
 )
@@ -125,6 +127,45 @@ class ExpurgarBaseForm(_ConfirmacaoEscrita):
         'Digite "APAGAR" para confirmar', validators=[DataRequired()]
     )
     submit = SubmitField("Apagar a base")
+
+
+class ConfiguracaoEmailForm(FlaskForm):
+    """A senha nunca é devolvida à tela: o campo chega sempre em branco e só
+    substitui a guardada quando algo é digitado. Assim ela não trafega de volta
+    ao navegador nem fica no HTML da página a cada visita."""
+
+    ativo = BooleanField("Envio de e-mail habilitado")
+    servidor = StringField(
+        "Servidor SMTP", validators=[DataRequired(), Length(max=255)],
+        description="O plano gratuito do PythonAnywhere alcança smtp.gmail.com; "
+                    "smtp.office365.com é bloqueado.",
+    )
+    porta = IntegerField(
+        "Porta", validators=[DataRequired(), NumberRange(min=1, max=65535)],
+        description="587 para STARTTLS, 465 para SSL.",
+    )
+    usuario = StringField(
+        "Conta de envio", validators=[DataRequired(), Email(), Length(max=254)],
+        description="Convém uma conta dedicada ao sistema, não a pessoal: assim "
+                    "um vazamento não alcança sua correspondência.",
+    )
+    senha = PasswordField(
+        "Senha de app", validators=[Optional(), Length(max=255)],
+        description="16 caracteres, gerada em myaccount.google.com com a "
+                    "verificação em duas etapas ativa. Deixe em branco para "
+                    "manter a senha já guardada.",
+    )
+    remetente_nome = StringField(
+        "Nome do remetente", validators=[DataRequired(), Length(max=120)]
+    )
+    submit = SubmitField("Salvar configuração")
+
+
+class TesteEmailForm(FlaskForm):
+    destinatario = StringField(
+        "Enviar teste para", validators=[DataRequired(), Email(), Length(max=254)]
+    )
+    submit = SubmitField("Enviar e-mail de teste")
 
 
 class FiltroAuditoriaForm(FlaskForm):
