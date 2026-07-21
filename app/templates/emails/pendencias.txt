@@ -4,26 +4,44 @@
   Não é resumo do HTML nem remete a ele: é o que aparece em leitor de tela, em
   cliente sem HTML e na pré-visualização da caixa de entrada. Precisa bastar-se.
 
-  O espaçamento é significativo aqui — daí o uso de {%- -%} para controlar cada
-  quebra de linha. Ao editar, confira o resultado; um branco a mais ou a menos
-  muda a leitura de um e-mail em texto.
+  O espaçamento é significativo — daí o cuidado com {%- -%} em cada bloco. A
+  indentação de dois espaços é a única hierarquia visível num e-mail em texto;
+  há teste guardando-a, porque o Jinja a consome com facilidade.
 -#}
 Olá, {{ pessoa.nome }}.
 
-Você tem {{ total }} pendência{{ 's' if total != 1 else '' }} no ARIADNE, o sistema de acompanhamento da sua orientação acadêmica.
+{{ aviso_automatico }}
 
-{% for chave, itens in secoes.items() -%}
-{{ SECOES[chave][0] | upper }}
-{% for item in itens %}  - {{ item.titulo }}
-    {{ item.detalhe }}
-{% endfor %}
-{% endfor -%}
-O QUE FAZER
-{% for acao in providencias %}  - {{ acao | capitalize }}.
-{% endfor %}
-{%- if url %}
-  Acesse: {{ url }}
+Você tem {{ total }} pendência{{ 's' if total != 1 else '' }} no ARIADNE, o sistema que acompanha sua orientação acadêmica.
+{% if url %}
+Acesse: {{ url }}
 {% endif %}
--- {# o espaço após os dois traços é a marca de assinatura do RFC 3676 #}
+{% for chave, itens in secoes.items() %}
+{{ '=' * 68 }}
+{{ SECOES[chave].titulo | upper }}
+{{ '=' * 68 }}
+
+{{ SECOES[chave].explicacao }}
+{% for item in itens %}
+  - {{ item.titulo }}
+    {{ item.detalhe }}
+{%- endfor %}
+
+  Como proceder:
+{% for passo in SECOES[chave].passos %}
+  {{ loop.index }}. {{ passo }}
+{%- endfor %}
+{% endfor %}
+
+{# Atenção ao abrir este comentário com {#- : o hífen comeria a linha em branco
+   acima, colando a assinatura no último passo.
+   "-- " com espaço ao final é a marca de assinatura do RFC 3676. Clientes de
+   e-mail a usam para recolher o rodapé, e é por isso que o aviso de mensagem
+   automática aparece TAMBÉM logo após a saudação — recolhido aqui, segue
+   visível lá. #}
+-- 
 ARIADNE — {{ acronimo }}.
-{{ rodape }}
+
+{{ aviso_automatico }}
+{{ rodape_quem_procurar }}
+{{ rodape_frequencia }}

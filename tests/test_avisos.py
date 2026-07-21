@@ -358,7 +358,9 @@ def test_providencias_sem_repeticao(client, orientacao, orientador, orientando):
     _versao_sem_parecer(orientacao)
     secoes = avisos.coletar()[orientador]
     texto = avisos.corpo_texto(orientador, secoes, "")
-    assert texto.count("Emitir parecer") == 1
+    # duas entregas, uma seção: o passo a passo aparece uma vez só
+    assert texto.count("Como proceder:") == 1
+    assert texto.count("Baixe a versão enviada") == 1
 
 
 def test_texto_simples_e_autossuficiente(client, orientacao, orientando):
@@ -370,7 +372,7 @@ def test_texto_simples_e_autossuficiente(client, orientacao, orientando):
 
     assert "Entregar capítulo 1" in texto
     assert "dias de atraso" in texto
-    assert "O QUE FAZER" in texto
+    assert "Como proceder:" in texto
     for proibido in ("versão HTML", "<div", "<p>", "&nbsp;"):
         assert proibido not in texto
 
@@ -410,7 +412,7 @@ def test_texto_preserva_a_indentacao_dos_itens(client, orientacao, orientando):
 
     assert "\n  - Entregar capítulo 1\n" in texto
     assert "\n    Previsto para " in texto
-    assert "\n  - Sinalizar a conclusão" in texto
+    assert "\n  1. Abra o sistema" in texto  # passo numerado, mesma indentação
 
 
 def test_texto_traz_a_marca_de_assinatura(client, orientacao, orientando):
@@ -420,3 +422,46 @@ def test_texto_traz_a_marca_de_assinatura(client, orientacao, orientando):
     _marco_atrasado(orientacao)
     texto = avisos.corpo_texto(orientando, avisos.coletar()[orientando], "")
     assert "\n-- \n" in texto
+
+
+def test_mensagem_se_identifica_como_automatica(client, orientacao, orientando):
+    """Quem recebe precisa saber que não adianta responder. O aviso aparece duas
+    vezes de propósito: no topo, porque o rodapé pode ser recolhido pelo cliente
+    de e-mail em razão da marca "-- "; e no rodapé, com a explicação completa."""
+    _marco_atrasado(orientacao)
+    secoes = avisos.coletar()[orientando]
+
+    texto = avisos.corpo_texto(orientando, secoes, "")
+    html = avisos.corpo_html(orientando, secoes, "")
+
+    for corpo in (texto, html):
+        assert corpo.count("Não responda a este e-mail") == 2
+        assert "ninguém lê as respostas" in corpo
+    # e diz a quem recorrer, já que responder não serve
+    assert "escreva diretamente ao seu orientador" in texto
+    assert "procure o administrador" in texto
+
+
+def test_cada_secao_ensina_o_que_fazer(client, orientacao, orientador, orientando):
+    """Aviso que informa a pendência sem ensinar a resolvê-la deixa o trabalho
+    pela metade. Toda seção presente precisa trazer seu passo a passo."""
+    _marco_sinalizado(orientacao)
+    _versao_sem_parecer(orientacao)
+    _ata_rascunho_velha(orientacao, orientador)
+
+    secoes = avisos.coletar()[orientador]
+    texto = avisos.corpo_texto(orientador, secoes, "")
+
+    assert texto.count("Como proceder:") == len(secoes)
+    for chave in secoes:
+        assert avisos.SECOES[chave]["explicacao"] in texto
+        for passo in avisos.SECOES[chave]["passos"]:
+            assert passo in texto
+
+
+def test_assinatura_separada_do_conteudo(client, orientacao, orientando):
+    """Linha em branco antes da marca de assinatura. Some com facilidade: um
+    comentário Jinja aberto com `{#-` engole o branco que o precede."""
+    _marco_atrasado(orientacao)
+    texto = avisos.corpo_texto(orientando, avisos.coletar()[orientando], "")
+    assert "\n\n-- \n" in texto

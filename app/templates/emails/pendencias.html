@@ -13,9 +13,9 @@
 {%- set texto = "#1f2933" -%}
 {%- set apagado = "#5a6570" -%}
 {%- set borda = "#d0d5db" -%}
-{%- set p = "margin:0 0 12px;font:15px/1.5 " ~ fonte ~ ";color:" ~ texto -%}
-{%- set h2 = "font:600 14px/1.4 " ~ fonte ~ ";color:" ~ azul ~ ";text-transform:uppercase;letter-spacing:.04em;margin:24px 0 8px" -%}
-<div style="max-width:600px;margin:0 auto;padding:24px;background:#ffffff">
+{%- set p = "margin:0 0 12px;font:15px/1.55 " ~ fonte ~ ";color:" ~ texto -%}
+{%- set h2 = "font:600 15px/1.4 " ~ fonte ~ ";color:#ffffff;background:" ~ azul ~ ";margin:0;padding:8px 12px;border-radius:4px 4px 0 0" -%}
+<div style="max-width:620px;margin:0 auto;padding:24px;background:#ffffff">
 
   <div style="border-left:4px solid {{ azul }};padding-left:12px;margin-bottom:20px">
     <div style="font:700 18px/1.3 {{ fonte }};color:{{ azul }}">ARIADNE</div>
@@ -23,31 +23,52 @@
   </div>
 
   <p style="{{ p }}">Olá, {{ pessoa.nome }}.</p>
-  <p style="{{ p }}">Você tem <strong>{{ total }} pendência{{ 's' if total != 1 else '' }}</strong> no sistema.</p>
 
-  {% for chave, itens in secoes.items() %}
-    <h2 style="{{ h2 }}">{{ SECOES[chave][0] }}</h2>
-    {% for item in itens %}
-      <div style="border:1px solid {{ borda }};border-radius:4px;padding:10px 12px;margin-bottom:8px">
-        <div style="font:600 15px/1.4 {{ fonte }};color:{{ texto }}">{{ item.titulo }}</div>
-        <div style="font:13px/1.5 {{ fonte }};color:{{ apagado }};margin-top:2px">{{ item.detalhe }}</div>
-      </div>
-    {% endfor %}
-  {% endfor %}
+  <p style="margin:0 0 16px;padding:10px 12px;background:#fff3cd;border:1px solid #e0c96a;border-radius:4px;font:13px/1.5 {{ fonte }};color:#5c4d13">
+    {{ aviso_automatico }}
+  </p>
 
-  <h2 style="{{ h2 }}">O que fazer</h2>
-  <ul style="margin:0 0 16px;padding-left:20px;font:15px/1.6 {{ fonte }};color:{{ texto }}">
-    {% for acao in providencias %}<li>{{ acao | capitalize }}.</li>{% endfor %}
-  </ul>
+  <p style="{{ p }}">
+    Você tem <strong>{{ total }} pendência{{ 's' if total != 1 else '' }}</strong>
+    no ARIADNE, o sistema que acompanha sua orientação acadêmica.
+  </p>
 
   {% if url %}
-  <p style="margin:0 0 24px">
-    <a href="{{ url }}" style="display:inline-block;background:{{ azul }};color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:4px;font:600 15px {{ fonte }}">Abrir o ARIADNE</a>
+  <p style="margin:0 0 28px">
+    <a href="{{ url }}" style="display:inline-block;background:{{ azul }};color:#ffffff;text-decoration:none;padding:11px 22px;border-radius:4px;font:600 15px {{ fonte }}">Abrir o ARIADNE</a>
   </p>
   {% endif %}
 
-  <hr style="border:0;border-top:1px solid {{ borda }};margin:24px 0 12px">
-  <p style="margin:0;font:12px/1.6 {{ fonte }};color:#8a939b">
-    <strong>ARIADNE</strong> — {{ acronimo }}.<br>{{ rodape }}
+  {% for chave, itens in secoes.items() %}
+  <div style="border:1px solid {{ borda }};border-radius:4px;margin-bottom:24px">
+    <h2 style="{{ h2 }}">{{ SECOES[chave].titulo }}</h2>
+    <div style="padding:14px 12px">
+
+      <p style="margin:0 0 12px;font:13px/1.5 {{ fonte }};color:{{ apagado }}">{{ SECOES[chave].explicacao }}</p>
+
+      {% for item in itens %}
+      <div style="border-left:3px solid {{ borda }};padding:4px 0 4px 10px;margin-bottom:10px">
+        <div style="font:600 15px/1.4 {{ fonte }};color:{{ texto }}">{{ item.titulo }}</div>
+        <div style="font:13px/1.5 {{ fonte }};color:{{ apagado }};margin-top:2px">{{ item.detalhe }}</div>
+      </div>
+      {% endfor %}
+
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid {{ borda }}">
+        <div style="font:600 13px/1.4 {{ fonte }};color:{{ azul }};text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Como proceder</div>
+        <ol style="margin:0;padding-left:20px;font:14px/1.6 {{ fonte }};color:{{ texto }}">
+          {% for passo in SECOES[chave].passos %}<li style="margin-bottom:4px">{{ passo }}</li>{% endfor %}
+        </ol>
+      </div>
+
+    </div>
+  </div>
+  {% endfor %}
+
+  <hr style="border:0;border-top:1px solid {{ borda }};margin:8px 0 12px">
+  <p style="margin:0;font:12px/1.65 {{ fonte }};color:#8a939b">
+    <strong>ARIADNE</strong> — {{ acronimo }}.<br>
+    {{ aviso_automatico }}<br>
+    {{ rodape_quem_procurar }}<br>
+    {{ rodape_frequencia }}
   </p>
 </div>

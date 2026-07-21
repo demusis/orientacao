@@ -49,26 +49,74 @@ INTERVALO_ENTRE_TENTATIVAS = timedelta(minutes=30)
 # Acrescentar categoria = escrever a função e incluí-la em CATEGORIAS.
 
 
-# Cada seção declara o rótulo e a providência que cabe a quem a recebe. A
-# providência é agregada no fim da mensagem: dizer o que fazer é o que separa um
-# aviso útil de uma notificação que só informa.
+# Cada seção declara rótulo, uma frase que explica o que aquilo significa e o
+# passo a passo de como resolver. As instruções ficam **junto dos itens a que se
+# referem**, e não reunidas no fim: quem lê já está olhando a pendência, e é ali
+# que a dúvida "e agora, o que faço?" aparece.
+#
+# O passo a passo cita os nomes exatos dos menus e botões da interface. Ao mudar
+# um rótulo na tela, mude aqui também — instrução que manda clicar num botão
+# inexistente é pior que instrução nenhuma.
 SECOES = {
-    "marcos_vencidos": (
-        "Marcos com prazo vencido",
-        "sinalizar a conclusão dos marcos já concluídos, no Cronograma do vínculo",
-    ),
-    "a_confirmar": (
-        "Entregas aguardando sua confirmação",
-        "confirmar as conclusões que seus orientandos sinalizaram",
-    ),
-    "sem_parecer": (
-        "Entregas aguardando parecer",
-        "emitir parecer sobre as versões entregues",
-    ),
-    "atas_rascunho": (
-        "Atas em rascunho",
-        "finalizar as atas pendentes, tornando-as registros imutáveis",
-    ),
+    "marcos_vencidos": {
+        "titulo": "Marcos com prazo vencido",
+        "explicacao": (
+            "São tarefas do seu cronograma cuja data prevista já passou e que "
+            "ainda não constam como concluídas."
+        ),
+        "passos": [
+            "Abra o sistema e clique em Painel; a orientação aparece na lista.",
+            "Dentro dela, vá em Cronograma.",
+            "No marco já concluído, clique em Sinalizar conclusão. Seu "
+            "orientador recebe o aviso e faz a confirmação — só então o marco "
+            "passa a concluído.",
+            "Se o prazo não for mais viável, converse com seu orientador: ele "
+            "pode alterar a data prevista.",
+        ],
+    },
+    "a_confirmar": {
+        "titulo": "Entregas aguardando sua confirmação",
+        "explicacao": (
+            "Seus orientandos sinalizaram que concluíram estes marcos. A "
+            "conclusão só se efetiva depois que você confirma."
+        ),
+        "passos": [
+            "Abra a orientação pelo Painel e vá em Cronograma.",
+            "Examine a entrega e clique em Confirmar conclusão.",
+            "A data de conclusão fica registrada no histórico do vínculo.",
+        ],
+    },
+    "sem_parecer": {
+        "titulo": "Entregas aguardando parecer",
+        "explicacao": (
+            "São as versões mais recentes de documentos enviados pelos "
+            "orientandos que ainda não receberam apreciação sua. Versões "
+            "substituídas por outras mais novas não entram nesta lista."
+        ),
+        "passos": [
+            "Abra a orientação pelo Painel e vá em Documentos.",
+            "Baixe a versão enviada e faça a leitura.",
+            "Em Pareceres, clique em Emitir parecer, escolha o resultado "
+            "(aprovado, aprovado com ressalvas ou reprovado) e escreva sua "
+            "apreciação.",
+            "O parecer emitido é imutável e pode ser exportado em PDF para "
+            "assinatura eletrônica.",
+        ],
+    },
+    "atas_rascunho": {
+        "titulo": "Atas em rascunho",
+        "explicacao": (
+            "São reuniões registradas cuja ata nunca foi formalizada. "
+            "Enquanto está em rascunho, a ata pode ser editada livremente e "
+            "não vale como registro."
+        ),
+        "passos": [
+            "Abra a orientação pelo Painel e vá em Atas.",
+            "Revise a pauta e as deliberações.",
+            "Clique em Finalizar ata. A partir daí ela se torna imutável e "
+            "pode ser exportada em PDF para assinatura.",
+        ],
+    },
 }
 
 
@@ -233,9 +281,25 @@ ACRONIMO = (
     "Ambiente de Revisão, Integração, Acompanhamento Discente e "
     "Normatização de Estudos"
 )
-RODAPE = (
-    "Mensagem automática do ARIADNE, enviada no máximo uma vez por dia e "
-    "somente quando há pendências. Não é necessário respondê-la."
+# O aviso de mensagem automática aparece duas vezes: uma linha logo após a
+# saudação, para quem lê só o começo, e a explicação completa no rodapé. O
+# remetente é uma caixa de e-mail real, então quem responder não recebe erro de
+# entrega algum — a resposta simplesmente fica sem leitura. Dizer isso com todas
+# as letras evita que alguém escreva esperando retorno.
+AVISO_AUTOMATICO = (
+    "Esta é uma mensagem automática, enviada por um sistema. "
+    "Não responda a este e-mail: ninguém lê as respostas enviadas a "
+    "este endereço."
+)
+RODAPE_QUEM_PROCURAR = (
+    "Para tratar de assuntos da orientação, escreva diretamente ao seu "
+    "orientador. Para problemas de acesso ao sistema — senha esquecida, por "
+    "exemplo —, procure o administrador."
+)
+RODAPE_FREQUENCIA = (
+    "Você recebe este aviso no máximo uma vez por dia, e somente quando há "
+    "pendências registradas em seu nome. Resolvidas as pendências, os avisos "
+    "cessam."
 )
 
 
@@ -268,15 +332,6 @@ def assunto(secoes: dict) -> str:
     )
 
 
-def _providencias(secoes: dict) -> list:
-    """Providências das seções presentes, sem repetição e em ordem estável."""
-    vistas, saida = set(), []
-    for chave in secoes:
-        acao = SECOES[chave][1]
-        if acao not in vistas:
-            vistas.add(acao)
-            saida.append(acao)
-    return saida
 
 
 def _contexto(pessoa, secoes: dict, url: str) -> dict:
@@ -287,10 +342,11 @@ def _contexto(pessoa, secoes: dict, url: str) -> dict:
         "secoes": secoes,
         "SECOES": SECOES,
         "total": _contar(secoes),
-        "providencias": _providencias(secoes),
         "url": url,
         "acronimo": ACRONIMO,
-        "rodape": RODAPE,
+        "aviso_automatico": AVISO_AUTOMATICO,
+        "rodape_quem_procurar": RODAPE_QUEM_PROCURAR,
+        "rodape_frequencia": RODAPE_FREQUENCIA,
     }
 
 
