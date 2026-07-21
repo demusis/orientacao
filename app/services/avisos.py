@@ -25,7 +25,7 @@ Cada pessoa recebe **uma** mensagem reunindo suas pendências, e não uma por
 categoria — quatro e-mails no mesmo minuto seriam ignorados como ruído.
 """
 import json
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 
 from flask import current_app, render_template
 from sqlalchemy import select
@@ -43,6 +43,7 @@ from app.models import (
     VersaoDocumento,
 )
 from app.services import email as email_service
+from app.services.tempo import agora as tempo_agora
 
 # uma reunião registrada e não formalizada por mais de duas semanas
 DIAS_RASCUNHO_VELHO = 15
@@ -395,8 +396,10 @@ def corpo_html(pessoa, secoes: dict, url: str) -> str:
 
 
 def _agora() -> datetime:
-    """UTC ingênuo, como o restante das colunas de data e hora do banco."""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    """UTC ingênuo, como o restante das colunas de data e hora do banco.
+    Delega ao utilitário compartilhado; mantido como alias local porque os
+    testes referenciam `avisos._agora`."""
+    return tempo_agora()
 
 
 def reservar_tentativa() -> bool:

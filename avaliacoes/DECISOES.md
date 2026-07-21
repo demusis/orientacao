@@ -30,3 +30,13 @@ desbloqueia registrada na justificativa).
 | 2026-07-21 | Escopo dos avisos | aceito — **todas as categorias** | Ao orientando, marcos com prazo vencido. Ao orientador, entregas aguardando confirmação, entregas aguardando parecer e atas em rascunho há mais de 15 dias. Cada pessoa recebe **uma** mensagem reunindo o que lhe cabe — quatro e-mails no mesmo minuto seriam lidos como ruído. Cobre o achado U-6 (3 entregas sem parecer), que a decisão anterior, restrita a marcos atrasados, deixaria descoberto. |
 | 2026-07-21 | F-3 — sem página de erro 404/500 própria | aceito | Sem dependências, esforço baixo, risco baixo. `errorhandler` para 404 e 500 na identidade visual, com orientação ao usuário. |
 | 2026-07-21 | U-6 — 3 entregas sem parecer; U-7 — 5 de 7 contas nunca acessaram; U-1 — atas em uso zero | em aberto | Não são alterações de sistema, e sim apuração de uso que cabe ao responsável. Ficam registrados para que o próximo ciclo compare os mesmos indicadores e verifique se o quadro se moveu. |
+
+## Melhorias de 2026-07-21 (segunda leva)
+
+| Data | Achado | Decisão | Justificativa |
+|---|---|---|---|
+| 2026-07-21 | F-3 — páginas de erro próprias | **concluído** | `errorhandler` para 403, 404, 413 e 500 na identidade do sistema; o 500 registra a exceção e não a exibe. Template independente de `base.html`, que supõe usuário autenticado. |
+| 2026-07-21 | Cabeçalhos de segurança | **concluído** | Content-Security-Policy estrita (`script-src 'none'`, sem `unsafe-inline`), possível porque os templates não têm estilo embutido nem JavaScript — verificado. Mais `X-Content-Type-Options`, `Referrer-Policy` e HSTS sob HTTPS. |
+| 2026-07-21 | Limite de tentativas de autenticação — contagem por origem | aceito, com alcance declarado | Conta `login_falho`/`recuperacao_falha` do mesmo IP na trilha existente, sem tabela nova. **Contém força bruta de uma origem só; NÃO cobre ataque distribuído (um IP por tentativa) contra uma conta.** Contar por conta foi recusado: transformaria o mecanismo em vetor de bloqueio da vítima — bastaria o atacante errar a senha de alguém para trancá-lo. Reabrir só com evidência de ataque distribuído real. |
+| 2026-07-21 | Expiração de sessão | **concluído** | 12 h de inatividade; antes valia o padrão do Flask (31 dias). |
+| 2026-07-21 | Portabilidade dos dados ao titular (LGPD art. 18) | **não priorizado** | O backup global do administrador atende à instituição; a portabilidade individual não foi eleita nesta leva. Sem recusa de mérito — reentra quando priorizado. |

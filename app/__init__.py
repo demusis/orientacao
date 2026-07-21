@@ -55,7 +55,81 @@ def create_app(config_name: str | None = None) -> Flask:
     register_cli(app)
     register_template_globals(app)
     register_avisos_diarios(app)
+    register_seguranca(app)
+    register_erros(app)
     return app
+
+
+def register_seguranca(app: Flask) -> None:
+    """Cabeçalhos de segurança em toda resposta.
+
+    A política de conteúdo é estrita porque pode ser: os templates da aplicação
+    não têm um único `style=` embutido nem uma tag `<script>` — o projeto não
+    usa JavaScript. Assim proíbe-se `script-src` por inteiro e dispensa-se o
+    `'unsafe-inline'` que a maioria dos sites é obrigada a abrir. Um recurso que
+    a política venha a barrar aparece no console do navegador, e é ali que se
+    confere após qualquer mudança de template."""
+    csp = (
+        "default-src 'self'; "
+        "script-src 'none'; "
+        "style-src 'self'; "
+        "img-src 'self' data:; "
+        "form-action 'self'; "
+        "frame-ancestors 'none'; "  # dispensa X-Frame-Options
+        "base-uri 'none'"
+    )
+
+    @app.after_request
+    def aplicar_cabecalhos(resposta):
+        resposta.headers.setdefault("Content-Security-Policy", csp)
+        resposta.headers.setdefault("X-Content-Type-Options", "nosniff")
+        resposta.headers.setdefault("Referrer-Policy", "same-origin")
+        # HSTS só faz sentido — e só é honrado — sob HTTPS
+        if app.config.get("SESSION_COOKIE_SECURE"):
+            resposta.headers.setdefault(
+                "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+            )
+        return resposta
+
+
+def register_erros(app: Flask) -> None:
+    """Páginas de erro na identidade do sistema. O 500 registra a exceção no log
+    e jamais a expõe ao usuário; os demais explicam o que houve e o que fazer."""
+    from flask import render_template
+
+    def pagina(codigo: int, titulo: str, mensagem: str):
+        def handler(erro):
+            return render_template(
+                "erros/erro.html", codigo=codigo, titulo=titulo, mensagem=mensagem
+            ), codigo
+        return handler
+
+    app.register_error_handler(
+        403,
+        pagina(403, "Acesso negado",
+               "Você não tem permissão para acessar esta página."),
+    )
+    app.register_error_handler(
+        404,
+        pagina(404, "Página não encontrada",
+               "O endereço não existe ou o registro foi removido."),
+    )
+    app.register_error_handler(
+        413,
+        pagina(413, "Arquivo grande demais",
+               "O envio excede o limite de 20 MB. Reduza o arquivo e tente de novo."),
+    )
+
+    @app.errorhandler(500)
+    def erro_interno(erro):
+        app.logger.exception("Erro interno não tratado")
+        return render_template(
+            "erros/erro.html",
+            codigo=500,
+            titulo="Erro interno",
+            mensagem="Algo falhou de nosso lado. O incidente foi registrado; "
+            "tente novamente em instantes.",
+        ), 500
 
 
 def register_avisos_diarios(app: Flask) -> None:

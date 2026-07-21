@@ -1,0 +1,27 @@
+{#- Página de erro autossuficiente: não estende base.html porque este supõe
+    usuário no cabeçalho, e um 403/500 pode ocorrer sem sessão válida. -#}
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ codigo }} — ARIADNE</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header>
+  <div class="brand">
+    <a href="{{ url_for('main.index') }}">ARIADNE</a>
+    <span class="tagline">Ambiente de Revisão, Integração, Acompanhamento Discente e Normatização de Estudos</span>
+  </div>
+</header>
+<main>
+  <div class="card card-login">
+    <h1>{{ codigo }} — {{ titulo }}</h1>
+    <p>{{ mensagem }}</p>
+    <p><a href="{{ url_for('main.index') }}">Voltar ao início</a></p>
+  </div>
+</main>
+<footer><small>ARIADNE — protótipo de homologação</small></footer>
+</body>
+</html>

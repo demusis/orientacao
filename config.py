@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -13,9 +14,16 @@ class Config:
     # a leitura de X-Forwarded-For: sem proxy, o cabeçalho é forjável pelo
     # cliente e registrar seu conteúdo como origem falsearia a auditoria.
     TRUSTED_PROXY_COUNT = int(os.environ.get("TRUSTED_PROXY_COUNT", "0"))
-    # Endereço público, usado nos links dos e-mails. Vazio: deduz-se do host da
-    # requisição que disparou o envio.
+    # Endereço público, usado nos links dos e-mails. Não é deduzido do cabeçalho
+    # Host da requisição, que vem do cliente (ver services/avisos.py).
     URL_BASE = os.environ.get("URL_BASE", "")
+    # Sessão expira em 12 h de inatividade; sem isto vale o padrão do Flask, 31
+    # dias, longo demais para um sistema com dados pessoais.
+    PERMANENT_SESSION_LIFETIME = timedelta(hours=12)
+    # Janela e teto do limite de tentativas de autenticação (login e recuperação
+    # de senha), contadas por origem na própria trilha de auditoria.
+    LOGIN_JANELA_MINUTOS = 15
+    LOGIN_MAX_TENTATIVAS = 10
 
 
 class DevelopmentConfig(Config):

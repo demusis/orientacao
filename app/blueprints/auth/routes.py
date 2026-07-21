@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from flask import flash, redirect, render_template, request, url_for
+from flask import flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from urllib.parse import urlparse
 
@@ -9,6 +9,12 @@ from app.blueprints.auth.forms import LoginForm, TrocaSenhaForm
 from app.extensions import db
 from app.models import Usuario
 from app.services import auditoria
+from app.services.seguranca import excedeu_tentativas
+
+_EXCESSO = (
+    "Muitas tentativas a partir deste endereço. Aguarde alguns minutos e "
+    "tente novamente."
+)
 
 
 @bp.route("/login", methods=["GET", "POST"])
@@ -17,6 +23,12 @@ def login():
         return redirect(url_for("main.dashboard"))
     form = LoginForm()
     if form.validate_on_submit():
+        if excedeu_tentativas():
+            auditoria.registrar("login_bloqueado", "usuario",
+                                dados={"email": form.email.data})
+            db.session.commit()
+            flash(_EXCESSO, "danger")
+            return render_template("auth/login.html", form=form), 429
         usuario = Usuario.query.filter_by(email=form.email.data.lower().strip()).first()
         if usuario is None or not usuario.verificar_senha(form.senha.data):
             auditoria.registrar("login_falho", "usuario", dados={"email": form.email.data})
@@ -27,6 +39,9 @@ def login():
             flash("Conta desativada. Contate o administrador.", "danger")
             return render_template("auth/login.html", form=form), 403
         login_user(usuario, remember=form.lembrar.data)
+        # sem isto, PERMANENT_SESSION_LIFETIME é ignorado e a sessão dura o
+        # padrão do navegador
+        session.permanent = True
         usuario.ultimo_acesso = datetime.now(timezone.utc)
         auditoria.registrar("login", "usuario", usuario.id)
         db.session.commit()
