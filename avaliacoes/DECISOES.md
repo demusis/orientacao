@@ -17,3 +17,12 @@ desbloqueia registrada na justificativa).
 | 2026-07-21 | Registro de eventos do vínculo (prorrogação, trancamento, destrancamento) | aceito | Removidos: registravam decisões que o sistema depois ignorava. O trancamento não impedia nada nem suspendia a contagem de atraso; a prorrogação concorria com o ajuste de datas, que passou a exigir fundamentação. Mudança de título permanece, pela tela do orientador. |
 | 2026-07-21 | Remover "suspensa" de `STATUS_ORIENTACAO` | adiado | Nenhuma tela a apõe desde a remoção do trancamento, mas retirá-la do Enum custa mais uma migração sobre `orientacao` e quebraria a leitura de registro legado. Desbloqueia junto de outra migração que já toque essa tabela. |
 | 2026-07-21 | `sa.Enum` não gera `CHECK` no banco (`create_constraint=False` desde SQLAlchemy 1.4) | adiado | Descoberto ao testar `d7b3f915a6c8`: as tipologias são impostas só pelo `SelectField`, e o banco aceita qualquer texto. Vale rever ao migrar para PostgreSQL, onde o tipo nativo passaria a valer. |
+
+## Ciclo de 2026-07-21
+
+| Data | Achado | Decisão | Justificativa |
+|---|---|---|---|
+| 2026-07-21 | O-1 — nenhum backup guardado, com conteúdo real em produção | adiado | Sem condição de desbloqueio declarada. Registre-se o que está em risco: os `.docx` são cópias que os discentes possuem, mas a trilha de auditoria (68 lançamentos), o histórico dos vínculos e os carimbos de data/hora não têm segunda cópia em lugar algum. Reaparece em todo ciclo enquanto não houver pacote recente. |
+| 2026-07-21 | Infraestrutura de envio de e-mail | aceito | Tratada como item próprio, destravando de uma vez o lembrete de pendência (item 4) e a recuperação de senha (item 5). Medição de 21/07 mostrou `smtp.gmail.com:587` acessível do console com `STARTTLS` aceito, e `smtp.office365.com` bloqueado — logo o remetente precisa ser Gmail e **não há necessidade de mudar de plano**. Falta confirmar o mesmo a partir do worker web. |
+| 2026-07-21 | F-3 — sem página de erro 404/500 própria | aceito | Sem dependências, esforço baixo, risco baixo. `errorhandler` para 404 e 500 na identidade visual, com orientação ao usuário. |
+| 2026-07-21 | U-6 — 3 entregas sem parecer; U-7 — 5 de 7 contas nunca acessaram; U-1 — atas em uso zero | em aberto | Não são alterações de sistema, e sim apuração de uso que cabe ao responsável. Ficam registrados para que o próximo ciclo compare os mesmos indicadores e verifique se o quadro se moveu. |
