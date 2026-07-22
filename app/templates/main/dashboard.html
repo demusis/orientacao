@@ -112,7 +112,7 @@
 </div>
 {% endif %}
 
-<h2>Orientações</h2>
+<h2>{% if current_user.papel == 'orientando' %}Minha orientação{% elif current_user.papel == 'orientador' %}Minhas orientações{% else %}Orientações{% endif %}</h2>
 {% if orientacoes %}
 <table>
   <tr><th>Projeto</th><th>Modalidade</th><th>Orientador</th><th>Orientando</th><th>Status</th><th></th></tr>
