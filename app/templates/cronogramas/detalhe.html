@@ -63,7 +63,9 @@
 <div class="card">
   <h2>Anexar documento</h2>
   <p><small>Opcional. Envie um arquivo como entrega desta tarefa — ele fica
-  ligado a este marco. Novas versões seguem pelo módulo Documentos.</small></p>
+  ligado a este marco. Para enviar novas versões depois, abra o documento na aba
+  <a href="{{ url_for('documentos.listar', orientacao_id=orientacao.id) }}">Documentos</a>
+  do vínculo.</small></p>
   {{ render_form(anexo_form, action=url_for('cronogramas.anexar', orientacao_id=orientacao.id, marco_id=marco.id), enctype='multipart/form-data') }}
 </div>
 
