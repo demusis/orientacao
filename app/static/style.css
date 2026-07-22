@@ -48,7 +48,44 @@ button, input[type=submit] { background: var(--azul); color: #fff; border: 0; pa
    genérica de button e fica ilegível sobre fundo claro (tabelas) */
 button.link { background: none; padding: 0; text-decoration: underline; color: var(--azul); }
 header button.link { color: #fff; }
-form.inline { display: inline; }
+
+/* Painel destacado na barra */
+.nav-painel { background: rgba(255,255,255,.16); border-radius: 4px; padding: .2rem .6rem; font-weight: 600; }
+
+/* Submenus da barra: <details>/<summary>, sem JavaScript (CSP estrita) */
+nav details.menu { position: relative; display: inline-block; margin-right: .9rem; }
+nav details.menu > summary {
+  cursor: pointer; color: #fff; list-style: none; user-select: none;
+}
+nav details.menu > summary::-webkit-details-marker { display: none; }
+nav details.menu > summary::after { content: " \25BE"; font-size: .8em; }
+nav details.menu[open] > summary::after { content: " \25B4"; }
+nav details.menu > .submenu {
+  position: absolute; top: 100%; left: 0; z-index: 30; margin-top: .35rem;
+  background: #fff; border: 1px solid var(--borda); border-radius: 4px;
+  min-width: 180px; max-width: 80vw; padding: .3rem 0;
+  box-shadow: 0 4px 14px rgba(0,0,0,.18);
+}
+nav details.menu.menu-direita > .submenu { left: auto; right: 0; }
+nav details.menu > .submenu a,
+nav details.menu > .submenu button.link {
+  display: block; margin: 0; padding: .45rem .9rem; width: 100%; text-align: left;
+  color: #1c1e21; text-decoration: none; white-space: nowrap;
+}
+nav details.menu > .submenu a:hover,
+nav details.menu > .submenu button.link:hover { background: #eef2f6; }
+
+/* Acesso rápido do Painel (central de comando por papel) */
+.hub-painel {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: .6rem; margin: 0 0 1.5rem;
+}
+.hub-item {
+  display: block; padding: .8rem 1rem; background: #fff;
+  border: 1px solid var(--borda); border-radius: 6px;
+  text-decoration: none; color: var(--azul); font-weight: 600; text-align: center;
+}
+.hub-item:hover { border-color: var(--azul); background: #f7f9fb; }
 .flash { padding: .6rem .9rem; border-radius: 4px; margin-bottom: 1rem; }
 .flash-success { background: #d8f0d8; border: 1px solid #7fbf7f; }
 .flash-danger { background: #f8d7da; border: 1px solid #d9838d; }
@@ -119,8 +156,6 @@ dl dd { margin: .2rem 0 0 0; }
 .voltar { display: inline-block; margin-bottom: .8rem; color: var(--azul); text-decoration: none; font-size: .9rem; }
 .voltar:hover { text-decoration: underline; }
 .voltar::before { content: "‹ "; }
-
-.acoes-painel { margin: -.4rem 0 1.2rem; font-size: .95rem; }
 
 /* Lista de modelos disponíveis na criação de documento */
 .modelos-lista { margin: .4rem 0 0; padding-left: 1.1rem; }

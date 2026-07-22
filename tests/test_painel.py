@@ -139,6 +139,36 @@ def test_pendencia_de_vinculo_alheio_nao_vaza(client, orientacao, orientador, in
     assert "Sigiloso" not in pagina
 
 
+def test_hub_do_painel_por_papel(client, admin, orientador, orientando):
+    """A central de comando do Painel lista os atalhos do papel."""
+    login(client, "admin@teste.br")
+    pagina = client.get("/dashboard").data.decode()
+    assert 'class="hub-painel"' in pagina
+    for area in ("Modelos", "Backup", "Auditoria", "Usuários"):
+        assert area in pagina
+
+    client.post("/auth/logout")
+    login(client, "orientador@teste.br")
+    pagina = client.get("/dashboard").data.decode()
+    assert "Reuniões" in pagina and "Orientandos" in pagina
+
+    client.post("/auth/logout")
+    login(client, "orientando@teste.br")
+    # orientando não tem grade de acesso rápido
+    assert 'class="hub-painel"' not in client.get("/dashboard").data.decode()
+
+
+def test_logout_pelo_menu_de_conta_funciona(client, orientador):
+    """O Sair migrou para o menu de conta, mas continua sendo um POST comum."""
+    login(client, "orientador@teste.br")
+    assert client.get("/dashboard").status_code == 200
+    client.post("/auth/logout")
+    # sem sessão, o dashboard redireciona ao login
+    resp = client.get("/dashboard")
+    assert resp.status_code == 302
+    assert "/auth/login" in resp.headers["Location"]
+
+
 def test_atalhos_de_criacao_so_para_orientador(client, orientador, orientando, admin):
     """As ações de criação no Painel apontam para rotas exclusivas do orientador;
     orientando e administrador não devem vê-las (o admin receberia 403)."""

@@ -20,25 +20,37 @@
   </div>
   <nav>
     {% if current_user.is_authenticated %}
-      <a href="{{ url_for('main.dashboard') }}">Painel</a>
+      <a class="nav-painel" href="{{ url_for('main.dashboard') }}">Painel</a>
       {% if current_user.papel == 'orientador' %}
         <a href="{{ url_for('reunioes.index') }}">Reuniões</a>
         <a href="{{ url_for('orientandos.listar') }}">Orientandos</a>
       {% endif %}
       {% if current_user.papel == 'admin' %}
-        <a href="{{ url_for('admin.listar_usuarios') }}">Usuários</a>
-        <a href="{{ url_for('admin.listar_orientacoes') }}">Orientações</a>
-        <a href="{{ url_for('admin.listar_auditoria') }}">Auditoria</a>
-        <a href="{{ url_for('admin.gerir_modelos') }}">Modelos</a>
-        <a href="{{ url_for('admin.configurar_email') }}">E-mail</a>
-        <a href="{{ url_for('admin.backup') }}">Backup</a>
+        <details class="menu"><summary>Gestão</summary>
+          <div class="submenu">
+            <a href="{{ url_for('admin.listar_usuarios') }}">Usuários</a>
+            <a href="{{ url_for('admin.listar_orientacoes') }}">Orientações</a>
+          </div>
+        </details>
+        <details class="menu"><summary>Sistema</summary>
+          <div class="submenu">
+            <a href="{{ url_for('admin.gerir_modelos') }}">Modelos</a>
+            <a href="{{ url_for('admin.configurar_email') }}">E-mail</a>
+            <a href="{{ url_for('admin.backup') }}">Backup</a>
+            <a href="{{ url_for('admin.listar_auditoria') }}">Auditoria</a>
+          </div>
+        </details>
       {% endif %}
       <a href="{{ url_for('main.ajuda') }}">Ajuda</a>
-      <a href="{{ url_for('auth.trocar_senha') }}">Senha</a>
-      <form class="inline" method="post" action="{{ url_for('auth.logout') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="link">Sair ({{ current_user.nome }})</button>
-      </form>
+      <details class="menu menu-direita"><summary>{{ current_user.nome }}</summary>
+        <div class="submenu">
+          <a href="{{ url_for('auth.trocar_senha') }}">Senha</a>
+          <form method="post" action="{{ url_for('auth.logout') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="link">Sair</button>
+          </form>
+        </div>
+      </details>
     {% endif %}
   </nav>
 </header>
