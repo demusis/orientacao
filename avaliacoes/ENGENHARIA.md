@@ -45,23 +45,17 @@ Impacto/esforço/risco em alto·médio·baixo.
 | 7 | Marcar testes lentos (rasterização de PDF) para a suíte rodar sem estourar tempo | manutenção | médio | baixo | baixo |
 | 8 | Varredura de código morto / imports não usados (apoio do ruff) | manutenção | baixo | baixo | baixo |
 
-## Bloqueio a resolver (fora da alçada do loop — decisão do usuário)
+## Bloqueio resolvido
 
-**Teste vermelho pré-existente**, descoberto ao rodar a suíte completa (que
-estourava o tempo e por isso não era rodada inteira):
-`tests/test_revisao_21_07.py::test_conta_desativada_nao_recebe`.
+**Teste vermelho pré-existente** descoberto ao rodar a suíte completa:
+`tests/test_revisao_21_07.py::test_conta_desativada_nao_recebe`, vermelho desde
+`24dc1ae`. Causa: `avisos.marcos_atrasados_dos_orientandos` alertava o orientador
+sobre marcos vencidos de orientando com **conta desativada**.
 
-- **Vermelho desde `24dc1ae`** (recurso "alertar o orientador dos atrasos dos
-  orientandos"), não relacionado às mudanças do loop.
-- **Causa:** `avisos.marcos_atrasados_dos_orientandos` alerta o orientador dos
-  marcos vencidos de um orientando **mesmo quando a conta do orientando está
-  desativada** (filtra só `Orientacao.status == "ativa"`, não o `Usuario.ativo`
-  do orientando). O teste afirma que conta desativada não gera aviso algum.
-- **Decisão de comportamento (do usuário):** (a) corrigir o recurso para excluir
-  orientandos desativados — provavelmente o certo, não incomodar sobre conta
-  inativa; ou (b) atualizar o teste para refletir o novo comportamento.
-- **Impacto no loop:** trava a disciplina "suíte verde" e a CI (item 3) até ser
-  resolvido. Loop pausado após a iteração 1 para consulta.
+Decisão do usuário: **corrigir o recurso**. Corrigido em `c06fabb` (na main,
+por ser defeito de produto; trazido ao branch via merge `bab4216`) — passou a
+exigir `Orientacao.orientando.has(ativo=True)`. Suíte verde restaurada. CI
+(item 3) desbloqueada.
 
 ## Changelog
 
