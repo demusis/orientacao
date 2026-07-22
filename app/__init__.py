@@ -1,10 +1,11 @@
 import os
+from datetime import UTC
 
 import click
 from flask import Flask
 
-from config import config_by_name
 from app.extensions import csrf, db, login_manager, migrate
+from config import config_by_name
 
 
 def create_app(config_name: str | None = None) -> Flask:
@@ -33,15 +34,14 @@ def create_app(config_name: str | None = None) -> Flask:
     csrf.init_app(app)
 
     from app import models  # noqa: F401  (registro dos mapeamentos)
-
-    from app.blueprints.auth import bp as auth_bp
     from app.blueprints.admin import bp as admin_bp
-    from app.blueprints.main import bp as main_bp
+    from app.blueprints.atas import bp as atas_bp
+    from app.blueprints.auth import bp as auth_bp
     from app.blueprints.cronogramas import bp as cronogramas_bp
     from app.blueprints.documentos import bp as documentos_bp
-    from app.blueprints.atas import bp as atas_bp
-    from app.blueprints.reunioes import bp as reunioes_bp
+    from app.blueprints.main import bp as main_bp
     from app.blueprints.orientandos import bp as orientandos_bp
+    from app.blueprints.reunioes import bp as reunioes_bp
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(admin_bp, url_prefix="/admin")
@@ -144,7 +144,7 @@ def register_avisos_diarios(app: Flask) -> None:
     repetição, graças ao marcador em memória; a trava de concorrência é o UPDATE
     condicional de `avisos.reservar_tentativa`; e falha alguma pode derrubar a
     requisição do usuário, que nada tem a ver com o envio."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     # até quando não vale a pena nem consultar o banco
     estado = {"proxima_verificacao": None}
@@ -161,7 +161,7 @@ def register_avisos_diarios(app: Flask) -> None:
         # arquivo estático não deve pagar nem a comparação de data
         if request.endpoint == "static":
             return
-        agora = datetime.now(timezone.utc).replace(tzinfo=None)
+        agora = datetime.now(UTC).replace(tzinfo=None)
         if estado["proxima_verificacao"] and agora < estado["proxima_verificacao"]:
             return
 
@@ -214,7 +214,7 @@ def register_cli(app: Flask) -> None:
         try:
             validate_email(email, check_deliverability=False)
         except EmailNotValidError as exc:
-            raise click.ClickException(f"E-mail inválido: {exc}")
+            raise click.ClickException(f"E-mail inválido: {exc}") from exc
 
         if Usuario.query.filter_by(email=email).first():
             click.echo(f"Usuário {email} já existe.")
@@ -248,9 +248,9 @@ def register_cli(app: Flask) -> None:
 
 
 def register_template_globals(app: Flask) -> None:
-    from app.models.orientacao import MODALIDADE_LABEL, TIPO_EVENTO_LABEL
     from app.models.ata import RESULTADO_LABEL
     from app.models.cronograma import ETAPA_MARCO_LABEL, TIPO_MARCO_LABEL
+    from app.models.orientacao import MODALIDADE_LABEL, TIPO_EVENTO_LABEL
 
     app.jinja_env.globals.update(
         ETAPA_MARCO_LABEL=ETAPA_MARCO_LABEL,

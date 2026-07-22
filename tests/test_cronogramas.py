@@ -2,7 +2,6 @@ from datetime import date, timedelta
 
 from app.extensions import db
 from app.models import Documento, Marco
-
 from tests.conftest import login, pdf_falso, texto_com_extensao_pdf
 
 

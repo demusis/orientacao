@@ -12,10 +12,10 @@ banco.
 """
 import io
 import json
-import re
 import os
+import re
 import zipfile
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 
 from flask import current_app
 from sqlalchemy import Date, DateTime, Time, delete, func, insert, select, text, update
@@ -104,7 +104,7 @@ def gerar() -> tuple[str, bytes]:
     contagens = _contagens()
     manifesto = {
         "versao_formato": VERSAO_FORMATO,
-        "gerado_em": datetime.now(timezone.utc).isoformat(),
+        "gerado_em": datetime.now(UTC).isoformat(),
         "revisao_alembic": _revisao_atual(),
         "contagens": contagens,
     }
@@ -131,7 +131,7 @@ def gerar() -> tuple[str, bytes]:
                 if os.path.isfile(caminho):
                     z.write(caminho, f"uploads/{arquivo}")
 
-    carimbo = datetime.now(timezone.utc).strftime("%Y-%m-%d-%H%M")
+    carimbo = datetime.now(UTC).strftime("%Y-%m-%d-%H%M")
     return f"backup-ariadne-{carimbo}.zip", buffer.getvalue()
 
 
@@ -273,7 +273,7 @@ def restaurar(arquivo, executor: Usuario) -> dict:
                         **credencial,
                         "papel": "admin",
                         "ativo": True,
-                        "criado_em": datetime.now(timezone.utc),
+                        "criado_em": datetime.now(UTC),
                         "criado_por": None,
                         "ultimo_acesso": None,
                     }

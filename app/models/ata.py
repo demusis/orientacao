@@ -1,8 +1,7 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.extensions import db
-
 
 FORMATOS_CONTEUDO = ("texto", "markdown")
 
@@ -111,7 +110,7 @@ class Ata(db.Model):
         default="markdown",
     )
     criada_em = db.Column(
-        db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
+        db.DateTime, nullable=False, default=lambda: datetime.now(UTC)
     )
 
     participacoes = db.relationship(
@@ -158,7 +157,7 @@ class Reagendamento(db.Model):
     motivo = db.Column(db.Text, nullable=True)
     registrado_por = db.Column(db.Integer, db.ForeignKey("usuario.id"), nullable=False)
     registrado_em = db.Column(
-        db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
+        db.DateTime, nullable=False, default=lambda: datetime.now(UTC)
     )
 
     ata = db.relationship("Ata", back_populates="reagendamentos")
@@ -183,7 +182,7 @@ class Parecer(db.Model):
     )
     emitido_por = db.Column(db.Integer, db.ForeignKey("usuario.id"), nullable=False)
     emitido_em = db.Column(
-        db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
+        db.DateTime, nullable=False, default=lambda: datetime.now(UTC)
     )
     # congelado na emissão (o parecer é imutável desde a criação)
     conteudo_congelado = db.Column(db.Text, nullable=True)

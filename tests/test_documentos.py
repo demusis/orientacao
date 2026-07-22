@@ -1,5 +1,4 @@
 from app.models import Documento, VersaoDocumento
-
 from tests.conftest import login, pdf_falso, texto_com_extensao_pdf
 
 

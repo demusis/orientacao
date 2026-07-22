@@ -9,11 +9,8 @@ from app.models import (
     LogAuditoria,
     Marco,
     OrientacaoOrientador,
-    Usuario,
 )
-
 from tests.conftest import _criar_usuario, login
-
 
 # ---------- Sprint A: tipologia de marcos e eventos do vínculo ----------
 
@@ -125,7 +122,7 @@ def test_coorientador_ve_vinculo_e_redige_ata(client, orientacao, orientador):
 
     login(client, "co@teste.br")
     assert client.get(f"/orientacoes/{orientacao.id}").status_code == 200
-    assert "Projeto de Teste".encode() in client.get("/dashboard").data
+    assert b"Projeto de Teste" in client.get("/dashboard").data
 
     resp = client.post(
         f"/orientacoes/{orientacao.id}/atas/nova",
@@ -211,7 +208,7 @@ def test_pdf_de_rascunho_recusado(client, orientacao, orientador):
     resp = client.get(
         f"/orientacoes/{orientacao.id}/atas/{ata.id}/pdf", follow_redirects=True
     )
-    assert "Apenas atas finalizadas".encode() in resp.data
+    assert b"Apenas atas finalizadas" in resp.data
 
 
 def test_pdf_restrito_as_partes(client, orientacao, orientador, intruso):
@@ -234,7 +231,7 @@ def test_verificacao_publica_confere_e_detecta_adulteracao(client, orientacao, o
     client.post("/auth/logout")
 
     resp = client.get(f"/verificar/ata/{ata.id}/{h}")
-    assert resp.status_code == 200 and "CONFERE".encode() in resp.data
+    assert resp.status_code == 200 and b"CONFERE" in resp.data
 
     resp = client.get(f"/verificar/ata/{ata.id}/{'0' * 64}")
     assert "NÃO CONFERE".encode() in resp.data

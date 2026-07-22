@@ -14,6 +14,8 @@ de HTML cru (`block_html`, `inline_html`) nunca são repassados como marcação 
 saem como texto literal. Nada que venha do usuário chega à saída sem atravessar
 um emissor de vocabulário fechado, de modo que não é preciso `bleach` nem `nh3`.
 """
+from xml.sax.saxutils import escape as escapar_xml
+
 import mistune
 from markupsafe import Markup
 from markupsafe import escape as escapar_html
@@ -21,7 +23,6 @@ from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.platypus import HRFlowable, Paragraph, Spacer, Table, TableStyle
-from xml.sax.saxutils import escape as escapar_xml
 
 # Largura útil do A4 com as margens de `exportacao._documento_base`
 LARGURA_UTIL = 170 * mm
@@ -211,7 +212,7 @@ def _pdf_tabela(no: dict, estilos) -> Table:
         else:
             corpo = [lin["children"] for lin in secao["children"]]
 
-    colunas = max(len(cabecalho), max((len(l) for l in corpo), default=0), 1)
+    colunas = max(len(cabecalho), max((len(lin) for lin in corpo), default=0), 1)
     # estouro de margem no reportlab é silencioso: a coluna sai da página sem erro
     fonte = 8 if colunas <= COLUNAS_ANTES_DE_REDUZIR else 7
     estilo_celula = _estilo_derivado(
@@ -223,7 +224,7 @@ def _pdf_tabela(no: dict, estilos) -> Table:
             Paragraph(_pdf_inline(c["children"]), estilo_celula) for c in celulas
         ] + [""] * (colunas - len(celulas))
 
-    dados = ([linha(cabecalho)] if cabecalho else []) + [linha(l) for l in corpo]
+    dados = ([linha(cabecalho)] if cabecalho else []) + [linha(lin) for lin in corpo]
     largura = LARGURA_UTIL / colunas
     tabela = Table(dados, colWidths=[largura] * colunas, hAlign="LEFT")
     tabela.setStyle(

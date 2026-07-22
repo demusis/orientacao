@@ -2,12 +2,9 @@
 import io
 import json
 import zipfile
-from datetime import date
 
-from app.extensions import db
-from app.models import Ata, AtaParticipacao, Documento, LogAuditoria, Marco, Usuario
+from app.models import Ata, Documento, LogAuditoria, Marco, Usuario
 from app.services import backup as servico
-
 from tests.conftest import login, pdf_falso
 
 
@@ -83,7 +80,7 @@ def test_ciclo_completo_apagar_e_restaurar(client, admin, orientacao, orientador
         content_type="multipart/form-data",
         follow_redirects=True,
     )
-    assert "Backup restaurado".encode() in resp.data
+    assert b"Backup restaurado" in resp.data
     assert Usuario.query.count() == usuarios_antes
     assert Marco.query.one().titulo == "Revisão"
     assert Documento.query.one().titulo == "Projeto"
@@ -116,7 +113,7 @@ def test_expurgo_exige_a_palavra_exata(client, admin, orientacao, orientador):
         "/admin/backup/expurgar", data={"confirmacao": "apagar tudo"},
         follow_redirects=True,
     )
-    assert "digite exatamente".encode() in resp.data
+    assert b"digite exatamente" in resp.data
     assert Marco.query.count() == 1  # nada foi tocado
 
 
@@ -207,7 +204,7 @@ def test_restauracao_preserva_conta_ausente_do_backup(client, admin, orientacao,
         content_type="multipart/form-data",
         follow_redirects=True,
     )
-    assert "conta foi preservada".encode() in resp.data
+    assert b"conta foi preservada" in resp.data
     preservado = Usuario.query.filter_by(email="admin@teste.br").one()
     assert preservado.papel == "admin" and preservado.ativo
     # e continua sendo possível entrar com ela

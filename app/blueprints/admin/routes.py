@@ -24,8 +24,8 @@ from app.blueprints.admin.forms import (
     GerarBackupForm,
     ModeloForm,
     OrientacaoForm,
-    RestaurarBackupForm,
     RemoverForm,
+    RestaurarBackupForm,
     TesteEmailForm,
     UsuarioForm,
 )

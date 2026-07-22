@@ -15,8 +15,6 @@ from app.models import Ata, AtaParticipacao, ConfiguracaoEmail, LogAuditoria, Ma
 from app.services import avisos, cripto, marcacao
 from app.services import email as email_service
 
-from tests.conftest import login
-
 ESTILOS = getSampleStyleSheet()
 
 

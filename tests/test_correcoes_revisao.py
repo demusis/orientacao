@@ -1,7 +1,6 @@
 """Testes das correções das revisões de código de 19–20/07/2026."""
 from app.extensions import db
-from app.models import Ata, EventoVinculo, OrientacaoOrientador, Usuario
-
+from app.models import Ata, OrientacaoOrientador, Usuario
 from tests.conftest import _criar_usuario, login
 
 

@@ -3,10 +3,14 @@ from datetime import date, timedelta
 
 from app.extensions import db
 from app.models import (
-    Ata, AtaParticipacao, Documento, Marco, Parecer, VersaoDocumento,
+    Ata,
+    AtaParticipacao,
+    Documento,
+    Marco,
+    Parecer,
+    VersaoDocumento,
 )
 from app.services import relatorio
-
 from tests.conftest import login
 
 
@@ -24,7 +28,8 @@ def _povoar(orientacao, orientador, orientando):
         pauta="Discussão do método", deliberacoes="**Refazer** a amostra",
         redigida_por=orientador.id, status="finalizada",
     )
-    db.session.add(ata); db.session.flush()
+    db.session.add(ata)
+    db.session.flush()
     db.session.add(AtaParticipacao(
         ata_id=ata.id, orientacao_id=orientacao.id, presenca="presente"
     ))
@@ -32,13 +37,15 @@ def _povoar(orientacao, orientador, orientando):
         orientacao_id=orientacao.id, titulo="Projeto de pesquisa",
         criado_por=orientando.id,
     )
-    db.session.add(doc); db.session.flush()
+    db.session.add(doc)
+    db.session.flush()
     v = VersaoDocumento(
         documento_id=doc.id, numero_versao=1, nome_original="p.pdf",
         nome_fisico=f"{doc.id:032x}.pdf", tamanho_bytes=1024,
         mimetype="application/pdf", enviado_por=orientando.id,
     )
-    db.session.add(v); db.session.flush()
+    db.session.add(v)
+    db.session.flush()
     db.session.add(Parecer(
         orientacao_id=orientacao.id, versao_documento_id=v.id, tipo="documento",
         conteudo="Aprovado com **ressalvas** na seção 3.",

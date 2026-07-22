@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.extensions import db
 
@@ -60,7 +60,7 @@ class LogAuditoria(db.Model):
     dados_json = db.Column(db.Text, nullable=True)
     ip = db.Column(db.String(45), nullable=True)
     timestamp = db.Column(
-        db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True
+        db.DateTime, nullable=False, default=lambda: datetime.now(UTC), index=True
     )
 
     usuario = db.relationship("Usuario")

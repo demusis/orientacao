@@ -3,7 +3,6 @@ from datetime import datetime, timedelta
 
 from app.extensions import db
 from app.models import LogAuditoria
-
 from tests.conftest import login
 
 

@@ -8,7 +8,7 @@ de comando.
 Só há agregação. Nenhuma leitura individual é registrada nem exposta: o que
 interessa aqui é quantos, não quem fez o quê.
 """
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 
@@ -32,7 +32,7 @@ RASCUNHO_VELHO = 15
 
 
 def _agora() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _naive(momento: datetime) -> datetime:

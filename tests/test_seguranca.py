@@ -4,9 +4,7 @@ from datetime import timedelta
 from app.extensions import db
 from app.models import LogAuditoria
 from app.services.tempo import agora
-
 from tests.conftest import login
-
 
 # --- cabeçalhos ---
 

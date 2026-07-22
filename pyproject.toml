@@ -1,0 +1,16 @@
+# Configuração de ferramentas de desenvolvimento (não afeta o tempo de execução).
+# ruff: linter e formatador. O comprimento de linha não é imposto por ora
+# (E501 ignorado) para não gerar reformatação em massa; o foco inicial é higiene
+# — imports não usados, ordenação de imports e modernizações seguras.
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["migrations", ".venv", "instance"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "config"]

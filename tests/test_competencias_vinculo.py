@@ -5,9 +5,7 @@ from datetime import date
 
 from app.extensions import db
 from app.models import EventoVinculo, LogAuditoria
-
 from tests.conftest import _criar_usuario, login
-
 
 # --- título do projeto: orientador ---
 
@@ -126,7 +124,7 @@ def test_fim_anterior_ao_inicio_e_recusado(client, admin, orientacao):
         },
         follow_redirects=True,
     )
-    assert "posterior".encode() in resp.data
+    assert b"posterior" in resp.data
     assert orientacao.data_inicio == inicio_original
 
 

@@ -5,9 +5,7 @@ download por qualquer autenticado, a listagem na tela de novo documento e a
 sobrevivência ao ciclo de backup."""
 import os
 
-from app.extensions import db
 from app.models import LogAuditoria, ModeloDocumento
-
 from tests.conftest import login, pdf_falso, texto_com_extensao_pdf
 
 

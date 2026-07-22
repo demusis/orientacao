@@ -1,5 +1,4 @@
 from app.models import LogAuditoria, Usuario
-
 from tests.conftest import _criar_usuario, login
 
 
