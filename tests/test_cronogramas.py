@@ -1,9 +1,9 @@
 from datetime import date, timedelta
 
 from app.extensions import db
-from app.models import Marco
+from app.models import Documento, Marco
 
-from tests.conftest import login
+from tests.conftest import login, pdf_falso, texto_com_extensao_pdf
 
 
 def _criar_marco(orientacao, dias=30):
@@ -188,6 +188,69 @@ def test_fluxo_sinalizacao_e_confirmacao(client, orientacao, orientador, orienta
     client.post(f"/orientacoes/{orientacao.id}/cronograma/{marco.id}/confirmar")
     assert marco.status == "concluido"
     assert marco.data_conclusao == date.today()
+
+
+# --- página da tarefa (abrir o marco) ---
+
+
+def test_pagina_da_tarefa_renderiza_e_o_titulo_linka(client, orientacao, orientador, orientando):
+    marco = _criar_marco(orientacao)
+    login(client, "orientando@teste.br")
+    # o título no cronograma linka para a página da tarefa
+    lista = client.get(f"/orientacoes/{orientacao.id}/cronograma/").data.decode()
+    assert f"/cronograma/{marco.id}\"" in lista
+    # a página abre e traz as seções
+    pagina = client.get(f"/orientacoes/{orientacao.id}/cronograma/{marco.id}").data.decode()
+    assert "Qualificação" in pagina
+    assert "Anexar documento" in pagina
+    assert "Entregas ligadas" in pagina
+
+
+def test_sinalizar_com_nota_grava_a_nota(client, orientacao, orientando):
+    marco = _criar_marco(orientacao)
+    login(client, "orientando@teste.br")
+    client.post(
+        f"/orientacoes/{orientacao.id}/cronograma/{marco.id}/sinalizar",
+        data={"nota": "Entreguei o capítulo revisado."},
+    )
+    assert marco.conclusao_sinalizada is True
+    assert marco.nota_conclusao == "Entreguei o capítulo revisado."
+
+
+def test_anexar_documento_cria_documento_ligado_ao_marco(client, orientacao, orientando):
+    marco = _criar_marco(orientacao)
+    login(client, "orientando@teste.br")
+    resp = client.post(
+        f"/orientacoes/{orientacao.id}/cronograma/{marco.id}/anexar",
+        data={"titulo": "Capítulo 1", "arquivo": pdf_falso("cap1.pdf"), "comentario": ""},
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    doc = Documento.query.one()
+    assert doc.marco_id == marco.id
+    assert doc.versao_atual.numero_versao == 1
+    # aparece na página da tarefa
+    assert "Capítulo 1" in resp.data.decode()
+
+
+def test_anexo_invalido_e_recusado_sem_documento(client, orientacao, orientando):
+    marco = _criar_marco(orientacao)
+    login(client, "orientando@teste.br")
+    client.post(
+        f"/orientacoes/{orientacao.id}/cronograma/{marco.id}/anexar",
+        data={"titulo": "Falso", "arquivo": texto_com_extensao_pdf(), "comentario": ""},
+        content_type="multipart/form-data",
+    )
+    assert Documento.query.count() == 0
+
+
+def test_intruso_nao_abre_a_pagina_da_tarefa(client, orientacao, intruso):
+    marco = _criar_marco(orientacao)
+    login(client, "intruso@teste.br")
+    assert client.get(
+        f"/orientacoes/{orientacao.id}/cronograma/{marco.id}"
+    ).status_code == 403
 
 
 def test_orientando_nao_confirma_conclusao(client, orientacao, orientando):

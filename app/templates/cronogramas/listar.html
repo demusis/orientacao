@@ -11,7 +11,7 @@
   {% for m in marcos %}
   <tr>
     <td>{{ ETAPA_MARCO_LABEL.get(m.etapa, '—') }}</td>
-    <td>{{ m.titulo }} <span class="badge">{{ TIPO_MARCO_LABEL[m.tipo] }}</span>
+    <td><a href="{{ url_for('cronogramas.detalhe', orientacao_id=orientacao.id, marco_id=m.id) }}">{{ m.titulo }}</a> <span class="badge">{{ TIPO_MARCO_LABEL[m.tipo] }}</span>
         {% if m.descricao %}<br><small>{{ m.descricao }}</small>{% endif %}
         {#- ligações do marco: entregas feitas para ele e reuniões que o discutiram -#}
         {% if m.documentos or m.atas %}
@@ -38,12 +38,7 @@
         </form>
         {% endif %}
       {% endif %}
-      {% if current_user.id == orientacao.orientando_id and m.status != 'concluido' and not m.conclusao_sinalizada %}
-        <form method="post" action="{{ url_for('cronogramas.sinalizar_conclusao', orientacao_id=orientacao.id, marco_id=m.id) }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="link">Sinalizar conclusão</button>
-        </form>
-      {% endif %}
+      <a href="{{ url_for('cronogramas.detalhe', orientacao_id=orientacao.id, marco_id=m.id) }}">Abrir</a>
     </td>
   </tr>
   {% else %}

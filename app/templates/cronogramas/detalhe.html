@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_form %}
+{% block title %}{{ marco.titulo }} — ARIADNE{% endblock %}
+{% block voltar %}<a class="voltar" href="{{ url_for('cronogramas.listar', orientacao_id=orientacao.id) }}">Cronograma</a>{% endblock %}
+{% block content %}
+{% set is_orientando = current_user.id == orientacao.orientando_id %}
+{% set is_gestor = current_user.id == orientacao.orientador_id or current_user.papel == 'admin' %}
+
+<div class="card">
+  <h1>{{ marco.titulo }} <span class="badge">{{ TIPO_MARCO_LABEL[marco.tipo] }}</span></h1>
+  <p>
+    <strong>Etapa:</strong> {{ ETAPA_MARCO_LABEL.get(marco.etapa, '—') }} |
+    <strong>Prazo:</strong> {{ marco.data_prevista }} |
+    <strong>Conclusão:</strong> {{ marco.data_conclusao or '—' }}
+  </p>
+  <p>
+    <span class="badge {% if marco.status == 'concluido' %}badge-concluido{% endif %}">{{ marco.status }}</span>
+    {% if marco.atrasado %}<span class="badge badge-atrasado">atrasado</span>{% endif %}
+    {% if marco.conclusao_sinalizada and marco.status != 'concluido' %}<span class="badge">sinalizado</span>{% endif %}
+    {% if marco.grupo_id %}<span class="badge">grupo</span>{% endif %}
+  </p>
+  {% if marco.descricao %}<p>{{ marco.descricao }}</p>{% endif %}
+</div>
+
+{% if marco.nota_conclusao %}
+<div class="card">
+  <h2>Nota do orientando</h2>
+  <p>{{ marco.nota_conclusao }}</p>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Entregas ligadas a esta tarefa</h2>
+  {% if marco.documentos %}
+  <table>
+    <tr><th>Documento</th><th>Versão atual</th><th>Enviada em</th><th></th></tr>
+    {% for d in marco.documentos %}
+    <tr>
+      <td>{{ d.titulo }}</td>
+      <td>{% if d.versao_atual %}v{{ d.versao_atual.numero_versao }}{% else %}—{% endif %}</td>
+      <td>{% if d.versao_atual %}{{ d.versao_atual.enviado_em.strftime('%Y-%m-%d %H:%M') }}{% else %}—{% endif %}</td>
+      <td><a href="{{ url_for('documentos.detalhe', orientacao_id=orientacao.id, documento_id=d.id) }}">Abrir</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p>Nenhum documento anexado a esta tarefa ainda.</p>
+  {% endif %}
+</div>
+
+{% if marco.atas %}
+<div class="card">
+  <h2>Reuniões que discutiram esta tarefa</h2>
+  <ul>
+    {% for a in marco.atas %}
+    <li><a href="{{ url_for('atas.detalhe_ata', orientacao_id=orientacao.id, ata_id=a.id) }}">Reunião de {{ a.data_reuniao.strftime('%d/%m/%Y') }}</a>
+      <span class="badge">{{ a.status }}</span></li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Anexar documento</h2>
+  <p><small>Opcional. Envie um arquivo como entrega desta tarefa — ele fica
+  ligado a este marco. Novas versões seguem pelo módulo Documentos.</small></p>
+  {{ render_form(anexo_form, action=url_for('cronogramas.anexar', orientacao_id=orientacao.id, marco_id=marco.id), enctype='multipart/form-data') }}
+</div>
+
+{% if is_orientando and marco.status != 'concluido' and not marco.conclusao_sinalizada %}
+<div class="card">
+  <h2>Sinalizar conclusão</h2>
+  <p><small>Ao concluir o trabalho, sinalize para o orientador confirmar. Você
+  pode acrescentar uma nota (opcional).</small></p>
+  {{ render_form(sinalizar_form, action=url_for('cronogramas.sinalizar_conclusao', orientacao_id=orientacao.id, marco_id=marco.id)) }}
+</div>
+{% endif %}
+
+{% if is_gestor %}
+<div class="card">
+  <h2>Ações do orientador</h2>
+  <p><a href="{{ url_for('cronogramas.editar', orientacao_id=orientacao.id, marco_id=marco.id) }}">Editar marco</a></p>
+  {% if marco.status != 'concluido' %}
+  <form method="post" action="{{ url_for('cronogramas.confirmar_conclusao', orientacao_id=orientacao.id, marco_id=marco.id) }}">
+    {{ confirmacao_form.hidden_tag() }}
+    <button type="submit">Confirmar conclusão</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

@@ -71,6 +71,8 @@ class Marco(db.Model):
     )
     etapa = db.Column(db.Integer, nullable=False, default=0)
     conclusao_sinalizada = db.Column(db.Boolean, nullable=False, default=False)
+    # nota opcional que o orientando escreve ao sinalizar a conclusão
+    nota_conclusao = db.Column(db.Text, nullable=True)
     # UUID hex comum aos marcos criados por uma mesma tarefa em grupo
     grupo_id = db.Column(db.String(32), nullable=True, index=True)
 

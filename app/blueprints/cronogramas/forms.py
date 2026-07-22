@@ -1,4 +1,5 @@
 from flask_wtf import FlaskForm
+from flask_wtf.file import FileField, FileRequired
 from wtforms import (
     DateField,
     SelectField,
@@ -41,3 +42,20 @@ class MarcoForm(CamposMarco, FlaskForm):
 
 class ConfirmacaoForm(FlaskForm):
     submit = SubmitField("Confirmar")
+
+
+class SinalizarForm(FlaskForm):
+    """Sinalização de conclusão pelo orientando, com uma nota opcional."""
+
+    nota = TextAreaField("Nota (opcional)", validators=[Optional(), Length(max=2000)])
+    submit = SubmitField("Sinalizar conclusão")
+
+
+class AnexoMarcoForm(FlaskForm):
+    """Anexo de documento diretamente pela página da tarefa. Cria um documento
+    ligado ao marco, reaproveitando o armazenamento de versões."""
+
+    titulo = StringField("Título do documento", validators=[DataRequired(), Length(max=255)])
+    arquivo = FileField("Arquivo", validators=[FileRequired()])
+    comentario = TextAreaField("Comentário", validators=[Optional()])
+    submit = SubmitField("Anexar documento")
