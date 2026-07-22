@@ -4,6 +4,13 @@
 {% set avalia = current_user.papel in ('orientador', 'admin') %}
 <h1>Painel — {{ current_user.papel.capitalize() }}</h1>
 
+{% if current_user.papel == 'orientador' %}
+<p class="acoes-painel">
+  <a href="{{ url_for('reunioes.criar_tarefa_grupo') }}">+ Nova tarefa</a> ·
+  <a href="{{ url_for('reunioes.criar_ata_grupo') }}">+ Nova ata de reunião</a>
+</p>
+{% endif %}
+
 {% if pendencias.total == 0 %}
 <div class="flash flash-success">Nenhuma pendência em aberto.</div>
 {% endif %}

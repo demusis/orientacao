@@ -137,3 +137,22 @@ def test_pendencia_de_vinculo_alheio_nao_vaza(client, orientacao, orientador, in
     login(client, "intruso@teste.br")
     pagina = client.get("/dashboard").data.decode()
     assert "Sigiloso" not in pagina
+
+
+def test_atalhos_de_criacao_so_para_orientador(client, orientador, orientando, admin):
+    """As ações de criação no Painel apontam para rotas exclusivas do orientador;
+    orientando e administrador não devem vê-las (o admin receberia 403)."""
+    login(client, "orientador@teste.br")
+    pagina = client.get("/dashboard").data.decode()
+    assert "+ Nova tarefa" in pagina
+    assert "+ Nova ata de reunião" in pagina
+
+    client.post("/auth/logout")
+    login(client, "orientando@teste.br")
+    pagina = client.get("/dashboard").data.decode()
+    assert "+ Nova tarefa" not in pagina
+
+    client.post("/auth/logout")
+    login(client, "admin@teste.br")
+    pagina = client.get("/dashboard").data.decode()
+    assert "+ Nova tarefa" not in pagina
