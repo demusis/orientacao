@@ -7,7 +7,6 @@ header a { color: #fff; text-decoration: none; margin-right: .9rem; }
 .brand .logo { height: 28px; width: 28px; }
 .tagline { font-size: .7rem; opacity: .8; display: block; }
 .card-login { max-width: 420px; margin: 3rem auto 0; }
-.logo-login { display: block; width: 72px; height: 72px; margin-bottom: .8rem; }
 nav { display: flex; align-items: center; flex-wrap: wrap; }
 main { max-width: 960px; margin: 1.5rem auto; padding: 0 1rem; }
 footer { text-align: center; padding: 1rem; color: #666; }
