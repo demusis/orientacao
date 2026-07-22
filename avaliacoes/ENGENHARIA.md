@@ -73,7 +73,15 @@ exigir `Orientacao.orientando.has(ativo=True)`. Suíte verde restaurada. CI
   ruff + pytest (suíte completa) em push/PR. Verificação: primeira execução na
   CI verde (run 29953547681, ruff + suíte inteira, inclusive test_relatorio).
 
-Resta: docs (ARCHITECTURE.md com seção de desenvolvimento).
+- `121dc72` — Iteração 6 (final): `ARCHITECTURE.md` (mapa da engenharia + seção
+  de desenvolvimento). Sem mudança de código.
+
+## Encerramento
+
+Loop concluído: 6 iterações no branch `engenharia/melhorias`, mais um defeito de
+produto descoberto e corrigido na `main` (`c06fabb`). Recomendação: abrir PR do
+branch para a `main` e mesclar após revisão. Nenhuma iteração tocou a `main` nem
+fez deploy.
 
 ## Backlog restante (repriorizado)
 
