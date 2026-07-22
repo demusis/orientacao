@@ -214,7 +214,7 @@ def register_cli(app: Flask) -> None:
         try:
             validate_email(email, check_deliverability=False)
         except EmailNotValidError as exc:
-            raise click.ClickException(f"E-mail inválido: {exc}")
+            raise click.ClickException(f"E-mail inválido: {exc}") from exc
 
         if Usuario.query.filter_by(email=email).first():
             click.echo(f"Usuário {email} já existe.")

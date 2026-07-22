@@ -212,7 +212,7 @@ def _pdf_tabela(no: dict, estilos) -> Table:
         else:
             corpo = [lin["children"] for lin in secao["children"]]
 
-    colunas = max(len(cabecalho), max((len(l) for l in corpo), default=0), 1)
+    colunas = max(len(cabecalho), max((len(lin) for lin in corpo), default=0), 1)
     # estouro de margem no reportlab é silencioso: a coluna sai da página sem erro
     fonte = 8 if colunas <= COLUNAS_ANTES_DE_REDUZIR else 7
     estilo_celula = _estilo_derivado(
@@ -224,7 +224,7 @@ def _pdf_tabela(no: dict, estilos) -> Table:
             Paragraph(_pdf_inline(c["children"]), estilo_celula) for c in celulas
         ] + [""] * (colunas - len(celulas))
 
-    dados = ([linha(cabecalho)] if cabecalho else []) + [linha(l) for l in corpo]
+    dados = ([linha(cabecalho)] if cabecalho else []) + [linha(lin) for lin in corpo]
     largura = LARGURA_UTIL / colunas
     tabela = Table(dados, colWidths=[largura] * colunas, hAlign="LEFT")
     tabela.setStyle(

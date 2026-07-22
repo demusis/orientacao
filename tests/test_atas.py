@@ -48,7 +48,7 @@ def test_ata_finalizada_e_imutavel_e_tentativa_e_auditada(app, orientacao, orien
 
     try:
         atualizar_ata(ata, pauta="X", deliberacoes="Y")
-        assert False, "Deveria ter levantado AtaImutavel"
+        raise AssertionError("Deveria ter levantado AtaImutavel")
     except AtaImutavel:
         db.session.commit()
     assert ata.pauta == "Pauta"

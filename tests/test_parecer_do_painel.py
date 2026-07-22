@@ -47,7 +47,7 @@ def test_painel_do_orientador_leva_ao_parecer(client, orientacao, orientador):
 
 
 def test_painel_do_orientando_leva_ao_documento(client, orientacao, orientando):
-    v = _versao(orientacao)
+    _versao(orientacao)
     login(client, "orientando@teste.br")
     pagina = client.get("/dashboard").data.decode()
 

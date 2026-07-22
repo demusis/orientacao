@@ -224,7 +224,7 @@ def test_hash_cobre_a_fonte_e_nao_a_apresentacao(client, orientacao, orientador)
     db.session.commit()
     antes = exportacao.hash_ata(ata)
 
-    marcacao._analisador  # emissor permanece o mesmo objeto; o hash não o consulta
+    # o emissor permanece o mesmo objeto; o hash não o consulta
     assert exportacao.hash_ata(ata) == antes
     assert antes == exportacao.hashlib.sha256(
         ata.conteudo_congelado.encode("utf-8")

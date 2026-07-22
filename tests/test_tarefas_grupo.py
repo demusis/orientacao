@@ -158,7 +158,7 @@ def test_recusa_exclusao_de_tarefa_discutida_em_ata(client, orientacao, orientac
 def test_tarefa_de_outro_orientador_nao_e_acessivel(client, orientacao, orientacao2, admin):
     """Um orientador só gere as próprias tarefas; grupo de outro dá 404."""
     from tests.conftest import _criar_usuario
-    outro = _criar_usuario("Outro Orientador", "outro@teste.br", "orientador")
+    _criar_usuario("Outro Orientador", "outro@teste.br", "orientador")
     gid, _ = _tarefa_grupo(orientacao, orientacao2)
 
     login(client, "outro@teste.br")
