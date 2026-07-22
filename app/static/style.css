@@ -77,11 +77,10 @@ nav details.menu > .submenu button.link:hover { background: #eef2f6; }
 
 /* Acesso rápido do Painel (central de comando por papel) */
 .hub-painel {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: .6rem; margin: 0 0 1.5rem;
+  display: flex; flex-wrap: wrap; gap: .6rem; margin: 0 0 1.5rem;
 }
 .hub-item {
-  display: block; padding: .8rem 1rem; background: #fff;
+  flex: 1 1 120px; padding: .8rem 1rem; background: #fff;
   border: 1px solid var(--borda); border-radius: 6px;
   text-decoration: none; color: var(--azul); font-weight: 600; text-align: center;
 }
