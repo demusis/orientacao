@@ -36,6 +36,15 @@ class UsuarioForm(FlaskForm):
     submit = SubmitField("Salvar")
 
 
+class ModeloForm(FlaskForm):
+    """Envio de um arquivo-modelo pelo administrador."""
+
+    titulo = StringField("Título", validators=[DataRequired(), Length(max=255)])
+    descricao = TextAreaField("Descrição", validators=[Optional(), Length(max=1000)])
+    arquivo = FileField("Arquivo do modelo", validators=[FileRequired()])
+    submit = SubmitField("Enviar modelo")
+
+
 class OrientacaoForm(FlaskForm):
     orientador_id = SelectField("Orientador", coerce=int)
     orientando_id = SelectField("Orientando", coerce=int)

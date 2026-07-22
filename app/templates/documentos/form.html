@@ -3,6 +3,21 @@
 {% block title %}Novo documento — ARIADNE{% endblock %}
 {% block voltar %}<a class="voltar" href="{{ url_for('documentos.listar', orientacao_id=orientacao.id) }}">Documentos</a>{% endblock %}
 {% block content %}
+{% if modelos %}
+<div class="card">
+  <h2>Modelos disponíveis</h2>
+  <p><small>Pontos de partida opcionais, mantidos pela administração. Baixe um
+  modelo, preencha-o e depois envie-o como seu documento no formulário abaixo.</small></p>
+  <ul class="modelos-lista">
+    {% for m in modelos %}
+    <li>
+      <a href="{{ url_for('main.baixar_modelo', modelo_id=m.id) }}">{{ m.titulo }}</a>
+      {% if m.descricao %}<span class="modelo-descricao">— {{ m.descricao }}</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
 <div class="card">
   <h1>Novo documento — {{ orientacao.titulo_projeto }}</h1>
   {{ render_form(form, enctype='multipart/form-data') }}

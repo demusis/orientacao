@@ -57,3 +57,28 @@ class VersaoDocumento(db.Model):
 
     def __repr__(self) -> str:
         return f"<VersaoDocumento doc={self.documento_id} v{self.numero_versao}>"
+
+
+class ModeloDocumento(db.Model):
+    """Arquivo-modelo, ponto de partida para os documentos. Acervo global gerido
+    pelo administrador; não pertence a vínculo algum. Espelha as colunas de
+    armazenamento de VersaoDocumento e mora na mesma pasta de uploads."""
+
+    __tablename__ = "modelo_documento"
+
+    id = db.Column(db.Integer, primary_key=True)
+    titulo = db.Column(db.String(255), nullable=False)
+    descricao = db.Column(db.Text, nullable=True)
+    nome_original = db.Column(db.String(255), nullable=False)
+    nome_fisico = db.Column(db.String(64), unique=True, nullable=False)
+    tamanho_bytes = db.Column(db.Integer, nullable=False)
+    mimetype = db.Column(db.String(100), nullable=False)
+    enviado_por = db.Column(db.Integer, db.ForeignKey("usuario.id"), nullable=True)
+    criado_em = db.Column(
+        db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+
+    autor = db.relationship("Usuario", foreign_keys=[enviado_por])
+
+    def __repr__(self) -> str:
+        return f"<ModeloDocumento {self.id} {self.titulo!r}>"

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_form %}
+{% block title %}Modelos de documento — ARIADNE{% endblock %}
+{% block content %}
+<h1>Modelos de documento</h1>
+<p>Arquivos-modelo oferecidos para download na criação de documentos. O acervo é
+comum a todo o sistema; qualquer usuário pode baixá-los ao enviar um documento.</p>
+
+<div class="card">
+  <h2>Modelos cadastrados</h2>
+  <table>
+    <tr><th>Título</th><th>Descrição</th><th>Arquivo</th><th>Tamanho</th><th>Ações</th></tr>
+    {% for m in modelos %}
+    <tr>
+      <td>{{ m.titulo }}</td>
+      <td>{{ m.descricao or '—' }}</td>
+      <td><a href="{{ url_for('main.baixar_modelo', modelo_id=m.id) }}">{{ m.nome_original }}</a></td>
+      <td>{{ (m.tamanho_bytes / 1024) | round(1) }} KB</td>
+      <td class="acoes">
+        <form method="post" action="{{ url_for('admin.excluir_modelo', modelo_id=m.id) }}">
+          {{ remover_form.hidden_tag() }}
+          <button type="submit" class="link">Excluir</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5">Nenhum modelo cadastrado.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="card">
+  <h2>Enviar novo modelo</h2>
+  <p><small>Extensões aceitas: pdf, doc, docx, odt, txt, zip. Tamanho máximo: 20 MB.</small></p>
+  {{ render_form(form, enctype='multipart/form-data') }}
+</div>
+{% endblock %}

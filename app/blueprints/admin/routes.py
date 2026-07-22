@@ -22,6 +22,7 @@ from app.blueprints.admin.forms import (
     ExpurgarBaseForm,
     FiltroAuditoriaForm,
     GerarBackupForm,
+    ModeloForm,
     OrientacaoForm,
     RestaurarBackupForm,
     RemoverForm,
@@ -32,14 +33,17 @@ from app.extensions import db
 from app.models import (
     ConfiguracaoEmail,
     LogAuditoria,
+    ModeloDocumento,
     Orientacao,
     OrientacaoOrientador,
     Usuario,
 )
 from app.services import auditoria, avisos, cripto
 from app.services import email as email_service
+from app.services import modelos as modelos_service
 from app.services import usuarios as usuarios_service
 from app.services.rbac import role_required
+from app.services.uploads import UploadInvalido
 from app.services.usuarios import GestaoUsuarioInvalida
 
 
@@ -575,3 +579,47 @@ def listar_auditoria():
         filtros=filtros,
         limite=LIMITE_AUDITORIA,
     )
+
+
+@bp.route("/modelos", methods=["GET", "POST"])
+@role_required("admin")
+def gerir_modelos():
+    """Acervo de modelos de documento: lista e envio. A exclusão é rota à parte."""
+    form = ModeloForm()
+    if form.validate_on_submit():
+        try:
+            modelo = modelos_service.salvar_modelo(
+                form.arquivo.data,
+                titulo=form.titulo.data,
+                descricao=form.descricao.data,
+                autor=current_user,
+            )
+            db.session.flush()
+            auditoria.registrar(
+                "criacao_modelo", "modelo_documento", modelo.id,
+                {"titulo": modelo.titulo, "arquivo": modelo.nome_original},
+            )
+            db.session.commit()
+            flash("Modelo enviado.", "success")
+            return redirect(url_for("admin.gerir_modelos"))
+        except UploadInvalido as exc:
+            db.session.rollback()
+            flash(str(exc), "danger")
+    modelos = ModeloDocumento.query.order_by(ModeloDocumento.titulo).all()
+    return render_template(
+        "admin/modelos.html", form=form, modelos=modelos, remover_form=RemoverForm()
+    )
+
+
+@bp.route("/modelos/<int:modelo_id>/excluir", methods=["POST"])
+@role_required("admin")
+def excluir_modelo(modelo_id: int):
+    modelo = db.session.get(ModeloDocumento, modelo_id) or abort(404)
+    titulo = modelo.titulo
+    modelos_service.excluir_modelo(modelo)
+    auditoria.registrar(
+        "exclusao_modelo", "modelo_documento", modelo_id, {"titulo": titulo}
+    )
+    db.session.commit()
+    flash("Modelo excluído.", "success")
+    return redirect(url_for("admin.gerir_modelos"))

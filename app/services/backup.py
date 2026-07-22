@@ -37,6 +37,7 @@ ORDEM_TABELAS = [
     "marco",
     "documento",
     "versao_documento",
+    "modelo_documento",
     "ata",
     "ata_orientacao",
     "reagendamento",

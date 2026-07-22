@@ -1,10 +1,20 @@
-from flask import Response, abort, flash, redirect, render_template, request, url_for
+from flask import (
+    Response,
+    abort,
+    current_app,
+    flash,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    url_for,
+)
 from flask_login import current_user, login_required
 
 from app.blueprints.main import bp
 from app.blueprints.main.forms import TituloProjetoForm
 from app.extensions import db
-from app.models import Orientacao
+from app.models import ModeloDocumento, Orientacao
 from app.services import eventos as eventos_service
 from app.services import linha_tempo, painel, relatorio
 from app.services.eventos import EventoInvalido
@@ -104,6 +114,21 @@ def alterar_titulo(orientacao_id: int):
                 flash(str(exc), "danger")
     return render_template(
         "main/titulo_form.html", form=form, orientacao=orientacao
+    )
+
+
+@bp.route("/modelos/<int:modelo_id>/download")
+@login_required
+def baixar_modelo(modelo_id: int):
+    """Entrega um arquivo-modelo a qualquer usuário autenticado. Não auditado:
+    o modelo é recurso de sistema, não conteúdo confidencial de um vínculo."""
+    modelo = db.session.get(ModeloDocumento, modelo_id) or abort(404)
+    return send_from_directory(
+        current_app.config["UPLOAD_FOLDER"],
+        modelo.nome_fisico,
+        as_attachment=True,
+        download_name=modelo.nome_original,
+        mimetype=modelo.mimetype,
     )
 
 

@@ -12,7 +12,7 @@ from flask_login import current_user, login_required
 from app.blueprints.documentos import bp
 from app.blueprints.documentos.forms import NovaVersaoForm, NovoDocumentoForm
 from app.extensions import db
-from app.models import Documento, VersaoDocumento
+from app.models import Documento, ModeloDocumento, VersaoDocumento
 from app.services import auditoria
 from app.services.rbac import orientacao_autorizada
 from app.services.uploads import UploadInvalido, salvar_versao
@@ -69,7 +69,10 @@ def criar(orientacao_id: int):
             db.session.commit()
             flash("Documento enviado (versão 1).", "success")
             return redirect(url_for("documentos.listar", orientacao_id=orientacao.id))
-    return render_template("documentos/form.html", form=form, orientacao=orientacao)
+    modelos = ModeloDocumento.query.order_by(ModeloDocumento.titulo).all()
+    return render_template(
+        "documentos/form.html", form=form, orientacao=orientacao, modelos=modelos
+    )
 
 
 @bp.route("/<int:documento_id>", methods=["GET", "POST"])
