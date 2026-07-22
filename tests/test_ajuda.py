@@ -21,4 +21,4 @@ def test_ajuda_renderiza_para_todos_os_papeis(client, admin, orientador, orienta
 def test_ajuda_destaca_o_papel_do_usuario(client, orientando):
     login(client, "orientando@teste.br")
     resp = client.get("/ajuda")
-    assert "seu papel".encode() in resp.data
+    assert b"seu papel" in resp.data

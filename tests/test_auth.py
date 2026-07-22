@@ -5,7 +5,7 @@ from tests.conftest import login
 def test_login_valido_redireciona_ao_dashboard(client, orientador):
     resp = login(client, "orientador@teste.br")
     assert resp.status_code == 200
-    assert "Painel".encode() in resp.data
+    assert b"Painel" in resp.data
 
 
 def test_login_invalido_retorna_401_e_audita(client, app, orientador):

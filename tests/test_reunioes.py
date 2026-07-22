@@ -60,7 +60,7 @@ def test_finalizacao_unica_vale_para_todos(client, orientacao, orientacao2, orie
     login(client, "orientando2@teste.br")
     resp = client.get(f"/orientacoes/{orientacao2.id}/atas/{ata.id}")
     assert resp.status_code == 200
-    assert "finalizada".encode() in resp.data
+    assert b"finalizada" in resp.data
 
 
 def test_ata_de_grupo_invisivel_a_nao_participantes(client, orientacao, orientacao2, orientador, intruso):
@@ -148,7 +148,7 @@ def test_vinculo_de_outro_orientador_recusado(client, orientacao, orientacao2, o
 def test_exige_ao_menos_um_vinculo(client, orientacao, orientador):
     login(client, "orientador@teste.br")
     resp = _criar_ata_grupo(client, [])
-    assert "ao menos um orientando".encode() in resp.data
+    assert b"ao menos um orientando" in resp.data
     assert Ata.query.count() == 0
 
 

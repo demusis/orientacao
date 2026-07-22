@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from urllib.parse import urlparse
 
 from flask import flash, redirect, render_template, request, session, url_for
@@ -49,7 +49,7 @@ def login():
         # sem isto, PERMANENT_SESSION_LIFETIME é ignorado e a sessão dura o
         # padrão do navegador
         session.permanent = True
-        usuario.ultimo_acesso = datetime.now(timezone.utc)
+        usuario.ultimo_acesso = datetime.now(UTC)
         auditoria.registrar("login", "usuario", usuario.id)
         db.session.commit()
         destino = request.args.get("next", "")

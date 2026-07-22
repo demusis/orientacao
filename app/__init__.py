@@ -1,4 +1,5 @@
 import os
+from datetime import UTC
 
 import click
 from flask import Flask
@@ -143,7 +144,7 @@ def register_avisos_diarios(app: Flask) -> None:
     repetição, graças ao marcador em memória; a trava de concorrência é o UPDATE
     condicional de `avisos.reservar_tentativa`; e falha alguma pode derrubar a
     requisição do usuário, que nada tem a ver com o envio."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     # até quando não vale a pena nem consultar o banco
     estado = {"proxima_verificacao": None}
@@ -160,7 +161,7 @@ def register_avisos_diarios(app: Flask) -> None:
         # arquivo estático não deve pagar nem a comparação de data
         if request.endpoint == "static":
             return
-        agora = datetime.now(timezone.utc).replace(tzinfo=None)
+        agora = datetime.now(UTC).replace(tzinfo=None)
         if estado["proxima_verificacao"] and agora < estado["proxima_verificacao"]:
             return
 

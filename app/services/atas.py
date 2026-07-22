@@ -1,6 +1,6 @@
 """Regras de negócio de atas: imutabilidade, reagendamento e presenças.
 Todos os eventos recebem carimbo de data/hora (UTC) e registro em auditoria."""
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.extensions import db
 from app.models import Ata, AtaParticipacao, Reagendamento
@@ -36,7 +36,7 @@ def finalizar_ata(ata: Ata):
     if ata.imutavel:
         raise AtaImutavel("Ata já finalizada.")
     ata.status = "finalizada"
-    ata.finalizada_em = datetime.now(timezone.utc)
+    ata.finalizada_em = datetime.now(UTC)
     # congela o conteúdo impresso: PDF e hash passam a derivar do snapshot
     from app.services.exportacao import congelar_ata
 
@@ -82,7 +82,7 @@ def registrar_presenca(participacao: AtaParticipacao, presenca: str, usuario):
         )
         raise AtaImutavel("Presenças não podem ser alteradas após a finalização da ata.")
     participacao.presenca = presenca
-    participacao.presenca_registrada_em = datetime.now(timezone.utc)
+    participacao.presenca_registrada_em = datetime.now(UTC)
     participacao.presenca_registrada_por = usuario.id
     auditoria.registrar(
         "registro_presenca",

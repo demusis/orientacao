@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.extensions import db
 
@@ -12,7 +12,7 @@ class Documento(db.Model):
     titulo = db.Column(db.String(255), nullable=False)
     criado_por = db.Column(db.Integer, db.ForeignKey("usuario.id"), nullable=False)
     criado_em = db.Column(
-        db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
+        db.DateTime, nullable=False, default=lambda: datetime.now(UTC)
     )
 
     orientacao = db.relationship("Orientacao", back_populates="documentos")
@@ -48,7 +48,7 @@ class VersaoDocumento(db.Model):
     mimetype = db.Column(db.String(100), nullable=False)
     enviado_por = db.Column(db.Integer, db.ForeignKey("usuario.id"), nullable=False)
     enviado_em = db.Column(
-        db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
+        db.DateTime, nullable=False, default=lambda: datetime.now(UTC)
     )
     comentario = db.Column(db.Text, nullable=True)
 
@@ -75,7 +75,7 @@ class ModeloDocumento(db.Model):
     mimetype = db.Column(db.String(100), nullable=False)
     enviado_por = db.Column(db.Integer, db.ForeignKey("usuario.id"), nullable=True)
     criado_em = db.Column(
-        db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
+        db.DateTime, nullable=False, default=lambda: datetime.now(UTC)
     )
 
     autor = db.relationship("Usuario", foreign_keys=[enviado_por])

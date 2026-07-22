@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.extensions import db
 
@@ -30,7 +30,7 @@ class Orientacao(db.Model):
         default="ativa",
     )
     criado_em = db.Column(
-        db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
+        db.DateTime, nullable=False, default=lambda: datetime.now(UTC)
     )
 
     orientador = db.relationship(
@@ -106,7 +106,7 @@ class OrientacaoOrientador(db.Model):
         default="coorientador",
     )
     designado_em = db.Column(
-        db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
+        db.DateTime, nullable=False, default=lambda: datetime.now(UTC)
     )
 
     orientacao = db.relationship("Orientacao", back_populates="equipe")
@@ -143,7 +143,7 @@ class EventoVinculo(db.Model):
     texto_novo = db.Column(db.String(255), nullable=True)
     registrado_por = db.Column(db.Integer, db.ForeignKey("usuario.id"), nullable=False)
     registrado_em = db.Column(
-        db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
+        db.DateTime, nullable=False, default=lambda: datetime.now(UTC)
     )
 
     orientacao = db.relationship("Orientacao", back_populates="eventos")

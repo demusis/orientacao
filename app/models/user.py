@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -20,7 +20,7 @@ class Usuario(UserMixin, db.Model):
     papel = db.Column(db.Enum(*PAPEIS, name="papel_usuario"), nullable=False)
     ativo = db.Column(db.Boolean, nullable=False, default=True)
     criado_em = db.Column(
-        db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
+        db.DateTime, nullable=False, default=lambda: datetime.now(UTC)
     )
     criado_por = db.Column(db.Integer, db.ForeignKey("usuario.id"), nullable=True)
     # Registro do último login bem-sucedido. Serve à medição agregada de adesão

@@ -5,7 +5,7 @@ alteração não dependa de acesso ao console do servidor. A senha é guardada
 cifrada (`services/cripto.py`) e **nunca** é devolvida à tela: o formulário a
 recebe em branco e só a substitui quando algo é digitado.
 """
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.extensions import db
 
@@ -60,7 +60,7 @@ class ConfiguracaoEmail(db.Model):
         return self.configurado and self.ativo
 
     def registrar_alteracao(self, usuario_id: int) -> None:
-        self.atualizado_em = datetime.now(timezone.utc)
+        self.atualizado_em = datetime.now(UTC)
         self.atualizado_por = usuario_id
 
     def __repr__(self) -> str:
