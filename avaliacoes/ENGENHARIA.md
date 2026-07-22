@@ -63,6 +63,8 @@ exigir `Orientacao.orientando.has(ativo=True)`. Suíte verde restaurada. CI
   arquivos. Verificação: suíte verde exceto o vermelho pré-existente acima.
 - `493fe39` — Iteração 2: `requirements-dev.txt` (pytest + ruff), removendo
   pytest do runtime. Verificação: suíte verde.
+- `89ed235` — Iteração 3: modernizações UP do ruff (UP017 datetime.UTC, UP012
+  encode) + limpeza de imports. Verificação: suíte verde; lint I/F401/UP limpo.
 
 ## Backlog restante (repriorizado)
 
