@@ -260,6 +260,9 @@ def marcos_atrasados_dos_orientandos(destino: dict) -> None:
         )
         .filter(
             Orientacao.status == "ativa",
+            # orientando com conta desativada não gera aviso ao orientador —
+            # simétrico ao aviso ao próprio orientando, suprimido em coletar()
+            Orientacao.orientando.has(ativo=True),
             Marco.status != "concluido",
             Marco.data_prevista < hoje,
         )
