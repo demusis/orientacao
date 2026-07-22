@@ -12,6 +12,31 @@ Você possui {{ vinculos|length }} vínculo(s) ativo(s).</p>
 e ficam no módulo de atas do próprio vínculo; a tabela abaixo lista as
 reuniões em grupo.</small></p>
 
+<h2>Tarefas atribuídas em grupo</h2>
+<table>
+  <tr><th>Tarefa</th><th>Prazo</th><th>Orientandos</th><th>Conclusão</th><th>Ações</th></tr>
+  {% for t in tarefas_grupo %}
+  <tr>
+    <td>{{ t.titulo }}</td>
+    <td>{{ t.data_prevista }}</td>
+    <td>{% for m in t.marcos %}{{ m.orientacao.orientando.nome }}{% if not loop.last %}, {% endif %}{% endfor %}</td>
+    <td>{{ t.marcos | selectattr('status', 'equalto', 'concluido') | list | length }} de {{ t.marcos | length }}</td>
+    <td class="acoes">
+      <a href="{{ url_for('reunioes.editar_tarefa_grupo', grupo_id=t.grupo_id) }}">Editar</a>
+      <form method="post" action="{{ url_for('reunioes.excluir_tarefa_grupo', grupo_id=t.grupo_id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="link">Excluir</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5">Nenhuma tarefa atribuída em grupo.</td></tr>
+  {% endfor %}
+</table>
+<p><small>Editar propaga o conteúdo (título, prazo, etapa) a todos os orientandos da
+tarefa; a conclusão de cada um é individual. A exclusão só é admitida enquanto a tarefa
+não tem histórico em nenhum orientando.</small></p>
+
 <h2>Atas de reuniões em grupo</h2>
 <table>
   <tr><th>Reunião</th><th>Pauta</th><th>Participantes</th><th>Status</th><th></th></tr>

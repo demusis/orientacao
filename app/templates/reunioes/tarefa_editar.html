@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_form %}
+{% block title %}Editar tarefa — ARIADNE{% endblock %}
+{% block voltar %}<a class="voltar" href="{{ url_for('reunioes.index') }}">Reuniões</a>{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Editar tarefa em grupo</h1>
+  <p><small>As alterações abaixo se aplicam ao marco desta tarefa no cronograma de
+  <strong>cada</strong> um dos orientandos. A conclusão de cada um permanece individual.</small></p>
+  <p><small>Orientandos:
+    {% for m in marcos %}{{ m.orientacao.orientando.nome }}{% if not loop.last %}, {% endif %}{% endfor %}.
+  </small></p>
+  {{ render_form(form) }}
+</div>
+{% endblock %}

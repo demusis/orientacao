@@ -87,5 +87,18 @@ class Marco(db.Model):
         """Computado na leitura; não depende de scheduler (risco R7)."""
         return self.status != "concluido" and self.data_prevista < date.today()
 
+    @property
+    def tem_historico(self) -> bool:
+        """Verdadeiro se o marco já acumulou registro que a exclusão apagaria:
+        saiu do estado inicial, foi sinalizado, recebeu documento ou foi
+        discutido em reunião. Marco 'limpo' pode ser excluído; com histórico,
+        segue a filosofia do sistema — preservar, não apagar."""
+        return (
+            self.status != "pendente"
+            or self.conclusao_sinalizada
+            or bool(self.documentos)
+            or bool(self.atas)
+        )
+
     def __repr__(self) -> str:
         return f"<Marco {self.id} {self.titulo!r} {self.status}>"
