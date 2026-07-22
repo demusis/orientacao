@@ -7,8 +7,6 @@
   {% if pode_alterar_titulo %}
   <p><a href="{{ url_for('main.alterar_titulo', orientacao_id=orientacao.id) }}">Alterar título do projeto</a></p>
   {% endif %}
-  <p><a href="{{ url_for('main.linha_do_tempo', orientacao_id=orientacao.id) }}">Linha do tempo</a>
-  <small>— tudo o que aconteceu, em ordem cronológica.</small></p>
   <p><a href="{{ url_for('main.relatorio_orientacao', orientacao_id=orientacao.id) }}">Relatório de acompanhamento (PDF)</a>
   <small>— retrato consolidado do cronograma, reuniões, entregas e pareceres.</small></p>
   <p><strong>Modalidade:</strong> {{ MODALIDADE_LABEL[orientacao.modalidade] }} |
@@ -27,6 +25,37 @@
   <a href="{{ url_for('atas.listar_atas', orientacao_id=orientacao.id) }}">Atas</a> ·
   <a href="{{ url_for('atas.listar_pareceres', orientacao_id=orientacao.id) }}">Pareceres</a>
 </nav>
+
+<section class="card" id="linha-do-tempo">
+  <h2>Linha do tempo</h2>
+  <p><small>Tudo o que aconteceu no vínculo — marcos, entregas, pareceres e
+  reuniões — numa só cronologia, do mais recente ao mais antigo. As abas acima
+  respondem "o que existe"; esta seção, "o que aconteceu, e em que ordem".</small></p>
+  <p class="filtros-tempo">
+    <a href="{{ url_for('main.orientacao_detalhe', orientacao_id=orientacao.id) }}#linha-do-tempo"
+       class="{% if not tipo_ativo %}filtro-ativo{% endif %}">Tudo</a>
+    {% for chave, rotulo in tipos.items() %}
+    <a href="{{ url_for('main.orientacao_detalhe', orientacao_id=orientacao.id, tipo=chave) }}#linha-do-tempo"
+       class="{% if tipo_ativo == chave %}filtro-ativo{% endif %}">{{ rotulo }}</a>
+    {% endfor %}
+  </p>
+  {% if eventos %}
+  <ul class="linha-tempo">
+    {% for e in eventos %}
+    <li class="evento evento-{{ e.tipo }}">
+      <span class="evento-data">{{ e.data.strftime('%d/%m/%Y') }}</span>
+      <span class="evento-tipo">{{ tipos[e.tipo] }}</span>
+      <a href="{{ url_for(e.alvo[0], **e.alvo[1]) }}" class="evento-titulo">{{ e.titulo }}</a>
+      {% if e.detalhe %}<span class="evento-detalhe">{{ e.detalhe }}</span>{% endif %}
+      {% if e.relacionado %}<span class="evento-relacionado">— {{ e.relacionado }}</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>Nada registrado{% if tipo_ativo %} deste tipo{% endif %} ainda.</p>
+  {% endif %}
+</section>
+
 {% if orientacao.eventos %}
 <div class="card">
   <h2>Eventos do vínculo</h2>

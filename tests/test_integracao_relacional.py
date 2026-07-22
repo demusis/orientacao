@@ -155,24 +155,27 @@ def test_entrega_na_linha_aponta_seu_marco(client, orientacao):
     assert "Qualificação" in entrega["relacionado"]
 
 
-def test_rota_da_linha_renderiza_e_filtra(client, orientacao, orientador):
+def test_linha_na_pagina_do_vinculo_renderiza_e_filtra(client, orientacao, orientador):
+    """A linha do tempo é embutida na página do vínculo; o filtro por tipo
+    recarrega a própria página com ?tipo=."""
     _marco(orientacao, "Qualificação")
     login(client, "orientador@teste.br")
 
-    tudo = client.get(f"/orientacoes/{orientacao.id}/linha-do-tempo")
+    tudo = client.get(f"/orientacoes/{orientacao.id}")
     assert tudo.status_code == 200
+    assert "Linha do tempo" in tudo.data.decode()
     assert "Qualificação" in tudo.data.decode()
 
-    # filtro por tipo que não tem eventos: página válida, sem o marco
+    # filtro por um tipo sem eventos: página válida, sem o marco na linha
     so_reunioes = client.get(
-        f"/orientacoes/{orientacao.id}/linha-do-tempo?tipo=reuniao"
+        f"/orientacoes/{orientacao.id}?tipo=reuniao"
     ).data.decode()
     assert "Qualificação" not in so_reunioes
 
 
 def test_linha_restrita_as_partes(client, orientacao, intruso):
     login(client, "intruso@teste.br")
-    assert client.get(f"/orientacoes/{orientacao.id}/linha-do-tempo").status_code == 403
+    assert client.get(f"/orientacoes/{orientacao.id}").status_code == 403
 
 
 def test_marco_mostra_ligacoes_no_cronograma(client, orientacao, orientador):

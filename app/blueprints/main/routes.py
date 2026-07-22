@@ -40,24 +40,16 @@ def dashboard():
 @login_required
 def orientacao_detalhe(orientacao_id: int):
     orientacao = orientacao_autorizada(orientacao_id)
-    return render_template(
-        "main/orientacao_detalhe.html",
-        orientacao=orientacao,
-        pode_alterar_titulo=_pode_alterar_titulo(orientacao),
-    )
-
-
-@bp.route("/orientacoes/<int:orientacao_id>/linha-do-tempo")
-@login_required
-def linha_do_tempo(orientacao_id: int):
-    orientacao = orientacao_autorizada(orientacao_id)
+    # a linha do tempo é apresentada na própria página do vínculo; o filtro por
+    # tipo recarrega esta página com ?tipo=, ancorando na seção
     tipo = request.args.get("tipo", "")
     eventos = linha_tempo.eventos(orientacao)
     if tipo in linha_tempo.TIPOS:
         eventos = [e for e in eventos if e["tipo"] == tipo]
     return render_template(
-        "main/linha_do_tempo.html",
+        "main/orientacao_detalhe.html",
         orientacao=orientacao,
+        pode_alterar_titulo=_pode_alterar_titulo(orientacao),
         eventos=eventos,
         tipos=linha_tempo.TIPOS,
         tipo_ativo=tipo,
