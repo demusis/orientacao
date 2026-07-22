@@ -20,7 +20,7 @@ from app.models import Ata, Parecer
 from app.models.ata import RESULTADO_LABEL
 from app.models.cronograma import ETAPA_MARCO_LABEL, TIPO_MARCO_LABEL
 from app.models.orientacao import MODALIDADE_LABEL
-from app.services import marcacao
+from app.services import linha_tempo, marcacao
 from app.services.exportacao import _documento_base, _tabela, _texto
 from app.services.tempo import agora
 
@@ -34,6 +34,27 @@ PRESENCA_LABEL = {"pendente": "—", "presente": "Presente", "ausente": "Ausente
 
 def _secao(estilos, titulo: str) -> list:
     return [Spacer(1, 5), Paragraph(titulo, estilos["Heading2"])]
+
+
+def _linha_do_tempo(orientacao, estilos) -> list:
+    """Seção inicial: a cronologia do vínculo. A banca lê a história antes do
+    detalhe por tipo que vem nas seções seguintes."""
+    eventos = linha_tempo.eventos(orientacao)
+    if not eventos:
+        return []
+    linhas = [["Data", "Evento", "Descrição"]]
+    for e in eventos:
+        desc = e["titulo"]
+        if e.get("detalhe"):
+            desc += f" — {e['detalhe']}"
+        if e.get("relacionado"):
+            desc += f" · {e['relacionado']}"
+        linhas.append([
+            e["data"].strftime("%d/%m/%Y"),
+            linha_tempo.TIPOS[e["tipo"]],
+            Paragraph(_texto(desc), estilos["BodyText"]),
+        ])
+    return _secao(estilos, "Linha do tempo") + [_tabela(linhas)]
 
 
 def _cronograma(orientacao, estilos) -> list:
@@ -150,6 +171,7 @@ def gerar_pdf_relatorio(orientacao) -> bytes:
             ["Situação", orientacao.status.capitalize()],
         ]),
     ]
+    fluxo += _linha_do_tempo(orientacao, estilos)
     fluxo += _cronograma(orientacao, estilos)
     fluxo += _reunioes(orientacao, estilos)
     fluxo += _entregas(orientacao, estilos)

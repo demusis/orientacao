@@ -72,6 +72,8 @@ def criar_ata(orientacao_id: int):
     if not orientacao.orienta(current_user) and current_user.papel != "admin":
         abort(403)
     form = AtaForm()
+    marcos = orientacao.marcos.all()
+    form.marcos.choices = [(m.id, m.titulo) for m in marcos]
     if form.validate_on_submit():
         ata = Ata(
             tipo="individual",
@@ -82,6 +84,7 @@ def criar_ata(orientacao_id: int):
             deliberacoes=form.deliberacoes.data,
             redigida_por=current_user.id,
             participacoes=[AtaParticipacao(orientacao_id=orientacao.id)],
+            marcos=[m for m in marcos if m.id in form.marcos.data],
         )
         db.session.add(ata)
         db.session.flush()
@@ -103,12 +106,21 @@ def detalhe_ata(orientacao_id: int, ata_id: int):
     form = AtaEdicaoForm(obj=ata)
     finalizar_form = FinalizarAtaForm()
 
+    # marcos elegíveis: dos vínculos participantes (ata individual ou de grupo)
+    marcos_disponiveis = [
+        m for o in ata.orientacoes for m in o.marcos
+    ]
+    form.marcos.choices = [(m.id, m.titulo) for m in marcos_disponiveis]
+    if request.method == "GET":
+        form.marcos.data = [m.id for m in ata.marcos]
+
     if pode_editar and form.submit.data and form.validate_on_submit():
         try:
             atualizar_ata(
                 ata,
                 pauta=form.pauta.data,
                 deliberacoes=form.deliberacoes.data,
+                marcos=[m for m in marcos_disponiveis if m.id in form.marcos.data],
             )
             db.session.commit()
             flash("Ata atualizada.", "success")

@@ -16,7 +16,7 @@ class Documento(db.Model):
     )
 
     orientacao = db.relationship("Orientacao", back_populates="documentos")
-    marco = db.relationship("Marco")
+    marco = db.relationship("Marco", back_populates="documentos")
     autor = db.relationship("Usuario", foreign_keys=[criado_por])
     versoes = db.relationship(
         "VersaoDocumento",

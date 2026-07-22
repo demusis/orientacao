@@ -11,7 +11,14 @@
   <tr>
     <td>{{ ETAPA_MARCO_LABEL.get(m.etapa, '—') }}</td>
     <td>{{ m.titulo }} <span class="badge">{{ TIPO_MARCO_LABEL[m.tipo] }}</span>
-        {% if m.descricao %}<br><small>{{ m.descricao }}</small>{% endif %}</td>
+        {% if m.descricao %}<br><small>{{ m.descricao }}</small>{% endif %}
+        {#- ligações do marco: entregas feitas para ele e reuniões que o discutiram -#}
+        {% if m.documentos or m.atas %}
+        <br><small class="marco-ligacoes">
+          {% for d in m.documentos %}<span class="badge">entrega: {{ d.titulo }}</span> {% endfor %}
+          {% for a in m.atas %}<span class="badge">reunião {{ a.data_reuniao.strftime('%d/%m') }}</span> {% endfor %}
+        </small>
+        {% endif %}</td>
     <td>{{ m.data_prevista }}</td>
     <td>{{ m.data_conclusao or '—' }}</td>
     <td>

@@ -6,6 +6,8 @@
   {% if pode_alterar_titulo %}
   <p><a href="{{ url_for('main.alterar_titulo', orientacao_id=orientacao.id) }}">Alterar título do projeto</a></p>
   {% endif %}
+  <p><a href="{{ url_for('main.linha_do_tempo', orientacao_id=orientacao.id) }}">Linha do tempo</a>
+  <small>— tudo o que aconteceu, em ordem cronológica.</small></p>
   <p><a href="{{ url_for('main.relatorio_orientacao', orientacao_id=orientacao.id) }}">Relatório de acompanhamento (PDF)</a>
   <small>— retrato consolidado do cronograma, reuniões, entregas e pareceres.</small></p>
   <p><strong>Modalidade:</strong> {{ MODALIDADE_LABEL[orientacao.modalidade] }} |

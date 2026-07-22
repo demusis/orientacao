@@ -75,6 +75,12 @@ class Marco(db.Model):
     grupo_id = db.Column(db.String(32), nullable=True, index=True)
 
     orientacao = db.relationship("Orientacao", back_populates="marcos")
+    # entregas feitas para esta etapa (Documento.marco_id) e reuniões que a
+    # discutiram (M:N ata_marco) — as ligações que tornam o marco um eixo
+    documentos = db.relationship("Documento", back_populates="marco")
+    atas = db.relationship(
+        "Ata", secondary="ata_marco", order_by="Ata.data_reuniao", viewonly=True
+    )
 
     @property
     def atrasado(self) -> bool:

@@ -1,5 +1,13 @@
 from flask_wtf import FlaskForm
-from wtforms import DateField, SelectField, SubmitField, TextAreaField, TimeField
+from wtforms import (
+    DateField,
+    SelectField,
+    SelectMultipleField,
+    SubmitField,
+    TextAreaField,
+    TimeField,
+    widgets,
+)
 from wtforms.validators import DataRequired, Optional
 
 from app.models.ata import RESULTADOS_PARECER, RESULTADO_LABEL, TIPOS_PARECER
@@ -11,6 +19,16 @@ AJUDA_MARCACAO = (
     "> citação e tabelas. Ver Ajuda para o repertório completo."
 )
 
+AJUDA_MARCOS = (
+    "Marcos do cronograma tratados nesta reunião. Ao finalizar a ata, esta "
+    "associação congela junto com o registro."
+)
+
+
+class MultiCheckboxField(SelectMultipleField):
+    widget = widgets.ListWidget(prefix_label=False)
+    option_widget = widgets.CheckboxInput()
+
 
 class AtaForm(FlaskForm):
     data_reuniao = DateField("Data da reunião", validators=[DataRequired()])
@@ -18,6 +36,9 @@ class AtaForm(FlaskForm):
     pauta = TextAreaField("Pauta", validators=[DataRequired()], description=AJUDA_MARCACAO)
     deliberacoes = TextAreaField(
         "Deliberações", validators=[DataRequired()], description=AJUDA_MARCACAO
+    )
+    marcos = MultiCheckboxField(
+        "Marcos discutidos", coerce=int, validators=[Optional()], description=AJUDA_MARCOS
     )
     submit = SubmitField("Salvar rascunho")
 
@@ -28,6 +49,9 @@ class AtaEdicaoForm(FlaskForm):
     pauta = TextAreaField("Pauta", validators=[DataRequired()], description=AJUDA_MARCACAO)
     deliberacoes = TextAreaField(
         "Deliberações", validators=[DataRequired()], description=AJUDA_MARCACAO
+    )
+    marcos = MultiCheckboxField(
+        "Marcos discutidos", coerce=int, validators=[Optional()], description=AJUDA_MARCOS
     )
     submit = SubmitField("Salvar alterações")
 

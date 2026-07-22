@@ -1,4 +1,4 @@
-from flask import Response, abort, flash, redirect, render_template, url_for
+from flask import Response, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app.blueprints.main import bp
@@ -6,7 +6,7 @@ from app.blueprints.main.forms import TituloProjetoForm
 from app.extensions import db
 from app.models import Orientacao
 from app.services import eventos as eventos_service
-from app.services import painel, relatorio
+from app.services import linha_tempo, painel, relatorio
 from app.services.eventos import EventoInvalido
 from app.services.rbac import orientacao_autorizada, orientacoes_do_usuario
 
@@ -44,6 +44,23 @@ def orientacao_detalhe(orientacao_id: int):
         "main/orientacao_detalhe.html",
         orientacao=orientacao,
         pode_alterar_titulo=_pode_alterar_titulo(orientacao),
+    )
+
+
+@bp.route("/orientacoes/<int:orientacao_id>/linha-do-tempo")
+@login_required
+def linha_do_tempo(orientacao_id: int):
+    orientacao = orientacao_autorizada(orientacao_id)
+    tipo = request.args.get("tipo", "")
+    eventos = linha_tempo.eventos(orientacao)
+    if tipo in linha_tempo.TIPOS:
+        eventos = [e for e in eventos if e["tipo"] == tipo]
+    return render_template(
+        "main/linha_do_tempo.html",
+        orientacao=orientacao,
+        eventos=eventos,
+        tipos=linha_tempo.TIPOS,
+        tipo_ativo=tipo,
     )
 
 

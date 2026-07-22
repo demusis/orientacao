@@ -15,14 +15,20 @@ class OperacaoInvalida(Exception):
     pass
 
 
-def atualizar_ata(ata: Ata, *, pauta, deliberacoes):
+def atualizar_ata(ata: Ata, *, pauta, deliberacoes, marcos=None):
     """Edição de conteúdo do rascunho. Data/hora da reunião mudam apenas via
-    reagendar_ata, para que toda alteração de agenda deixe registro próprio."""
+    reagendar_ata, para que toda alteração de agenda deixe registro próprio.
+
+    `marcos` (lista de Marco), quando fornecida, substitui os marcos discutidos;
+    a imutabilidade da ata finalizada já os congela, pois a edição é barrada
+    aqui antes de qualquer atribuição."""
     if ata.imutavel:
         auditoria.registrar("tentativa_edicao_ata_finalizada", "ata", ata.id)
         raise AtaImutavel("Ata finalizada é imutável.")
     ata.pauta = pauta
     ata.deliberacoes = deliberacoes
+    if marcos is not None:
+        ata.marcos = marcos
     auditoria.registrar("edicao_ata", "ata", ata.id)
 
 

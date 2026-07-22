@@ -68,6 +68,16 @@ class AtaParticipacao(db.Model):
         return f"<AtaParticipacao ata={self.ata_id} orientacao={self.orientacao_id} {self.presenca}>"
 
 
+# Marcos discutidos na reunião. Associação pura (sem atributos), daí uma Table
+# em vez de um modelo. Editável só enquanto a ata é rascunho; finalizada, congela
+# junto com o resto do registro imutável (imposto na rota, não no esquema).
+ata_marco = db.Table(
+    "ata_marco",
+    db.Column("ata_id", db.Integer, db.ForeignKey("ata.id"), primary_key=True),
+    db.Column("marco_id", db.Integer, db.ForeignKey("marco.id"), primary_key=True),
+)
+
+
 class Ata(db.Model):
     """Registro de reunião de orientação. Reunião individual associa-se a um
     vínculo; reunião em grupo, a vários vínculos do mesmo orientador (M:N)."""
@@ -110,6 +120,7 @@ class Ata(db.Model):
     orientacoes = db.relationship(
         "Orientacao", secondary="ata_orientacao", viewonly=True
     )
+    marcos = db.relationship("Marco", secondary=ata_marco, order_by="Marco.data_prevista")
     reagendamentos = db.relationship(
         "Reagendamento", back_populates="ata", order_by="Reagendamento.registrado_em"
     )

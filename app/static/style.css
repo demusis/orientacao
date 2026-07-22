@@ -94,3 +94,23 @@ section.card h2 { margin-top: 0; }
 section.card h3 { margin-bottom: .3rem; }
 dl dt { font-weight: 600; margin-top: .8rem; }
 dl dd { margin: .2rem 0 0 0; }
+
+/* Linha do tempo do vínculo */
+.filtros-tempo { display: flex; flex-wrap: wrap; gap: .4rem; margin: 1rem 0; }
+.filtros-tempo a { padding: .2rem .6rem; border: 1px solid var(--borda); border-radius: 14px; text-decoration: none; color: var(--azul); font-size: .85rem; }
+.filtros-tempo a.filtro-ativo { background: var(--azul); color: #fff; border-color: var(--azul); }
+.linha-tempo { list-style: none; padding: 0; margin: 0; border-left: 3px solid var(--borda); }
+.linha-tempo .evento { position: relative; padding: .5rem 0 .7rem 1.1rem; margin-left: .3rem; }
+.linha-tempo .evento::before { content: ""; position: absolute; left: -.55rem; top: .8rem; width: .7rem; height: .7rem; border-radius: 50%; background: var(--borda); border: 2px solid #fff; }
+/* cada tipo, uma cor no marcador */
+.evento-marco_previsto::before { background: #8a939b; }
+.evento-marco_concluido::before { background: #2e7d46; }
+.evento-entrega::before { background: var(--azul); }
+.evento-parecer::before { background: #b58a1b; }
+.evento-reuniao::before { background: #6a4fb0; }
+.evento-data { font-size: .78rem; color: #8a939b; margin-right: .5rem; }
+.evento-tipo { font-size: .72rem; text-transform: uppercase; letter-spacing: .03em; color: #8a939b; margin-right: .5rem; }
+.evento-titulo { font-weight: 600; color: #1f2933; text-decoration: none; }
+.evento-titulo:hover { text-decoration: underline; }
+.evento-detalhe { color: #5a6570; font-size: .88rem; margin-left: .4rem; }
+.evento-relacionado { color: #8a939b; font-size: .82rem; margin-left: .3rem; }
