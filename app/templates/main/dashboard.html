@@ -2,7 +2,6 @@
 {% block title %}Painel — ARIADNE{% endblock %}
 {% block content %}
 {% set avalia = current_user.papel in ('orientador', 'admin') %}
-{% set vinculos_ativos = orientacoes | selectattr('status', 'equalto', 'ativa') | list %}
 <h1>Painel — {{ current_user.papel.capitalize() }}</h1>
 
 {% if current_user.papel == 'admin' %}
@@ -21,8 +20,10 @@
   <a class="hub-item" href="{{ url_for('reunioes.criar_tarefa_grupo') }}">+ Nova tarefa</a>
   <a class="hub-item" href="{{ url_for('reunioes.criar_ata_grupo') }}">+ Nova ata de reunião</a>
 </nav>
-{% elif current_user.papel == 'orientando' and vinculos_ativos | length == 1 %}
-{% set o = vinculos_ativos[0] %}
+{% elif current_user.papel == 'orientando' %}
+{% set vinculos_ativos = orientacoes | selectattr('status', 'equalto', 'ativa') | list %}
+{% for o in vinculos_ativos %}
+{% if vinculos_ativos | length > 1 %}<h2>{{ o.titulo_projeto }}</h2>{% endif %}
 <nav class="hub-painel" aria-label="Acesso rápido">
   <a class="hub-item" href="{{ url_for('cronogramas.listar', orientacao_id=o.id) }}">Cronograma</a>
   <a class="hub-item" href="{{ url_for('documentos.listar', orientacao_id=o.id) }}">Documentos</a>
@@ -31,6 +32,7 @@
   <a class="hub-item" href="{{ url_for('main.orientacao_detalhe', orientacao_id=o.id) }}#linha-do-tempo">Linha do tempo</a>
   <a class="hub-item" href="{{ url_for('main.relatorio_orientacao', orientacao_id=o.id) }}">Relatório</a>
 </nav>
+{% endfor %}
 {% endif %}
 
 {% if pendencias.total == 0 %}
@@ -137,9 +139,9 @@
     <td class="acoes">
       <a href="{{ url_for('main.orientacao_detalhe', orientacao_id=o.id) }}">Abrir</a>
       {% if current_user.papel == 'orientador' %}
-      <a href="{{ url_for('cronogramas.listar', orientacao_id=o.id) }}">Cronograma</a>
-      <a href="{{ url_for('documentos.listar', orientacao_id=o.id) }}">Documentos</a>
-      <a href="{{ url_for('atas.listar_atas', orientacao_id=o.id) }}">Atas</a>
+      · <a href="{{ url_for('cronogramas.listar', orientacao_id=o.id) }}">Cronograma</a>
+      · <a href="{{ url_for('documentos.listar', orientacao_id=o.id) }}">Documentos</a>
+      · <a href="{{ url_for('atas.listar_atas', orientacao_id=o.id) }}">Atas</a>
       {% endif %}
     </td>
   </tr>
