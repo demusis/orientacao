@@ -79,6 +79,24 @@
   vê todos; orientador e orientando veem apenas os próprios). O botão <em>Abrir</em>
   conduz à página do vínculo, que reúne os quatro módulos: Cronograma, Documentos, Atas
   e Pareceres.</p>
+  <p>Para o <strong>orientador</strong>, o topo do Painel traz dois atalhos de criação —
+  <em>+ Nova tarefa</em> e <em>+ Nova ata de reunião</em> —, que levam direto aos
+  formulários do módulo de Reuniões, sem passar pelo menu.</p>
+  <p>A <strong>página do vínculo</strong> apresenta, além dos quatro módulos, mais dois
+  recursos de leitura da orientação:</p>
+  <ul>
+    <li>a <strong>Linha do tempo</strong> — uma cronologia única que reúne marcos,
+    entregas de documentos, pareceres e reuniões, do mais recente ao mais antigo, com
+    as ligações entre eles (o parecer indica a versão que avaliou; a entrega, o marco a
+    que pertence; a reunião, os marcos que discutiu). Um filtro por tipo permite ver
+    apenas marcos, apenas pareceres, e assim por diante. Enquanto as quatro abas
+    respondem "o que existe", a linha do tempo responde "o que aconteceu, e em que
+    ordem";</li>
+    <li>o <strong>Relatório de acompanhamento (PDF)</strong> — um retrato consolidado do
+    vínculo (cronograma, reuniões, entregas e pareceres) para levar à banca ou à
+    coordenação. É um retrato do momento, gerado a cada acesso; por isso, diferentemente
+    da ata e do parecer, não carrega <em>hash</em> de verificação.</li>
+  </ul>
   <ul>
     <li><strong>Entregas aguardando confirmação</strong> — marcos que o orientando
     sinalizou como concluídos e que esperam a confirmação do orientador. Para o
@@ -236,6 +254,18 @@
   há dois ou mais selecionados, os marcos recebem o selo <em>grupo</em>. O
   acompanhamento (sinalização, confirmação e atraso) é <strong>individual</strong>: a
   conclusão de um orientando não afeta os demais.</p>
+  <p>A própria tela de <strong>Reuniões</strong> lista as tarefas atribuídas em grupo,
+  com os orientandos e o resumo de quantos já concluíram, e oferece duas ações:</p>
+  <ul>
+    <li><strong>Editar</strong> altera título, prazo e etapa de uma vez para todos os
+    orientandos da tarefa — o conteúdo é propagado a cada cronograma, enquanto a
+    conclusão de cada um permanece individual;</li>
+    <li><strong>Excluir</strong> só é admitida enquanto a tarefa <em>não tem
+    histórico</em> em nenhum orientando — ou seja, nenhum marco do grupo foi concluído,
+    sinalizado, recebeu documento ou foi discutido em reunião. Havendo histórico, a
+    exclusão é recusada, preservando o registro; nesse caso, edite a tarefa ou trate
+    cada cronograma individualmente.</li>
+  </ul>
   <h3>5.3 Atraso</h3>
   <p>Marco com data prevista vencida e não concluído recebe automaticamente o selo
   <em>atrasado</em> — na listagem e no alerta do Painel. O selo desaparece quando a
@@ -399,6 +429,10 @@
   filtros são <em>intervalo de data e hora</em> (início e fim, em UTC, ambos opcionais),
   <em>usuário</em> e <em>ação</em>. O endereço da consulta reflete o filtro e a página,
   de modo que um recorte pode ser guardado ou compartilhado como link.</p>
+  <p>A coluna <strong>Dados</strong> traz os detalhes de cada registro — os identificadores
+  e valores que particularizam a ação (por exemplo, os marcos e orientandos de uma tarefa
+  em grupo) — apresentados em pares <em>rótulo → valor</em>, um por linha. Registros sem
+  detalhe adicional deixam a coluna em branco.</p>
   <p>No pé da página há a navegação entre páginas: <em>« Primeira</em>,
   <em>‹ Anterior</em>, os números das páginas próximas à atual, <em>Próxima ›</em> e
   <em>Última »</em>. Ao aplicar um filtro novo, a listagem volta à primeira página.</p>

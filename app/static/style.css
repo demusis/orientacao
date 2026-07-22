@@ -121,3 +121,8 @@ dl dd { margin: .2rem 0 0 0; }
 .voltar::before { content: "‹ "; }
 
 .acoes-painel { margin: -.4rem 0 1.2rem; font-size: .95rem; }
+
+/* Coluna "Dados" da trilha de auditoria: pares rótulo → valor no lugar do JSON cru */
+.dados-audit { display: grid; grid-template-columns: auto 1fr; gap: .1rem .6rem; margin: 0; font-size: .82rem; }
+.dados-audit dt { color: #8a939b; font-weight: 600; white-space: nowrap; }
+.dados-audit dd { margin: 0; color: #1f2933; word-break: break-word; }

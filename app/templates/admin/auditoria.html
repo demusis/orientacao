@@ -28,7 +28,17 @@
     <td>{{ log.usuario.nome if log.usuario else '—' }}</td>
     <td>{{ log.acao }}</td>
     <td>{{ log.entidade }}{% if log.entidade_id %}#{{ log.entidade_id }}{% endif %}</td>
-    <td><small>{{ log.dados_json or '' }}</small></td>
+    <td>
+      {% if log.dados_itens %}
+      <dl class="dados-audit">
+        {% for rotulo, valor in log.dados_itens %}
+        <dt>{{ rotulo }}</dt><dd>{{ valor }}</dd>
+        {% endfor %}
+      </dl>
+      {% elif log.dados_json %}
+      <small>{{ log.dados_json }}</small>
+      {% endif %}
+    </td>
     <td>{{ log.ip or '—' }}</td>
   </tr>
   {% else %}

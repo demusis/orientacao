@@ -164,6 +164,52 @@ def test_auditoria_restrita_ao_admin(client, orientador, orientando):
     assert client.get("/admin/auditoria").status_code == 403
 
 
+# --- coluna Dados: JSON cru apresentado como pares rótulo → valor ---
+
+
+def test_dados_itens_formata_chaves_valores_e_fallback(app):
+    import json
+
+    registro = LogAuditoria(
+        acao="criacao_marco_grupo",
+        entidade="marco",
+        dados_json=json.dumps(
+            {"marcos": [12, 13], "ativo": False, "chave_nova": "x"},
+            ensure_ascii=False,
+        ),
+    )
+    itens = dict(registro.dados_itens)
+    assert itens["Marcos"] == "#12, #13"       # lista de ids ganha #
+    assert itens["Ativo"] == "não"             # booleano vira sim/não
+    assert itens["Chave nova"] == "x"          # chave não prevista, humanizada
+    # dados ausentes ou ilegíveis não quebram
+    assert LogAuditoria(dados_json=None).dados_itens == []
+    assert LogAuditoria(dados_json="{quebrado").dados_itens == []
+
+
+def test_coluna_dados_apresenta_pares_e_esconde_json_cru(client, admin):
+    import json
+
+    registro = LogAuditoria(
+        acao="criacao_marco_grupo",
+        entidade="marco",
+        entidade_id=12,
+        dados_json=json.dumps(
+            {"grupo_id": "ba4bf885f89f", "marcos": [12, 13], "orientacoes": [1, 2]},
+            ensure_ascii=False,
+        ),
+        timestamp=datetime(2026, 7, 20, 12, 0),
+    )
+    db.session.add(registro)
+    db.session.commit()
+    login(client, "admin@teste.br")
+    pagina = client.get("/admin/auditoria").data.decode()
+
+    assert "Marcos" in pagina           # rótulo em português
+    assert "#12, #13" in pagina         # ids formatados
+    assert '"marcos":' not in pagina    # a chave crua do JSON não aparece
+
+
 # --- origem do IP ---
 
 
