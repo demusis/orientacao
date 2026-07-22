@@ -65,6 +65,12 @@ exigir `Orientacao.orientando.has(ativo=True)`. Suíte verde restaurada. CI
   pytest do runtime. Verificação: suíte verde.
 - `89ed235` — Iteração 3: modernizações UP do ruff (UP017 datetime.UTC, UP012
   encode) + limpeza de imports. Verificação: suíte verde; lint I/F401/UP limpo.
+- `80ec6a0` — Iteração 4: resolver os 10 achados manuais do ruff (B904, E741,
+  B011, B018, F841, E702). `ruff check .` passa sem achados. Verificação: testes
+  dos arquivos tocados verdes.
+
+Restam: CI (GitHub Actions, agora com pytest + ruff como gates) e docs
+(ARCHITECTURE.md, seção de desenvolvimento).
 
 ## Backlog restante (repriorizado)
 
