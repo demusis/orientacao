@@ -87,6 +87,21 @@ SECOES = {
             "pode alterar a data prevista.",
         ],
     },
+    "orientandos_atrasados": {
+        "titulo": "Marcos vencidos dos seus orientandos",
+        "explicacao": (
+            "São tarefas do cronograma dos seus orientandos cuja data prevista "
+            "já passou e que ainda não constam como concluídas. O acompanhamento "
+            "é individual — cabe a você tratar cada caso."
+        ),
+        "passos": [
+            "Abra a orientação indicada pelo Painel e vá em Cronograma.",
+            "Se o orientando já entregou, clique em Confirmar conclusão — o "
+            "marco deixa de figurar como vencido.",
+            "Caso contrário, trate com o orientando; se o prazo não for mais "
+            "viável, edite o marco no cronograma e ajuste a data prevista.",
+        ],
+    },
     "a_confirmar": {
         "titulo": "Entregas aguardando sua confirmação",
         "explicacao": (
@@ -224,6 +239,43 @@ def marcos_a_vencer(destino: dict) -> None:
             "marcos_a_vencer",
             m.titulo,
             f"Vence {quando} ({m.data_prevista.strftime('%d/%m/%Y')}) · "
+            f"{m.orientacao.titulo_projeto}",
+        )
+
+
+def marcos_atrasados_dos_orientandos(destino: dict) -> None:
+    """Ao orientador principal: marcos vencidos dos seus orientandos.
+
+    Espelha `marcos_atrasados`, que avisa o orientando; aqui o destinatário é o
+    orientador (`orientacao.orientador`), como em `marcos_a_confirmar` e
+    `versoes_sem_parecer`. Coorientadores não recebem — mesma convenção das
+    demais categorias do orientador. O detalhe é liderado pelo nome do
+    orientando, para o orientador escanear por aluno."""
+    hoje = date.today()
+    itens = (
+        Marco.query.join(Orientacao, Orientacao.id == Marco.orientacao_id)
+        .options(
+            joinedload(Marco.orientacao).joinedload(Orientacao.orientador),
+            joinedload(Marco.orientacao).joinedload(Orientacao.orientando),
+        )
+        .filter(
+            Orientacao.status == "ativa",
+            Marco.status != "concluido",
+            Marco.data_prevista < hoje,
+        )
+        .order_by(Marco.data_prevista)
+        .all()
+    )
+    for m in itens:
+        dias = (hoje - m.data_prevista).days
+        _acumular(
+            destino,
+            m.orientacao.orientador,
+            "orientandos_atrasados",
+            m.titulo,
+            f"{m.orientacao.orientando.nome} · previsto para "
+            f"{m.data_prevista.strftime('%d/%m/%Y')} — "
+            f"{dias} {'dia' if dias == 1 else 'dias'} de atraso · "
             f"{m.orientacao.titulo_projeto}",
         )
 
@@ -402,6 +454,7 @@ def atas_em_rascunho(destino: dict) -> None:
 CATEGORIAS = (
     marcos_atrasados,
     marcos_a_vencer,
+    marcos_atrasados_dos_orientandos,
     reunioes_proximas,
     marcos_a_confirmar,
     versoes_sem_parecer,

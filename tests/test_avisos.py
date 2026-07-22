@@ -158,6 +158,38 @@ def test_categorias_do_orientador(client, orientacao, orientador, orientando):
     assert "atas_rascunho" in secoes
 
 
+def test_orientador_recebe_os_atrasos_dos_orientandos(
+    client, orientacao, orientador, orientando
+):
+    """Marco vencido do orientando passa a alertar também o orientador, com o
+    nome do orientando no detalhe para ele escanear por aluno."""
+    _marco_atrasado(orientacao)  # vence há 3 dias
+    coletado = avisos.coletar()
+
+    assert "marcos_vencidos" in coletado[orientando]  # o orientando segue avisado
+    assert "orientandos_atrasados" in coletado[orientador]
+    itens = coletado[orientador]["orientandos_atrasados"]
+    assert any(
+        orientando.nome in it["detalhe"] and "de atraso" in it["detalhe"]
+        for it in itens
+    )
+
+
+def test_atraso_do_orientando_entra_no_email_unico_do_orientador(
+    client, orientacao, orientador, orientando, envio_habilitado, lote_capturado
+):
+    """O alerta de atraso soma-se às demais pendências do orientador na MESMA
+    mensagem — o requisito de um e-mail só."""
+    _marco_atrasado(orientacao)
+    _marco_sinalizado(orientacao)  # gera também 'a_confirmar'
+
+    avisos.enviar_pendentes()
+    para_orientador = [m for m in lote_capturado if m[0] == orientador.email][0]
+    corpo = para_orientador[2]  # parte em texto
+    assert "MARCOS VENCIDOS DOS SEUS ORIENTANDOS" in corpo
+    assert "AGUARDANDO SUA CONFIRMAÇÃO" in corpo  # ambas no mesmo corpo
+
+
 def test_uma_mensagem_por_pessoa_reunindo_tudo(
     client, orientacao, orientador, orientando, envio_habilitado, lote_capturado
 ):
@@ -276,10 +308,11 @@ def test_requisicao_dispara_e_registra(
 
     client.get("/auth/login")
 
-    assert len(lote_capturado) == 1
+    # um marco vencido alerta os dois: o orientando e o orientador
+    assert len(lote_capturado) == 2
     registro = LogAuditoria.query.filter_by(acao="envio_avisos").one()
     dados = json.loads(registro.dados_json)
-    assert dados["destinatarios"] == 1
+    assert dados["destinatarios"] == 2
     assert ConfiguracaoEmail.vigente().avisos_enviados_em == date.today()
 
 
@@ -293,7 +326,9 @@ def test_segunda_requisicao_do_dia_nao_reenvia(
     client.get("/auth/login")
     client.get("/auth/login")
 
-    assert len(lote_capturado) == 1
+    # o marco vencido alerta dois (orientando e orientador), mas uma vez só no
+    # dia: três requisições não multiplicam o lote nem o registro de disparo
+    assert len(lote_capturado) == 2
     assert LogAuditoria.query.filter_by(acao="envio_avisos").count() == 1
 
 
