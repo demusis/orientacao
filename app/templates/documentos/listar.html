@@ -1,7 +1,9 @@
 {% extends "base.html" %}
+{% from "_macros.html" import nav_modulos %}
 {% block title %}Documentos — ARIADNE{% endblock %}
 {% block voltar %}<a class="voltar" href="{{ url_for('main.orientacao_detalhe', orientacao_id=orientacao.id) }}">Vínculo</a>{% endblock %}
 {% block content %}
+{{ nav_modulos(orientacao, 'documentos') }}
 <h1>Documentos — {{ orientacao.titulo_projeto }}</h1>
 <p><a href="{{ url_for('documentos.criar', orientacao_id=orientacao.id) }}">+ Novo documento</a></p>
 <table>

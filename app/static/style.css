@@ -157,6 +157,12 @@ dl dd { margin: .2rem 0 0 0; }
 .voltar:hover { text-decoration: underline; }
 .voltar::before { content: "‹ "; }
 
+/* Barra de abas entre os módulos do vínculo */
+.modulos-nav { display: flex; flex-wrap: wrap; gap: .2rem; margin: 0 0 1.2rem; border-bottom: 1px solid var(--borda); }
+.modulos-nav a { padding: .45rem .9rem; text-decoration: none; color: var(--azul); border-bottom: 2px solid transparent; }
+.modulos-nav a:hover { background: #eef2f6; }
+.modulos-nav a.ativo { font-weight: 600; border-bottom-color: var(--azul); }
+
 /* Lista de modelos disponíveis na criação de documento */
 .modelos-lista { margin: .4rem 0 0; padding-left: 1.1rem; }
 .modelos-lista li { margin-bottom: .3rem; }

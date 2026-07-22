@@ -1,8 +1,9 @@
 {% extends "base.html" %}
-{% from "_macros.html" import render_form %}
+{% from "_macros.html" import nav_modulos, render_form %}
 {% block title %}{{ marco.titulo }} — ARIADNE{% endblock %}
 {% block voltar %}<a class="voltar" href="{{ url_for('cronogramas.listar', orientacao_id=orientacao.id) }}">Cronograma</a>{% endblock %}
 {% block content %}
+{{ nav_modulos(orientacao, 'cronograma') }}
 {% set is_orientando = current_user.id == orientacao.orientando_id %}
 {% set is_gestor = current_user.id == orientacao.orientador_id or current_user.papel == 'admin' %}
 

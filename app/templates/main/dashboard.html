@@ -2,6 +2,7 @@
 {% block title %}Painel — ARIADNE{% endblock %}
 {% block content %}
 {% set avalia = current_user.papel in ('orientador', 'admin') %}
+{% set vinculos_ativos = orientacoes | selectattr('status', 'equalto', 'ativa') | list %}
 <h1>Painel — {{ current_user.papel.capitalize() }}</h1>
 
 {% if current_user.papel == 'admin' %}
@@ -19,6 +20,16 @@
   <a class="hub-item" href="{{ url_for('orientandos.listar') }}">Orientandos</a>
   <a class="hub-item" href="{{ url_for('reunioes.criar_tarefa_grupo') }}">+ Nova tarefa</a>
   <a class="hub-item" href="{{ url_for('reunioes.criar_ata_grupo') }}">+ Nova ata de reunião</a>
+</nav>
+{% elif current_user.papel == 'orientando' and vinculos_ativos | length == 1 %}
+{% set o = vinculos_ativos[0] %}
+<nav class="hub-painel" aria-label="Acesso rápido">
+  <a class="hub-item" href="{{ url_for('cronogramas.listar', orientacao_id=o.id) }}">Cronograma</a>
+  <a class="hub-item" href="{{ url_for('documentos.listar', orientacao_id=o.id) }}">Documentos</a>
+  <a class="hub-item" href="{{ url_for('atas.listar_atas', orientacao_id=o.id) }}">Atas</a>
+  <a class="hub-item" href="{{ url_for('atas.listar_pareceres', orientacao_id=o.id) }}">Pareceres</a>
+  <a class="hub-item" href="{{ url_for('main.orientacao_detalhe', orientacao_id=o.id) }}#linha-do-tempo">Linha do tempo</a>
+  <a class="hub-item" href="{{ url_for('main.relatorio_orientacao', orientacao_id=o.id) }}">Relatório</a>
 </nav>
 {% endif %}
 
@@ -115,7 +126,7 @@
 <h2>{% if current_user.papel == 'orientando' %}Minha orientação{% elif current_user.papel == 'orientador' %}Minhas orientações{% else %}Orientações{% endif %}</h2>
 {% if orientacoes %}
 <table>
-  <tr><th>Projeto</th><th>Modalidade</th><th>Orientador</th><th>Orientando</th><th>Status</th><th></th></tr>
+  <tr><th>Projeto</th><th>Modalidade</th><th>Orientador</th><th>Orientando</th><th>Status</th><th>Ações</th></tr>
   {% for o in orientacoes %}
   <tr>
     <td>{{ o.titulo_projeto }}</td>
@@ -123,7 +134,14 @@
     <td>{{ o.orientador.nome }}</td>
     <td>{{ o.orientando.nome }}</td>
     <td><span class="badge">{{ o.status }}</span></td>
-    <td><a href="{{ url_for('main.orientacao_detalhe', orientacao_id=o.id) }}">Abrir</a></td>
+    <td class="acoes">
+      <a href="{{ url_for('main.orientacao_detalhe', orientacao_id=o.id) }}">Abrir</a>
+      {% if current_user.papel == 'orientador' %}
+      <a href="{{ url_for('cronogramas.listar', orientacao_id=o.id) }}">Cronograma</a>
+      <a href="{{ url_for('documentos.listar', orientacao_id=o.id) }}">Documentos</a>
+      <a href="{{ url_for('atas.listar_atas', orientacao_id=o.id) }}">Atas</a>
+      {% endif %}
+    </td>
   </tr>
   {% endfor %}
 </table>

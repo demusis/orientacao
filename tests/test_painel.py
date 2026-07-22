@@ -139,6 +139,34 @@ def test_pendencia_de_vinculo_alheio_nao_vaza(client, orientacao, orientador, in
     assert "Sigiloso" not in pagina
 
 
+def test_barra_de_modulos_marca_a_aba_ativa(client, orientacao, orientando):
+    """A barra de abas acompanha as telas do vínculo e destaca a atual."""
+    login(client, "orientando@teste.br")
+    pagina = client.get(f"/orientacoes/{orientacao.id}/cronograma/").data.decode()
+    assert 'class="modulos-nav"' in pagina
+    assert 'class="ativo">Cronograma' in pagina
+    # e oferece o salto lateral aos demais módulos
+    assert f"/orientacoes/{orientacao.id}/documentos/" in pagina
+    assert f"/orientacoes/{orientacao.id}/atas" in pagina
+
+
+def test_hub_do_orientando_leva_aos_modulos(client, orientacao, orientando):
+    login(client, "orientando@teste.br")
+    pagina = client.get("/dashboard").data.decode()
+    assert 'class="hub-painel"' in pagina
+    assert f"/orientacoes/{orientacao.id}/cronograma/" in pagina
+    assert f"/orientacoes/{orientacao.id}/documentos/" in pagina
+    assert f"/orientacoes/{orientacao.id}/pareceres" in pagina
+
+
+def test_tabela_do_orientador_tem_atalhos_por_vinculo(client, orientacao, orientador):
+    login(client, "orientador@teste.br")
+    pagina = client.get("/dashboard").data.decode()
+    assert f"/orientacoes/{orientacao.id}/cronograma/" in pagina
+    assert f"/orientacoes/{orientacao.id}/documentos/" in pagina
+    assert f"/orientacoes/{orientacao.id}/atas" in pagina
+
+
 def test_hub_do_painel_por_papel(client, admin, orientador, orientando):
     """A central de comando do Painel lista os atalhos do papel."""
     login(client, "admin@teste.br")

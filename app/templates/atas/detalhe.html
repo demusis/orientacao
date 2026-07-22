@@ -1,8 +1,9 @@
 {% extends "base.html" %}
-{% from "_macros.html" import render_form %}
+{% from "_macros.html" import nav_modulos, render_form %}
 {% block title %}Ata {{ ata.data_reuniao }} — ARIADNE{% endblock %}
 {% block voltar %}<a class="voltar" href="{{ url_for('atas.listar_atas', orientacao_id=orientacao.id) }}">Atas</a>{% endblock %}
 {% block content %}
+{{ nav_modulos(orientacao, 'atas') }}
 <h1>Ata de {{ ata.data_reuniao }} — {{ orientacao.titulo_projeto }}</h1>
 <p>
   Tipo: <span class="badge">{{ ata.tipo }}</span> ·

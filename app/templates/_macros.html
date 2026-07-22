@@ -1,3 +1,15 @@
+{% macro nav_modulos(orientacao, ativo='') %}
+{#- Barra de abas de navegação entre os módulos de um vínculo, presente em todas
+    as telas internas. A aba `ativo` recebe destaque. -#}
+<nav class="modulos-nav" aria-label="Módulos do vínculo">
+  <a href="{{ url_for('main.orientacao_detalhe', orientacao_id=orientacao.id) }}"{% if ativo == 'vinculo' %} class="ativo"{% endif %}>Vínculo</a>
+  <a href="{{ url_for('cronogramas.listar', orientacao_id=orientacao.id) }}"{% if ativo == 'cronograma' %} class="ativo"{% endif %}>Cronograma</a>
+  <a href="{{ url_for('documentos.listar', orientacao_id=orientacao.id) }}"{% if ativo == 'documentos' %} class="ativo"{% endif %}>Documentos</a>
+  <a href="{{ url_for('atas.listar_atas', orientacao_id=orientacao.id) }}"{% if ativo == 'atas' %} class="ativo"{% endif %}>Atas</a>
+  <a href="{{ url_for('atas.listar_pareceres', orientacao_id=orientacao.id) }}"{% if ativo == 'pareceres' %} class="ativo"{% endif %}>Pareceres</a>
+</nav>
+{% endmacro %}
+
 {% macro render_form(form, action='', enctype=None, method='post') %}
 {#- largura de cada campo na grade de 12 colunas, derivada do tipo: texto
     longo e listas de seleção ocupam a linha inteira; datas, horas e números

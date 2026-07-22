@@ -1,8 +1,9 @@
 {% extends "base.html" %}
-{% from "_macros.html" import render_form %}
+{% from "_macros.html" import nav_modulos, render_form %}
 {% block title %}Novo documento — ARIADNE{% endblock %}
 {% block voltar %}<a class="voltar" href="{{ url_for('documentos.listar', orientacao_id=orientacao.id) }}">Documentos</a>{% endblock %}
 {% block content %}
+{{ nav_modulos(orientacao, 'documentos') }}
 {% if modelos %}
 <div class="card">
   <h2>Modelos disponíveis</h2>

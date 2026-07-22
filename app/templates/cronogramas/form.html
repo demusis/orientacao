@@ -1,8 +1,9 @@
 {% extends "base.html" %}
-{% from "_macros.html" import render_form %}
+{% from "_macros.html" import nav_modulos, render_form %}
 {% block title %}Marco — ARIADNE{% endblock %}
 {% block voltar %}<a class="voltar" href="{{ url_for('cronogramas.listar', orientacao_id=orientacao.id) }}">Cronograma</a>{% endblock %}
 {% block content %}
+{{ nav_modulos(orientacao, 'cronograma') }}
 <div class="card">
   <h1>Marco — {{ orientacao.titulo_projeto }}</h1>
   {{ render_form(form) }}

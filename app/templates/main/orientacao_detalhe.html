@@ -1,7 +1,9 @@
 {% extends "base.html" %}
+{% from "_macros.html" import nav_modulos %}
 {% block title %}{{ orientacao.titulo_projeto }} — ARIADNE{% endblock %}
 {% block voltar %}<a class="voltar" href="{{ url_for('main.dashboard') }}">Painel</a>{% endblock %}
 {% block content %}
+{{ nav_modulos(orientacao, 'vinculo') }}
 <h1>{{ orientacao.titulo_projeto }}</h1>
 <div class="card">
   {% if pode_alterar_titulo %}
@@ -19,12 +21,6 @@
   <p><strong>Início:</strong> {{ orientacao.data_inicio }} |
      <strong>Fim previsto:</strong> {{ orientacao.data_fim_prevista or '—' }}</p>
 </div>
-<nav class="card">
-  <a href="{{ url_for('cronogramas.listar', orientacao_id=orientacao.id) }}">Cronograma</a> ·
-  <a href="{{ url_for('documentos.listar', orientacao_id=orientacao.id) }}">Documentos</a> ·
-  <a href="{{ url_for('atas.listar_atas', orientacao_id=orientacao.id) }}">Atas</a> ·
-  <a href="{{ url_for('atas.listar_pareceres', orientacao_id=orientacao.id) }}">Pareceres</a>
-</nav>
 
 <section class="card" id="linha-do-tempo">
   <h2>Linha do tempo</h2>
