@@ -515,32 +515,58 @@ def test_marco_de_hoje_avisa_a_vencer_nao_atrasado(client, orientacao, orientand
     assert "marcos_vencidos" not in secoes
 
 
-def test_reuniao_proxima_avisa_as_duas_partes(client, orientacao, orientador, orientando):
-    _reuniao_em(orientacao, orientador, date.today() + timedelta(days=1))
+# reuniões usam UTC (tempo_agora), então os testes ancoram no MESMO relógio, e
+# não em date.today() local — o descompasso na virada da meia-noite UTC era a
+# causa do falso negativo que expôs o defeito de reunião sem hora.
+def _hoje_utc():
+    return avisos.tempo_agora().date()
+
+
+def test_reuniao_sem_hora_amanha_avisa_as_duas_partes(
+    client, orientacao, orientador, orientando
+):
+    """Reunião amanhã, hora ainda não definida. Antes, ao ser tratada como
+    00:00, caía no passado perto da meia-noite UTC e sumia. Sem hora vale pela
+    data."""
+    _reuniao_em(orientacao, orientador, _hoje_utc() + timedelta(days=1))
     coletado = avisos.coletar()
     assert "reunioes_proximas" in coletado[orientador]
     assert "reunioes_proximas" in coletado[orientando]
 
 
+def test_reuniao_sem_hora_hoje_ainda_avisa(client, orientacao, orientador):
+    """Reunião de hoje, sem hora, não pode desaparecer: a hora é desconhecida,
+    não zero. Este é o caso que o 00:00 fictício quebrava."""
+    _reuniao_em(orientacao, orientador, _hoje_utc())
+    assert "reunioes_proximas" in avisos.coletar()[orientador]
+
+
 def test_reuniao_distante_nao_avisa(client, orientacao, orientador, orientando):
-    _reuniao_em(orientacao, orientador, date.today() + timedelta(days=10))
+    _reuniao_em(orientacao, orientador, _hoje_utc() + timedelta(days=10))
     assert avisos.coletar() == {}
 
 
 def test_reuniao_ja_finalizada_nao_e_lembrete(client, orientacao, orientador):
     _reuniao_em(
-        orientacao, orientador, date.today() + timedelta(days=1), status="finalizada"
+        orientacao, orientador, _hoje_utc() + timedelta(days=1), status="finalizada"
     )
     assert avisos.coletar() == {}
 
 
-def test_reuniao_com_hora_ja_passada_hoje_nao_avisa(client, orientacao, orientador):
-    """Reunião hoje, mas de manhã cedo, com o disparo à tarde: a hora exata caiu
-    fora da janela e não deve ser lembrada como futura."""
-    from datetime import time as _time
-    _reuniao_em(orientacao, orientador, date.today(), hora=_time(0, 1))
-    # 00:01 de hoje está no passado em relação a agora (a menos que rode à meia-noite)
-    coletado = avisos.coletar()
-    # não afirma vazio absoluto (poderia haver outros), mas a reunião não entra
-    reunioes = [s for secoes in coletado.values() for s in secoes if s == "reunioes_proximas"]
+def test_reuniao_com_hora_ja_passada_nao_avisa(client, orientacao, orientador):
+    """Reunião com hora explícita já vencida sai da janela — o lembrete é de
+    reunião futura, não de uma que já começou.
+
+    Usa um datetime completo duas horas no passado: se agora está no início do
+    dia UTC, a data recua para ontem e o filtro SQL já a exclui; do contrário é
+    hoje mais cedo e o guarda de hora a exclui. Nunca é avisada, sem depender do
+    horário em que a suíte roda."""
+    ref = avisos.tempo_agora() - timedelta(hours=2)
+    _reuniao_em(
+        orientacao, orientador, ref.date(), hora=ref.time().replace(microsecond=0)
+    )
+    reunioes = [
+        s for secoes in avisos.coletar().values()
+        for s in secoes if s == "reunioes_proximas"
+    ]
     assert reunioes == []

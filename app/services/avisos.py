@@ -232,8 +232,12 @@ def reunioes_proximas(destino: dict) -> None:
     """Ao orientador e a cada orientando participante: reunião nas próximas 48 h.
 
     A ata em rascunho é o registro da reunião agendada; finalizada, a reunião já
-    ocorreu e não é lembrete. Junta-se a data à hora quando esta existe, para não
-    avisar de reunião cuja hora já passou hoje."""
+    ocorreu e não é lembrete.
+
+    Reunião **com hora** é comparada por data e hora, para não lembrar de uma
+    cuja hora já passou hoje. **Sem hora**, vale pela data: tratá-la como 00:00
+    faria toda reunião de hoje (e, na virada da meia-noite UTC, a de amanhã)
+    cair no passado e desaparecer — a hora é desconhecida, não zero."""
     agora = tempo_agora()
     limite = agora + timedelta(hours=HORAS_ANTECEDENCIA_REUNIAO)
     atas = (
@@ -254,11 +258,15 @@ def reunioes_proximas(destino: dict) -> None:
         .all()
     )
     for a in atas:
-        quando = datetime.combine(
-            a.data_reuniao, a.hora_reuniao or datetime.min.time()
-        )
-        if not (agora <= quando <= limite):
-            continue  # data na janela, mas o horário exato caiu fora
+        if a.hora_reuniao is not None:
+            # com hora: exclui a que já passou hoje
+            quando = datetime.combine(a.data_reuniao, a.hora_reuniao)
+            if not (agora <= quando <= limite):
+                continue
+        elif a.data_reuniao < agora.date():
+            # sem hora: vale pela data. O filtro SQL já a manteve na janela;
+            # só descarta a de data estritamente passada (defesa redundante).
+            continue
         # só participantes de vínculo ativo
         participantes = [
             p.orientacao.orientando
