@@ -30,7 +30,6 @@
   <a class="hub-item" href="{{ url_for('atas.listar_atas', orientacao_id=o.id) }}">Atas</a>
   <a class="hub-item" href="{{ url_for('atas.listar_pareceres', orientacao_id=o.id) }}">Pareceres</a>
   <a class="hub-item" href="{{ url_for('main.orientacao_detalhe', orientacao_id=o.id) }}#linha-do-tempo">Linha do tempo</a>
-  <a class="hub-item" href="{{ url_for('main.relatorio_orientacao', orientacao_id=o.id) }}">Relatório</a>
 </nav>
 {% endfor %}
 {% endif %}
