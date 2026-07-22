@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "_macros.html" import render_form %}
 {% block title %}Novo documento — ARIADNE{% endblock %}
+{% block voltar %}<a class="voltar" href="{{ url_for('documentos.listar', orientacao_id=orientacao.id) }}">Documentos</a>{% endblock %}
 {% block content %}
 <div class="card">
   <h1>Novo documento — {{ orientacao.titulo_projeto }}</h1>

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Pareceres — ARIADNE{% endblock %}
+{% block voltar %}<a class="voltar" href="{{ url_for('main.orientacao_detalhe', orientacao_id=orientacao.id) }}">Vínculo</a>{% endblock %}
 {% block content %}
 <h1>Pareceres — {{ orientacao.titulo_projeto }}</h1>
 {% if current_user.id == orientacao.orientador_id or current_user.papel == 'admin' %}

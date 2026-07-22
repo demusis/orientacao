@@ -114,3 +114,8 @@ dl dd { margin: .2rem 0 0 0; }
 .evento-titulo:hover { text-decoration: underline; }
 .evento-detalhe { color: #5a6570; font-size: .88rem; margin-left: .4rem; }
 .evento-relacionado { color: #8a939b; font-size: .82rem; margin-left: .3rem; }
+
+/* Link de volta ao contexto-pai, no topo de cada página funda */
+.voltar { display: inline-block; margin-bottom: .8rem; color: var(--azul); text-decoration: none; font-size: .9rem; }
+.voltar:hover { text-decoration: underline; }
+.voltar::before { content: "‹ "; }

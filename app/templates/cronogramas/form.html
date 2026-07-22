@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "_macros.html" import render_form %}
 {% block title %}Marco — ARIADNE{% endblock %}
+{% block voltar %}<a class="voltar" href="{{ url_for('cronogramas.listar', orientacao_id=orientacao.id) }}">Cronograma</a>{% endblock %}
 {% block content %}
 <div class="card">
   <h1>Marco — {{ orientacao.titulo_projeto }}</h1>

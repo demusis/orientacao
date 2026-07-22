@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Linha do tempo — ARIADNE{% endblock %}
+{% block voltar %}<a class="voltar" href="{{ url_for('main.orientacao_detalhe', orientacao_id=orientacao.id) }}">Vínculo</a>{% endblock %}
 {% block content %}
 <h1>Linha do tempo — {{ orientacao.titulo_projeto }}</h1>
-<p><a href="{{ url_for('main.orientacao_detalhe', orientacao_id=orientacao.id) }}">Voltar ao vínculo</a></p>
 
 <p class="filtros-tempo">
   <a href="{{ url_for('main.linha_do_tempo', orientacao_id=orientacao.id) }}"

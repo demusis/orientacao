@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "_macros.html" import render_form %}
 {% block title %}Datas do vínculo — ARIADNE{% endblock %}
+{% block voltar %}<a class="voltar" href="{{ url_for('admin.listar_orientacoes') }}">Orientações</a>{% endblock %}
 {% block content %}
 <div class="card">
   <h1>Datas do vínculo</h1>

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ orientacao.titulo_projeto }} — ARIADNE{% endblock %}
+{% block voltar %}<a class="voltar" href="{{ url_for('main.dashboard') }}">Painel</a>{% endblock %}
 {% block content %}
 <h1>{{ orientacao.titulo_projeto }}</h1>
 <div class="card">

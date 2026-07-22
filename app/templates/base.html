@@ -42,6 +42,11 @@
   </nav>
 </header>
 <main>
+  {#- Navegação de volta ao contexto-pai. Cada página funda preenche este bloco
+      com um link nomeado (não o histórico do navegador, que a CSP sem JS impede
+      e que engana quando se chega por link de e-mail). Páginas de topo o deixam
+      vazio. -#}
+  {% block voltar %}{% endblock %}
   {% with mensagens = get_flashed_messages(with_categories=true) %}
     {% for categoria, msg in mensagens %}
       <div class="flash flash-{{ categoria }}">{{ msg }}</div>

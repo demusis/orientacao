@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "_macros.html" import render_form %}
 {% block title %}Nova senha — ARIADNE{% endblock %}
+{% block voltar %}<a class="voltar" href="{{ url_for('auth.login') }}">Acesso</a>{% endblock %}
 {% block content %}
 <div class="card card-login">
   <h1>Definir nova senha</h1>

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "_macros.html" import render_form %}
 {% block title %}Emitir parecer — ARIADNE{% endblock %}
+{% block voltar %}<a class="voltar" href="{{ url_for('atas.listar_pareceres', orientacao_id=orientacao.id) }}">Pareceres</a>{% endblock %}
 {% block content %}
 
 {% if avaliada %}
