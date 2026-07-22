@@ -69,8 +69,11 @@ exigir `Orientacao.orientando.has(ativo=True)`. Suíte verde restaurada. CI
   B011, B018, F841, E702). `ruff check .` passa sem achados. Verificação: testes
   dos arquivos tocados verdes.
 
-Restam: CI (GitHub Actions, agora com pytest + ruff como gates) e docs
-(ARCHITECTURE.md, seção de desenvolvimento).
+- `<ci>` — Iteração 5: CI em GitHub Actions (`.github/workflows/ci.yml`) rodando
+  ruff + pytest (suíte completa) em push/PR. Verificação: primeira execução na
+  CI verde (run 29953547681, ruff + suíte inteira, inclusive test_relatorio).
+
+Resta: docs (ARCHITECTURE.md com seção de desenvolvimento).
 
 ## Backlog restante (repriorizado)
 
