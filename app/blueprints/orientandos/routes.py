@@ -52,6 +52,7 @@ def criar():
                 titulo_projeto=form.titulo_projeto.data,
                 data_inicio=form.data_inicio.data,
                 data_fim_prevista=form.data_fim_prevista.data,
+                telefone=form.telefone.data,
             )
             db.session.commit()
             flash(

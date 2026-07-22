@@ -96,11 +96,12 @@ def motivo_bloqueio_exclusao(
     return None
 
 
-def criar_usuario(*, nome, email, papel, senha, autor, ativo=True) -> Usuario:
+def criar_usuario(*, nome, email, papel, senha, autor, ativo=True, telefone=None) -> Usuario:
     if Usuario.query.filter_by(email=email).first():
         raise GestaoUsuarioInvalida("E-mail já cadastrado.")
     usuario = Usuario(
-        nome=nome, email=email, papel=papel, ativo=ativo, criado_por=autor.id
+        nome=nome, email=email, papel=papel, ativo=ativo, criado_por=autor.id,
+        telefone=telefone or None,
     )
     usuario.set_senha(senha)
     db.session.add(usuario)
@@ -121,6 +122,7 @@ def criar_orientando_com_vinculo(
     titulo_projeto,
     data_inicio,
     data_fim_prevista=None,
+    telefone=None,
 ) -> Orientacao:
     """Cria a conta do orientando e, no mesmo ato, o vínculo de orientação com
     quem a criou. Dispensa a intermediação do administrador."""
@@ -130,6 +132,7 @@ def criar_orientando_com_vinculo(
         papel="orientando",
         senha=senha,
         autor=orientador,
+        telefone=telefone,
     )
     orientacao = Orientacao(
         orientador_id=orientador.id,

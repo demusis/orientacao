@@ -23,6 +23,59 @@ def test_admin_cria_usuario_com_autor_registrado(client, admin):
     assert novo.criado_por == admin.id
 
 
+def test_admin_cria_usuario_com_telefone(client, admin):
+    login(client, "admin@teste.br")
+    client.post(
+        "/admin/usuarios/novo",
+        data={
+            "nome": "Com Telefone",
+            "email": "fone@teste.br",
+            "telefone": "(65) 99999-1234",
+            "papel": "orientador",
+            "senha": "senha-teste-123",
+            "ativo": "y",
+        },
+        follow_redirects=True,
+    )
+    novo = Usuario.query.filter_by(email="fone@teste.br").one()
+    assert novo.telefone == "(65) 99999-1234"
+
+
+def test_telefone_e_opcional(client, admin):
+    """Sem telefone informado, a conta é criada e o campo fica vazio."""
+    login(client, "admin@teste.br")
+    client.post(
+        "/admin/usuarios/novo",
+        data={
+            "nome": "Sem Telefone",
+            "email": "semfone@teste.br",
+            "telefone": "",
+            "papel": "orientando",
+            "senha": "senha-teste-123",
+            "ativo": "y",
+        },
+        follow_redirects=True,
+    )
+    novo = Usuario.query.filter_by(email="semfone@teste.br").one()
+    assert novo.telefone is None
+
+
+def test_admin_edita_telefone(client, admin, orientador):
+    login(client, "admin@teste.br")
+    client.post(
+        f"/admin/usuarios/{orientador.id}/editar",
+        data={
+            "nome": orientador.nome,
+            "email": orientador.email,
+            "telefone": "11 98888-0000",
+            "papel": "orientador",
+            "ativo": "y",
+        },
+        follow_redirects=True,
+    )
+    assert db.session.get(Usuario, orientador.id).telefone == "11 98888-0000"
+
+
 def test_admin_exclui_conta_limpa(client, admin):
     login(client, "admin@teste.br")
     client.post(
@@ -73,6 +126,15 @@ def _dados_orientando(nome, email):
         "titulo_projeto": f"Projeto de {nome}",
         "data_inicio": "2026-03-01",
     }
+
+
+def test_orientador_informa_telefone_do_orientando(client, orientador):
+    login(client, "orientador@teste.br")
+    dados = _dados_orientando("Calouro Fone", "calourofone@teste.br")
+    dados["telefone"] = "(65) 98888-4321"
+    client.post("/orientandos/novo", data=dados, follow_redirects=True)
+    novo = Usuario.query.filter_by(email="calourofone@teste.br").one()
+    assert novo.telefone == "(65) 98888-4321"
 
 
 def test_orientador_cria_orientando_e_recebe_o_vinculo(client, orientador):

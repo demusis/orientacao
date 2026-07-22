@@ -27,6 +27,9 @@ from app.models.user import PAPEIS
 class UsuarioForm(FlaskForm):
     nome = StringField("Nome", validators=[DataRequired(), Length(max=120)])
     email = StringField("E-mail", validators=[DataRequired(), Email(), Length(max=254)])
+    telefone = StringField(
+        "Telefone celular", validators=[Optional(), Length(max=32)]
+    )
     papel = SelectField("Papel", choices=[(p, p.capitalize()) for p in PAPEIS])
     senha = PasswordField("Senha inicial", validators=[Optional(), Length(min=8, max=128)])
     ativo = BooleanField("Ativo", default=True)

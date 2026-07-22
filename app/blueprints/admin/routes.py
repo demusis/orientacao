@@ -75,6 +75,7 @@ def criar_usuario():
                     senha=form.senha.data,
                     autor=current_user,
                     ativo=form.ativo.data,
+                    telefone=form.telefone.data,
                 )
                 db.session.commit()
                 flash("Usuário criado.", "success")
@@ -136,6 +137,7 @@ def editar_usuario(usuario_id: int):
             return redirect(url_for("admin.editar_usuario", usuario_id=usuario.id))
         usuario.nome = form.nome.data
         usuario.email = form.email.data.lower().strip()
+        usuario.telefone = form.telefone.data or None
         usuario.papel = form.papel.data
         usuario.ativo = form.ativo.data
         if form.senha.data:

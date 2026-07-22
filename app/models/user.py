@@ -14,6 +14,8 @@ class Usuario(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(120), nullable=False)
     email = db.Column(db.String(254), unique=True, nullable=False, index=True)
+    # Contato opcional; texto livre para admitir formatação (DDD, país)
+    telefone = db.Column(db.String(32), nullable=True)
     senha_hash = db.Column(db.String(255), nullable=False)
     papel = db.Column(db.Enum(*PAPEIS, name="papel_usuario"), nullable=False)
     ativo = db.Column(db.Boolean, nullable=False, default=True)
