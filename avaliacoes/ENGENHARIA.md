@@ -61,3 +61,16 @@ exigir `Orientacao.orientando.has(ativo=True)`. Suíte verde restaurada. CI
 
 - `664d3b3` — Iteração 1: adotar ruff + higiene de imports (I001, F401) em 39
   arquivos. Verificação: suíte verde exceto o vermelho pré-existente acima.
+- `493fe39` — Iteração 2: `requirements-dev.txt` (pytest + ruff), removendo
+  pytest do runtime. Verificação: suíte verde.
+
+## Backlog restante (repriorizado)
+
+| # | Item | Dimensão | Impacto | Esforço | Risco |
+|---|---|---|---|---|---|
+| 3 | CI em GitHub Actions (pytest + ruff) — desbloqueada | manutenção | alto | médio | baixo |
+| 4 | `ARCHITECTURE.md` | documentação | alto | médio | baixo |
+| 5 | Seção de desenvolvimento (setup/testes/migração) no README/CONTRIBUTING | documentação | médio | baixo | baixo |
+| — | Modernizações do ruff (UP017, UP012) — autofix seguro | manutenção | baixo | baixo | baixo |
+| 6 | Extrair checagem de gestor repetida para helper/global | manutenção | médio | médio | médio |
+| — | Manuais do ruff (E702, F841, B011/B018/B904, E741) | manutenção | baixo | baixo | baixo |
