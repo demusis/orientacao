@@ -2,7 +2,6 @@ from datetime import date
 
 from app.extensions import db
 from app.models import LogAuditoria, Usuario
-
 from tests.conftest import login
 
 

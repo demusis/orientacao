@@ -3,8 +3,8 @@ import os
 import click
 from flask import Flask
 
-from config import config_by_name
 from app.extensions import csrf, db, login_manager, migrate
+from config import config_by_name
 
 
 def create_app(config_name: str | None = None) -> Flask:
@@ -33,15 +33,14 @@ def create_app(config_name: str | None = None) -> Flask:
     csrf.init_app(app)
 
     from app import models  # noqa: F401  (registro dos mapeamentos)
-
-    from app.blueprints.auth import bp as auth_bp
     from app.blueprints.admin import bp as admin_bp
-    from app.blueprints.main import bp as main_bp
+    from app.blueprints.atas import bp as atas_bp
+    from app.blueprints.auth import bp as auth_bp
     from app.blueprints.cronogramas import bp as cronogramas_bp
     from app.blueprints.documentos import bp as documentos_bp
-    from app.blueprints.atas import bp as atas_bp
-    from app.blueprints.reunioes import bp as reunioes_bp
+    from app.blueprints.main import bp as main_bp
     from app.blueprints.orientandos import bp as orientandos_bp
+    from app.blueprints.reunioes import bp as reunioes_bp
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(admin_bp, url_prefix="/admin")
@@ -248,9 +247,9 @@ def register_cli(app: Flask) -> None:
 
 
 def register_template_globals(app: Flask) -> None:
-    from app.models.orientacao import MODALIDADE_LABEL, TIPO_EVENTO_LABEL
     from app.models.ata import RESULTADO_LABEL
     from app.models.cronograma import ETAPA_MARCO_LABEL, TIPO_MARCO_LABEL
+    from app.models.orientacao import MODALIDADE_LABEL, TIPO_EVENTO_LABEL
 
     app.jinja_env.globals.update(
         ETAPA_MARCO_LABEL=ETAPA_MARCO_LABEL,

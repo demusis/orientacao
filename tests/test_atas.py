@@ -1,5 +1,4 @@
 from app.models import Ata, LogAuditoria, Parecer
-
 from tests.conftest import login
 
 
@@ -31,9 +30,8 @@ def test_ata_finalizada_e_imutavel_e_tentativa_e_auditada(app, orientacao, orien
     from datetime import date
 
     from app.extensions import db
-    from app.services.atas import AtaImutavel, atualizar_ata, finalizar_ata
-
     from app.models import AtaParticipacao
+    from app.services.atas import AtaImutavel, atualizar_ata, finalizar_ata
 
     ata = Ata(
         orientador_id=orientador.id,

@@ -17,7 +17,6 @@ from app.models import ConfiguracaoEmail
 from app.services import backup, cripto
 from app.services import email as email_service
 from app.services.cripto import SegredoIlegivel
-
 from tests.conftest import login
 
 SENHA_APP = "abcd efgh ijkl mnop"

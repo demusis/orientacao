@@ -12,8 +12,8 @@ banco.
 """
 import io
 import json
-import re
 import os
+import re
 import zipfile
 from datetime import date, datetime, time, timezone
 

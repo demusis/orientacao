@@ -20,7 +20,7 @@ from wtforms.validators import (
     ValidationError,
 )
 
-from app.models.orientacao import MODALIDADES, MODALIDADE_LABEL
+from app.models.orientacao import MODALIDADE_LABEL, MODALIDADES
 from app.models.user import PAPEIS
 
 

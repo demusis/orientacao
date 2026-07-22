@@ -2,7 +2,6 @@ from datetime import date
 
 from app.extensions import db
 from app.models import Ata, LogAuditoria, Marco, Orientacao
-
 from tests.conftest import _criar_usuario, login
 
 

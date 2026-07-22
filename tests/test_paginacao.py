@@ -8,7 +8,6 @@ from datetime import date
 
 from app.extensions import db
 from app.models import Orientacao, Usuario
-
 from tests.conftest import _criar_usuario, login
 
 

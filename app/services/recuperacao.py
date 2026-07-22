@@ -10,8 +10,8 @@ emitido antes deixa de validar — sem precisar marcá-lo como usado. É o mesmo
 princípio do `get_session_auth_hash` do Django. Como efeito, um segundo pedido
 de recuperação também invalida o link do primeiro.
 """
-from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from flask import current_app
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from app.models import Usuario
 

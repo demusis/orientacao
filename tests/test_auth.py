@@ -1,5 +1,4 @@
 from app.models import LogAuditoria
-
 from tests.conftest import login
 
 

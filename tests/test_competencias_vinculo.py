@@ -5,9 +5,7 @@ from datetime import date
 
 from app.extensions import db
 from app.models import EventoVinculo, LogAuditoria
-
 from tests.conftest import _criar_usuario, login
-
 
 # --- título do projeto: orientador ---
 

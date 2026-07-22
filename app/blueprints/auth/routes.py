@@ -1,8 +1,8 @@
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 from flask import flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
-from urllib.parse import urlparse
 
 from app.blueprints.auth import bp
 from app.blueprints.auth.forms import (

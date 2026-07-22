@@ -9,8 +9,6 @@ from flask import (
 )
 from flask_login import current_user, login_required
 
-from app.services import exportacao
-
 from app.blueprints.atas import bp
 from app.blueprints.atas.forms import (
     AcaoForm,
@@ -21,8 +19,8 @@ from app.blueprints.atas.forms import (
     ReagendarForm,
 )
 from app.extensions import db
-from app.models import Ata, AtaParticipacao, Parecer, VersaoDocumento, Documento
-from app.services import auditoria
+from app.models import Ata, AtaParticipacao, Documento, Parecer, VersaoDocumento
+from app.services import auditoria, exportacao
 from app.services.atas import (
     AtaImutavel,
     OperacaoInvalida,

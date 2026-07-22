@@ -4,7 +4,6 @@ from datetime import date, timedelta
 
 from app.extensions import db
 from app.models import Ata, Marco
-
 from tests.conftest import login, pdf_falso
 
 

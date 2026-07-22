@@ -3,10 +3,14 @@ from datetime import date, timedelta
 
 from app.extensions import db
 from app.models import (
-    Ata, AtaParticipacao, Documento, Marco, Parecer, VersaoDocumento,
+    Ata,
+    AtaParticipacao,
+    Documento,
+    Marco,
+    Parecer,
+    VersaoDocumento,
 )
 from app.services import relatorio
-
 from tests.conftest import login
 
 

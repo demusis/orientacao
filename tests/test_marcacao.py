@@ -15,7 +15,6 @@ from reportlab.platypus import SimpleDocTemplate
 from app.extensions import db
 from app.models import Ata, AtaParticipacao
 from app.services import exportacao, marcacao
-
 from tests.conftest import login
 
 ESTILOS = getSampleStyleSheet()

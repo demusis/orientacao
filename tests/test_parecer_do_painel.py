@@ -6,13 +6,10 @@ avaliava tinha de navegar até Pareceres e reencontrar na lista a versão que
 acabara de ver. Atrito plausível para o achado U-6 do ciclo de 21/07/2026: três
 entregas sem parecer.
 """
-from datetime import date
 
 from app.extensions import db
-from app.models import Documento, Orientacao, Parecer, Usuario, VersaoDocumento
-
-
-from tests.conftest import login, pdf_falso
+from app.models import Documento, Parecer, VersaoDocumento
+from tests.conftest import login
 
 
 def _versao(orientacao, titulo="Projeto de pesquisa", nome="p.pdf"):

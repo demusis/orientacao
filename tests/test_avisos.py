@@ -21,7 +21,6 @@ from app.models import (
 )
 from app.services import avisos, cripto
 from app.services import email as email_service
-
 from tests.conftest import login
 
 
@@ -522,7 +521,6 @@ def test_assinatura_separada_do_conteudo(client, orientacao, orientando):
 
 
 def _reuniao_em(orientacao, orientador, quando, hora=None, status="rascunho"):
-    from datetime import time as _time
     a = Ata(
         orientador_id=orientador.id,
         data_reuniao=quando,

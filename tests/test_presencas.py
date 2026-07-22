@@ -1,5 +1,4 @@
 from app.models import Ata, LogAuditoria, Reagendamento
-
 from tests.conftest import login
 
 

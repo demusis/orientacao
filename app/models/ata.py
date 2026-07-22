@@ -3,7 +3,6 @@ from datetime import datetime, timezone
 
 from app.extensions import db
 
-
 FORMATOS_CONTEUDO = ("texto", "markdown")
 
 

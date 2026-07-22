@@ -8,14 +8,10 @@ from app.models import (
     Documento,
     LogAuditoria,
     Marco,
-    Orientacao,
     OrientacaoOrientador,
     Parecer,
-    Usuario,
-    VersaoDocumento,
 )
 from app.services import indicadores
-
 from tests.conftest import _criar_usuario, login, pdf_falso
 
 

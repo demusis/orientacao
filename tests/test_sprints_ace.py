@@ -9,11 +9,8 @@ from app.models import (
     LogAuditoria,
     Marco,
     OrientacaoOrientador,
-    Usuario,
 )
-
 from tests.conftest import _criar_usuario, login
-
 
 # ---------- Sprint A: tipologia de marcos e eventos do vínculo ----------
 

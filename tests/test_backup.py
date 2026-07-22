@@ -2,12 +2,9 @@
 import io
 import json
 import zipfile
-from datetime import date
 
-from app.extensions import db
-from app.models import Ata, AtaParticipacao, Documento, LogAuditoria, Marco, Usuario
+from app.models import Ata, Documento, LogAuditoria, Marco, Usuario
 from app.services import backup as servico
-
 from tests.conftest import login, pdf_falso
 
 

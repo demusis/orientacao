@@ -10,7 +10,7 @@ from wtforms import (
 )
 from wtforms.validators import DataRequired, Optional
 
-from app.models.ata import RESULTADOS_PARECER, RESULTADO_LABEL, TIPOS_PARECER
+from app.models.ata import RESULTADO_LABEL, RESULTADOS_PARECER, TIPOS_PARECER
 
 # Nota exibida sob os campos longos, que aceitam marcação. O texto é curto de
 # propósito: o repertório completo está na Ajuda.

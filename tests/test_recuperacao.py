@@ -7,11 +7,9 @@ as sessões abertas — o cenário em que a recuperação de fato precisa servir
 import pytest
 
 from app.extensions import db
-from app.models import ConfiguracaoEmail, LogAuditoria, Usuario
+from app.models import ConfiguracaoEmail, LogAuditoria
 from app.services import cripto, recuperacao
 from app.services import email as email_service
-
-from tests.conftest import login
 
 
 @pytest.fixture

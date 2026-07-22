@@ -13,7 +13,6 @@ de geração — que é o que um retrato honesto declara.
 """
 from io import BytesIO
 
-from reportlab.lib import colors
 from reportlab.platypus import Paragraph, Spacer
 
 from app.models import Ata, Parecer

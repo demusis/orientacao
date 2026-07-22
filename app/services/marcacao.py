@@ -14,6 +14,8 @@ de HTML cru (`block_html`, `inline_html`) nunca são repassados como marcação 
 saem como texto literal. Nada que venha do usuário chega à saída sem atravessar
 um emissor de vocabulário fechado, de modo que não é preciso `bleach` nem `nh3`.
 """
+from xml.sax.saxutils import escape as escapar_xml
+
 import mistune
 from markupsafe import Markup
 from markupsafe import escape as escapar_html
@@ -21,7 +23,6 @@ from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.platypus import HRFlowable, Paragraph, Spacer, Table, TableStyle
-from xml.sax.saxutils import escape as escapar_xml
 
 # Largura útil do A4 com as margens de `exportacao._documento_base`
 LARGURA_UTIL = 170 * mm
