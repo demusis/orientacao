@@ -1,10 +1,15 @@
 """Pendências do painel: o que está parado esperando ação de alguém.
 
 Reúne, nos vínculos ativos visíveis ao usuário corrente, as entregas
-sinalizadas à espera de confirmação, as tarefas em aberto, as atas ainda em
-rascunho e as versões de documento sem parecer. Cada categoria é obtida em uma
-única consulta — percorrer `orientacao.marcos` por vínculo dispararia uma
-consulta por orientação, pois o relacionamento é `lazy="dynamic"`."""
+sinalizadas à espera de confirmação, as tarefas em aberto, as reuniões já
+realizadas sem ata, as atas ainda em rascunho e as versões de documento sem
+parecer. Cada categoria é obtida em uma única consulta: percorrer
+`orientacao.marcos` por vínculo dispararia uma consulta por orientação, pois o
+relacionamento é `lazy="dynamic"`.
+
+Devolve ainda `proximas_reunioes`, que é agenda e não pendência, e por isso não
+entra no total: reunião marcada para a semana que vem não está parada esperando
+ninguém."""
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
@@ -42,8 +47,10 @@ def pendencias() -> dict:
         return {
             "entregas_a_confirmar": [],
             "tarefas_abertas": [],
+            "reunioes_sem_ata": [],
             "atas_rascunho": [],
             "versoes_sem_parecer": [],
+            "proximas_reunioes": [],
             "total": 0,
         }
 
@@ -71,7 +78,11 @@ def pendencias() -> dict:
         .all()
     )
 
-    atas_rascunho = (
+    # Toda reunião em rascunho dos vínculos visíveis, partida em seguida por
+    # estado. Uma consulta só: filtrar "já realizada" em SQL exigiria comparar
+    # data e hora, e a regra (hora desconhecida não é zero) já está na
+    # propriedade `Ata.realizada`.
+    rascunhos = (
         Ata.query.join(AtaParticipacao, AtaParticipacao.ata_id == Ata.id)
         .filter(
             AtaParticipacao.orientacao_id.in_(ids),
@@ -80,6 +91,14 @@ def pendencias() -> dict:
         .order_by(Ata.data_reuniao.desc())
         .distinct()
         .all()
+    )
+    # Reunião marcada para daqui a duas semanas não é pendência: não há o que
+    # fazer com ela ainda. Antes desta divisão ela figurava como "ata em
+    # rascunho a finalizar" desde o instante do agendamento.
+    reunioes_sem_ata = [a for a in rascunhos if a.realizada and not a.ata_redigida]
+    atas_rascunho = [a for a in rascunhos if a.realizada and a.ata_redigida]
+    proximas_reunioes = sorted(
+        (a for a in rascunhos if a.agendada), key=lambda a: a.data_reuniao
     )
 
     # apenas a versão corrente de cada documento: versões antigas sem parecer
@@ -108,11 +127,16 @@ def pendencias() -> dict:
     return {
         "entregas_a_confirmar": entregas_a_confirmar,
         "tarefas_abertas": tarefas_abertas,
+        "reunioes_sem_ata": reunioes_sem_ata,
         "atas_rascunho": atas_rascunho,
         "versoes_sem_parecer": versoes_sem_parecer,
+        # agenda, e não pendência: fica fora do total, que conta o que está
+        # parado esperando ação
+        "proximas_reunioes": proximas_reunioes,
         "total": (
             len(entregas_a_confirmar)
             + len(tarefas_abertas)
+            + len(reunioes_sem_ata)
             + len(atas_rascunho)
             + len(versoes_sem_parecer)
         ),

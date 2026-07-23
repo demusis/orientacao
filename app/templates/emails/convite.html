@@ -1,0 +1,94 @@
+{#-
+  Convite de reunião, parte em HTML.
+
+  Estilos vão embutidos em cada elemento, e não numa folha ou num bloco <style>:
+  cliente de e-mail ignora a primeira e vários descartam o segundo. É verboso por
+  necessidade, não por descuido.
+
+  Sem imagens, deliberadamente: imagem remota em e-mail vaza confirmação de
+  leitura ao remetente e aumenta a chance de o filtro de spam reter a mensagem.
+-#}
+{%- set fonte = "-apple-system,Segoe UI,Roboto,Arial,sans-serif" -%}
+{%- set azul = "#1a4b7a" -%}
+{%- set vermelho = "#8a2d2d" -%}
+{%- set destaque = vermelho if evento == 'cancelada' else azul -%}
+{%- set texto = "#1f2933" -%}
+{%- set apagado = "#5a6570" -%}
+{%- set borda = "#d0d5db" -%}
+{%- set p = "margin:0 0 12px;font:15px/1.55 " ~ fonte ~ ";color:" ~ texto -%}
+{%- set rotulo = "font:600 13px/1.4 " ~ fonte ~ ";color:" ~ apagado ~ ";text-transform:uppercase;letter-spacing:.04em" -%}
+<div style="max-width:620px;margin:0 auto;padding:24px;background:#ffffff">
+
+  <div style="border-left:4px solid {{ destaque }};padding-left:12px;margin-bottom:20px">
+    <div style="font:700 18px/1.3 {{ fonte }};color:{{ destaque }}">ARIADNE</div>
+    <div style="font:13px/1.4 {{ fonte }};color:{{ apagado }}">Acompanhamento de orientação acadêmica</div>
+  </div>
+
+  <p style="{{ p }}"><strong>{{ rotulos.abertura }}</strong></p>
+
+  <p style="margin:0 0 16px;padding:10px 12px;background:#fff3cd;border:1px solid #e0c96a;border-radius:4px;font:13px/1.5 {{ fonte }};color:#5c4d13">
+    {{ aviso_automatico }}
+  </p>
+
+  <div style="border:1px solid {{ borda }};border-radius:4px;margin-bottom:24px">
+    <div style="font:600 15px/1.4 {{ fonte }};color:#ffffff;background:{{ destaque }};margin:0;padding:8px 12px;border-radius:4px 4px 0 0">
+      {% if evento == 'cancelada' %}Reunião cancelada{% else %}Quando{% endif %}
+    </div>
+    <div style="padding:14px 12px">
+
+      <div style="{{ rotulo }}">Data</div>
+      <p style="margin:2px 0 12px;font:600 17px/1.4 {{ fonte }};color:{{ texto }}{% if evento == 'cancelada' %};text-decoration:line-through{% endif %}">
+        {{ ata.data_reuniao.strftime('%d/%m/%Y') }}{% if ata.hora_reuniao %} às {{ ata.hora_reuniao.strftime('%H:%M') }}{% endif %}
+      </p>
+      {% if not ata.hora_reuniao and evento != 'cancelada' %}
+      <p style="margin:-8px 0 12px;font:13px/1.5 {{ fonte }};color:{{ apagado }}">Hora ainda a definir.</p>
+      {% endif %}
+
+      {% if evento == 'remarcada' and ata.reagendamentos %}
+      {% set ultimo = ata.reagendamentos[-1] %}
+      <div style="{{ rotulo }}">Data anterior</div>
+      <p style="margin:2px 0 12px;font:15px/1.5 {{ fonte }};color:{{ apagado }};text-decoration:line-through">
+        {{ ultimo.data_anterior.strftime('%d/%m/%Y') }}{% if ultimo.hora_anterior %} às {{ ultimo.hora_anterior.strftime('%H:%M') }}{% endif %}
+      </p>
+      {% if ultimo.motivo %}
+      <div style="{{ rotulo }}">Motivo</div>
+      <p style="margin:2px 0 12px;font:15px/1.5 {{ fonte }};color:{{ texto }}">{{ ultimo.motivo }}</p>
+      {% endif %}
+      {% endif %}
+
+      {% if evento == 'cancelada' and ata.motivo_cancelamento %}
+      <div style="{{ rotulo }}">Motivo do cancelamento</div>
+      <p style="margin:2px 0 12px;font:15px/1.5 {{ fonte }};color:{{ texto }}">{{ ata.motivo_cancelamento }}</p>
+      {% endif %}
+
+      <div style="{{ rotulo }}">Convocada por</div>
+      <p style="margin:2px 0 12px;font:15px/1.5 {{ fonte }};color:{{ texto }}">{{ ata.orientador.nome }}</p>
+
+      {% if participantes %}
+      <div style="{{ rotulo }}">Participantes</div>
+      <p style="margin:2px 0 0;font:15px/1.5 {{ fonte }};color:{{ texto }}">{{ participantes | join(', ') }}</p>
+      {% endif %}
+
+    </div>
+  </div>
+
+  {% if ata.pauta and evento != 'cancelada' %}
+  <div style="border:1px solid {{ borda }};border-radius:4px;margin-bottom:24px">
+    <div style="font:600 15px/1.4 {{ fonte }};color:#ffffff;background:{{ destaque }};margin:0;padding:8px 12px;border-radius:4px 4px 0 0">Pauta</div>
+    <div style="padding:14px 12px;font:15px/1.6 {{ fonte }};color:{{ texto }};white-space:pre-wrap">{{ ata.pauta }}</div>
+  </div>
+  {% endif %}
+
+  {% if url and evento != 'cancelada' %}
+  <p style="margin:0 0 28px">
+    <a href="{{ url }}" style="display:inline-block;background:{{ destaque }};color:#ffffff;text-decoration:none;padding:11px 22px;border-radius:4px;font:600 15px {{ fonte }}">Abrir o ARIADNE</a>
+  </p>
+  {% endif %}
+
+  <hr style="border:0;border-top:1px solid {{ borda }};margin:8px 0 12px">
+  <p style="margin:0;font:12px/1.65 {{ fonte }};color:#8a939b">
+    <strong>ARIADNE</strong>: Ambiente de Revisão, Integração, Acompanhamento Discente e Normatização de Estudos.<br>
+    {{ aviso_automatico }}<br>
+    Para tratar da reunião, escreva diretamente a {{ ata.orientador.nome }}.
+  </p>
+</div>

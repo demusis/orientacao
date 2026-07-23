@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_form %}
+{% block title %}Agendar reunião · ARIADNE{% endblock %}
+{% block voltar %}<a class="voltar" href="{{ url_for('reunioes.index') }}">Reuniões</a>{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Agendar reunião</h1>
+  <p><small>Marca uma reunião futura e envia um aviso por e-mail a cada
+  convidado, com a data, a hora e a pauta. Com um único selecionado, a reunião é
+  individual e fica no módulo de atas do vínculo correspondente.</small></p>
+  <p><small>As deliberações não são pedidas aqui: elas registram o que foi
+  decidido, e só existem depois do encontro. Passada a data, a reunião aparece em
+  <em>Aguardando ata</em>, onde se assinalam as presenças, se escreve a ata e se
+  derivam tarefas.</small></p>
+  {% if not vinculos %}
+  <p class="flash flash-warning">É necessário ao menos um vínculo ativo para
+  agendar reunião.</p>
+  {% endif %}
+  {{ render_form(form) }}
+</div>
+{% endblock %}

@@ -155,6 +155,12 @@ dl dd { margin: .2rem 0 0 0; }
 .voltar:hover { text-decoration: underline; }
 .voltar::before { content: "‹ "; }
 
+/* Ciclo da reunião: atalhos na página da ata e cancelamento na agenda */
+.acoes-reuniao { margin: 0 0 1rem; font-size: .9rem; }
+.cancelar-reuniao { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: .5rem 0; padding: .5rem .7rem; border: 1px solid var(--borda); border-radius: 4px; background: #fbfbfc; }
+.cancelar-reuniao label { flex: 1 1 100%; font-size: .85rem; color: #555; }
+.cancelar-reuniao input[type="text"] { flex: 1 1 18rem; margin: 0; }
+
 /* Barra de abas entre os módulos do vínculo */
 .modulos-nav { display: flex; flex-wrap: wrap; gap: .2rem; margin: 0 0 1.2rem; border-bottom: 1px solid var(--borda); }
 .modulos-nav a { padding: .45rem .9rem; text-decoration: none; color: var(--azul); border-bottom: 2px solid transparent; }

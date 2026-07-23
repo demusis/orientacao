@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_form %}
+{% block title %}Convidados da reunião · ARIADNE{% endblock %}
+{% block voltar %}<a class="voltar" href="{{ url_for('reunioes.index') }}">Reuniões</a>{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Convidados da reunião</h1>
+  <p><strong>Quando:</strong> {{ ata.data_reuniao.strftime('%d/%m/%Y') }}{% if ata.hora_reuniao %} às {{ ata.hora_reuniao.strftime('%H:%M') }}{% endif %}</p>
+  {% if ata.pauta %}<p><strong>Pauta:</strong> {{ ata.pauta | truncate(160) }}</p>{% endif %}
+  <p><small>Todos os convidados, incluídos e retirados, recebem o aviso da
+  alteração. Quem já teve presença assinalada não pode ser retirado: a presença é
+  um fato registrado com autor e carimbo. Nesse caso, reverta a presença a
+  pendente na página da reunião, ou mantenha o convidado.</small></p>
+  {{ render_form(form) }}
+</div>
+{% endblock %}

@@ -4,15 +4,46 @@
 {% block voltar %}<a class="voltar" href="{{ url_for('atas.listar_atas', orientacao_id=orientacao.id) }}">Atas</a>{% endblock %}
 {% block content %}
 {{ nav_modulos(orientacao, 'atas') }}
-<h1>Ata de {{ ata.data_reuniao }}, projeto {{ orientacao.titulo_projeto }}</h1>
+<h1>Reunião de {{ ata.data_reuniao }}, projeto {{ orientacao.titulo_projeto }}</h1>
 <p>
   Tipo: <span class="badge">{{ ata.tipo }}</span> ·
-  Status: <span class="badge {% if ata.imutavel %}badge-concluido{% endif %}">{{ ata.status }}</span>
+  Estado:
+  {% if ata.status == 'cancelada' %}<span class="badge badge-atrasado">cancelada</span>
+  {% elif ata.status == 'finalizada' %}<span class="badge badge-concluido">ata finalizada</span>
+  {% elif ata.agendada %}<span class="badge">agendada</span>
+  {% elif not ata.ata_redigida %}<span class="badge badge-atrasado">aguardando ata</span>
+  {% else %}<span class="badge">ata em redação</span>{% endif %}
   {% if ata.finalizada_em %} · finalizada em {{ ata.finalizada_em.strftime('%Y-%m-%d %H:%M') }} (UTC){% endif %}
-  {% if ata.imutavel %} ·
+  {% if ata.status == 'finalizada' %} ·
   <a href="{{ url_for('atas.pdf_ata', orientacao_id=orientacao.id, ata_id=ata.id) }}">Exportar PDF</a>
   {% endif %}
 </p>
+
+{% if ata.status == 'cancelada' %}
+<p class="flash flash-warning"><strong>Reunião cancelada</strong>
+  {%- if ata.cancelada_em %} em {{ ata.cancelada_em.strftime('%Y-%m-%d %H:%M') }} (UTC){% endif %}
+  {%- if ata.cancelador %} por {{ ata.cancelador.nome }}{% endif %}.
+  {% if ata.motivo_cancelamento %}Motivo: {{ ata.motivo_cancelamento }}{% endif %}
+  O registro é preservado, mas a reunião não gera lembrete, presença nem ata.</p>
+{% elif ata.agendada %}
+<p class="flash flash-info">Reunião ainda por acontecer. As deliberações e as
+presenças são preenchidas depois do encontro; até lá, a pauta pode ser ajustada e
+a reunião, remarcada ou cancelada.</p>
+{% elif ata.status == 'rascunho' and not ata.ata_redigida %}
+<p class="flash flash-warning">A data já passou e as deliberações ainda não foram
+redigidas. Assinale as presenças, escreva a ata e finalize-a.</p>
+{% endif %}
+
+{# a agenda é do orientador convocante: o blueprint de reuniões não admite o
+   admin, que trata a mesma reunião por esta página #}
+{% if ata.status == 'rascunho' and current_user.id == ata.orientador_id
+      and current_user.papel == 'orientador' %}
+<p class="acoes-reuniao">
+  <a href="{{ url_for('reunioes.convidados', ata_id=ata.id) }}">Alterar convidados</a> ·
+  <a href="{{ url_for('reunioes.criar_tarefa_derivada', ata_id=ata.id) }}">Nova tarefa derivada</a> ·
+  <a href="{{ url_for('reunioes.index') }}">Agenda de reuniões</a>
+</p>
+{% endif %}
 
 <div class="card">
   <h2>Agendamento</h2>
@@ -73,13 +104,17 @@
 
 {% if pode_editar %}
   <div class="card">
-    <h2>Conteúdo atual</h2>
+    <h2>Conteúdo {% if not ata.ata_redigida %}(pauta){% else %}atual{% endif %}</h2>
     <p><small>É assim que o texto sairá no PDF assinável. Salve o rascunho para
     conferir a formatação antes de finalizar.</small></p>
     <h3>Pauta</h3>
     <div class="prosa">{{ ata.pauta | marcacao(ata.formato_conteudo) }}</div>
     <h3>Deliberações</h3>
+    {% if ata.ata_redigida %}
     <div class="prosa">{{ ata.deliberacoes | marcacao(ata.formato_conteudo) }}</div>
+    {% else %}
+    <p><small>Ainda em branco. São exigidas na finalização da ata.</small></p>
+    {% endif %}
   </div>
   <div class="card">
     <h2>Editar conteúdo (rascunho)</h2>

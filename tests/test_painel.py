@@ -202,7 +202,7 @@ def test_atalhos_de_criacao_so_para_orientador(client, orientador, orientando, a
     login(client, "orientador@teste.br")
     pagina = client.get("/dashboard").data.decode()
     assert "+ Nova tarefa" in pagina
-    assert "+ Nova ata de reunião" in pagina
+    assert "+ Agendar reunião" in pagina
 
     client.post("/auth/logout")
     login(client, "orientando@teste.br")

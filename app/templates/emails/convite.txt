@@ -1,0 +1,58 @@
+{#-
+  Convite de reunião, parte em texto simples.
+
+  Não é resumo do HTML nem remete a ele: é o que aparece em leitor de tela, em
+  cliente sem HTML e na pré-visualização da caixa de entrada. Precisa bastar-se.
+
+  A indentação de dois espaços é a única hierarquia visível num e-mail em texto;
+  daí o cuidado com {%- -%} em cada bloco, porque o Jinja a consome com
+  facilidade.
+-#}
+{{ rotulos.abertura }}
+
+{{ aviso_automatico }}
+
+{{ '=' * 68 }}
+{% if evento == 'cancelada' %}REUNIÃO CANCELADA{% else %}QUANDO{% endif %}
+{{ '=' * 68 }}
+
+  Data: {{ ata.data_reuniao.strftime('%d/%m/%Y') }}{% if ata.hora_reuniao %} às {{ ata.hora_reuniao.strftime('%H:%M') }}{% else %} (hora a definir){% endif %}
+
+  Convocada por: {{ ata.orientador.nome }}
+{% if participantes %}
+  Participantes: {{ participantes | join(', ') }}
+{%- endif %}
+{% if evento == 'cancelada' and ata.motivo_cancelamento %}
+
+  Motivo do cancelamento:
+  {{ ata.motivo_cancelamento }}
+{%- endif %}
+{% if ata.reagendamentos and evento == 'remarcada' %}
+{%- set ultimo = ata.reagendamentos[-1] %}
+
+  Data anterior: {{ ultimo.data_anterior.strftime('%d/%m/%Y') }}{% if ultimo.hora_anterior %} às {{ ultimo.hora_anterior.strftime('%H:%M') }}{% endif %}
+{% if ultimo.motivo %}  Motivo: {{ ultimo.motivo }}
+{% endif %}
+{%- endif %}
+{% if ata.pauta and evento != 'cancelada' %}
+{{ '=' * 68 }}
+PAUTA
+{{ '=' * 68 }}
+
+  {{ ata.pauta }}
+{% endif %}
+{%- if url and evento != 'cancelada' %}
+
+Acompanhe pelo sistema: {{ url }}
+{% endif %}
+{# Atenção ao abrir este comentário com {#- : o hífen comeria a linha em branco
+   acima, colando a assinatura no último bloco.
+   "-- " com espaço ao final é a marca de assinatura do RFC 3676. Clientes de
+   e-mail a usam para recolher o rodapé, e é por isso que o aviso de mensagem
+   automática aparece TAMBÉM logo após a abertura: recolhido aqui, segue
+   visível lá. #}
+-- 
+ARIADNE: Ambiente de Revisão, Integração, Acompanhamento Discente e Normatização de Estudos.
+
+{{ aviso_automatico }}
+Para tratar da reunião, escreva diretamente a {{ ata.orientador.nome }}.

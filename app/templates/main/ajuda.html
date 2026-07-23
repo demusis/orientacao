@@ -78,9 +78,9 @@
   topo, um bloco de <strong>acesso rápido</strong> reúne, conforme o seu papel, as áreas
   de uso mais frequente: o administrador vê atalhos para Usuários, Orientações, Modelos,
   E-mail, Backup e Auditoria; o orientador vê Reuniões, Orientandos e os atalhos de criar
-  (<em>+ Nova tarefa</em>, <em>+ Nova ata de reunião</em>).</p>
-  <p>Em seguida, o Painel reúne o que está pendente nos seus vínculos ativos, em quatro
-  quadros, e por fim lista os vínculos visíveis ao seu papel (o administrador vê todos;
+  (<em>+ Agendar reunião</em>, <em>+ Nova tarefa</em>).</p>
+  <p>Em seguida, o Painel mostra a agenda de <strong>próximas reuniões</strong> e o que
+  está pendente nos seus vínculos ativos, e por fim lista os vínculos visíveis ao seu papel (o administrador vê todos;
   orientador e orientando veem apenas os próprios). O botão <em>Abrir</em> conduz à
   página do vínculo, que reúne os quatro módulos: Cronograma, Documentos, Atas e
   Pareceres.</p>
@@ -116,11 +116,17 @@
     orientando, o mesmo quadro aparece como "suas entregas aguardando avaliação".</li>
     <li><strong>Tarefas em aberto</strong>: marcos ainda não concluídos, em ordem de
     prazo, com selo <em>atrasado</em> quando a data prevista já venceu.</li>
-    <li><strong>Atas em rascunho</strong>: reuniões registradas cuja ata ainda não foi
+    <li><strong>Reuniões realizadas sem ata</strong>: encontros cuja data já passou e
+    cujas deliberações continuam em branco.</li>
+    <li><strong>Atas em rascunho</strong>: reuniões já redigidas cuja ata ainda não foi
     finalizada.</li>
     <li><strong>Versões aguardando parecer</strong>: a versão mais recente de cada
     documento que ainda não recebeu parecer. Versões superadas por outra não aparecem.</li>
   </ul>
+  <p>O quadro <strong>Próximas reuniões</strong> é agenda, e não pendência: reunião
+  marcada para a semana que vem não está parada esperando ninguém, e por isso não entra
+  na contagem. Ela passa a cobrar ação depois da data, no quadro
+  <em>Reuniões realizadas sem ata</em>.</p>
   <p>Não havendo nada pendente, o Painel informa isso expressamente. Cada linha leva ao
   ponto onde a pendência se resolve, e o destino depende do seu papel: em
   <em>Versões aguardando parecer</em>, o orientador vai direto ao formulário de parecer
@@ -129,8 +135,10 @@
   <p><strong>Avisos por e-mail.</strong> Estando o envio configurado pelo administrador,
   quem tem pendência recebe, no máximo uma vez por dia, uma mensagem reunindo tudo o que
   lhe cabe, com orientação de como proceder em cada caso. Quem não tem pendência não
-  recebe nada, e os avisos cessam quando as pendências se resolvem. São mensagens
-  automáticas: não adianta respondê-las.</p>
+  recebe nada, e os avisos cessam quando as pendências se resolvem. À parte desse resumo
+  diário, o <strong>convite de reunião</strong> sai na hora em que a reunião é agendada,
+  remarcada ou cancelada, porque um convite que chega no dia seguinte já não é convite.
+  Todas são mensagens automáticas: não adianta respondê-las.</p>
 </section>
 
 <section id="administracao" class="card">
@@ -191,6 +199,11 @@
   agendadas nas próximas 48 horas. Quem
   não tem pendência não recebe nada, e os avisos a vencer são preventivos, para dar tempo
   de agir antes do atraso.</p>
+  <p>Fora desse lote, o sistema envia <strong>na hora</strong> o convite de reunião
+  (agendada, remarcada, com participantes alterados ou cancelada) e o link de redefinição
+  de senha. São eventos, não pendências: esperar o resumo do dia seguinte os tornaria
+  inúteis. Falhando o envio, a operação segue seu curso e a tela informa que o aviso não
+  saiu.</p>
   <p>O disparo aproveita o tráfego do site: na primeira visita de cada dia os avisos
   saem, e nas demais nada acontece. A hospedagem gratuita não oferece tarefas agendadas,
   de modo que um dia inteiro sem nenhum acesso adia o envio para o dia seguinte. Cada
@@ -342,12 +355,55 @@
   <h2>7. Atas de orientação
     {% if current_user.papel == 'orientador' %}<span class="badge badge-papel">seu papel</span>{% endif %}
   </h2>
+  <h3>7.1 Agendar uma reunião</h3>
+  <p>O menu <strong>Reuniões</strong> é a agenda do orientador. Em
+  <em>+ Agendar reunião</em> informam-se data, hora (opcional), <strong>pauta</strong>
+  e os convidados, um ou mais. Ao salvar, cada convidado recebe um
+  <strong>aviso por e-mail</strong> com a data, a hora e a pauta.</p>
+  <p>As <strong>deliberações não são pedidas no agendamento</strong>: elas registram o
+  que foi decidido, e só existem depois do encontro. Por isso a reunião percorre
+  estados, visíveis na agenda e na própria página da reunião:</p>
+  <ul>
+    <li><strong>Agendada</strong>: ainda vai acontecer. A pauta pode ser ajustada, e a
+    reunião, remarcada, cancelada ou excluída;</li>
+    <li><strong>Aguardando ata</strong>: a data passou e as deliberações continuam em
+    branco. É quando se assinalam as presenças, se escreve a ata e se derivam
+    tarefas;</li>
+    <li><strong>Ata em redação</strong>: já há deliberações escritas, e falta
+    finalizar;</li>
+    <li><strong>Ata finalizada</strong>: registro imutável, exportável em PDF;</li>
+    <li><strong>Cancelada</strong>: a reunião não vai ocorrer. Sai da agenda e deixa de
+    gerar lembrete e cobrança de ata, mas o registro e o motivo permanecem.</li>
+  </ul>
+  <p><strong>Remarcar</strong> usa o botão <em>Reagendar</em>, que guarda a data
+  anterior no histórico e avisa os convidados de novo. <strong>Alterar convidados</strong>
+  inclui ou retira participantes e também dispara aviso; quem já teve presença
+  assinalada não pode ser retirado, porque isso apagaria um fato registrado.</p>
+  <p><strong>Cancelar ou excluir.</strong> São coisas diferentes.
+  <em>Cancelar</em> exige um motivo, preserva o registro e avisa os convidados.
+  <em>Excluir</em> apaga a reunião, e só é oferecido enquanto ela <strong>nada
+  produziu</strong>: sem presença assinalada, sem reagendamento, sem ata redigida e sem
+  tarefa ligada. É a saída para o agendamento feito por engano; havendo qualquer
+  registro, o caminho é o cancelamento. Ata finalizada não se cancela nem se exclui.</p>
+  <p><strong>Tarefas derivadas.</strong> Da própria reunião, <em>Nova tarefa</em> cria um
+  marco no cronograma de cada participante selecionado, já <strong>ligado àquela
+  reunião</strong>. A ligação aparece no cronograma, na linha do tempo e entre os marcos
+  discutidos da ata, de modo que fique registrado de onde a tarefa veio. Como consequência,
+  o marco passa a contar como tendo histórico: para excluí-lo, é preciso antes desmarcá-lo
+  em <em>Marcos discutidos</em>, na página da ata.</p>
+  <p>Quem recebe os avisos de reunião: os <strong>orientandos</strong> dos vínculos
+  convidados, os <strong>coorientadores</strong> desses vínculos e o próprio
+  <strong>orientador</strong> que convocou. Contas desativadas não recebem.</p>
+  <p>Para a reunião que já aconteceu fora do sistema, use
+  <em>+ Registrar reunião já realizada</em>: a ata é redigida de uma vez e nenhum aviso
+  é enviado.</p>
+
+  <h3>7.2 Tipos de reunião e formalização da ata</h3>
   <p>As reuniões de orientação podem ser <strong>individuais</strong> (orientador e um
   orientando) ou <strong>em grupo</strong> (orientador e dois ou mais de seus
-  orientandos). O menu <strong>Reuniões → + Nova ata de reunião</strong> permite
-  selecionar um ou mais orientandos: com um único selecionado a ata é individual; com
-  dois ou mais, em grupo. A ata individual também pode ser registrada dentro do próprio
-  vínculo, em <em>Atas → + Nova ata</em>. A ata de grupo é um
+  orientandos): com um único convidado a reunião é individual; com dois ou mais, em
+  grupo. A reunião individual também pode ser registrada dentro do próprio vínculo, em
+  <em>Atas → + Registrar reunião já realizada</em>. A ata de grupo é um
   <strong>registro único compartilhado</strong>: todos os participantes visualizam a
   mesma ata em seus vínculos, com a lista de presentes. Em ambos os tipos, a ata
   formaliza-se em duas fases:</p>
@@ -360,7 +416,7 @@
     <strong>imutável</strong>: não pode ser editada nem excluída por ninguém, inclusive
     quem a redigiu. Tentativas de alteração são recusadas e registradas em auditoria.</li>
   </ol>
-  <h3>7.1 Formatação do texto</h3>
+  <h3>7.3 Formatação do texto</h3>
   <p>A <strong>pauta</strong>, as <strong>deliberações</strong> e o texto do
   <strong>parecer</strong> aceitam marcação. O que se digita é interpretado tanto na
   tela quanto no <strong>PDF assinável</strong>, a partir da mesma leitura: o documento
@@ -383,14 +439,15 @@
   (<em>texto (endereço)</em>), para que o destino não fique oculto atrás da palavra.</p>
   <p>Enquanto a ata está em rascunho, a página mostra o texto já formatado acima do
   formulário: salve o rascunho para conferir o resultado antes de finalizar.</p>
-  <h3>7.2 Reagendamento</h3>
+  <h3>7.4 Reagendamento</h3>
   <p>Enquanto a ata está em rascunho, o orientador pode <strong>reagendar</strong> a
   reunião (nova data e hora, com motivo opcional) pelo botão <em>Reagendar</em> na
-  página da ata. Cada reagendamento fica no histórico da própria ata (de/para, autor,
+  página da ata, ou pela agenda em <em>Reuniões</em>. Os convidados recebem aviso da
+  nova data. Cada reagendamento fica no histórico da própria ata (de/para, autor,
   motivo e data/hora do registro), além da trilha de auditoria. A edição comum do
   rascunho não altera a data: toda mudança de agenda passa pelo reagendamento, o que
   garante o registro. Ata finalizada não se reagenda.</p>
-  <h3>7.3 Presenças e justificativas</h3>
+  <h3>7.5 Presenças e justificativas</h3>
   <ul>
     <li>O <strong>orientador</strong> assinala, na página da ata, a
     <em>presença</em> ou <em>ausência</em> de cada orientando participante. O sistema
@@ -400,7 +457,7 @@
   <p><small>Nota: o registro de justificativa de ausência foi retirado do sistema por
   precaução relativa a dados pessoais sensíveis (LGPD); eventual ausência pode ser
   contextualizada nas deliberações da ata, a critério do orientador.</small></p>
-  <h3>7.4 Exportação em PDF e verificação</h3>
+  <h3>7.6 Exportação em PDF e verificação</h3>
   <p>Atas finalizadas e pareceres podem ser <strong>exportados em PDF</strong> para
   assinatura eletrônica externa (gov.br/SEI). O PDF traz identificador e
   <em>hash</em> de integridade; qualquer pessoa com o documento pode conferir, pelo
@@ -435,7 +492,7 @@
   Se aquela versão já tiver recebido parecer, um aviso o informa, sem impedir a emissão
   de outro, pois a decisão é sua.</p>
   <h3>8.2 Formatação e imutabilidade</h3>
-  <p>O texto do parecer aceita a <strong>mesma formatação das atas</strong> (ver 7.1):
+  <p>O texto do parecer aceita a <strong>mesma formatação das atas</strong> (ver 7.3):
   títulos, negrito, itálico, listas, citação, tabelas. O que se digita é interpretado na
   tela e no PDF assinável, a partir da mesma leitura.</p>
   <p>Diferentemente da ata, o parecer <strong>não tem fase de rascunho</strong>: é
@@ -504,6 +561,19 @@
     orientando, acompanhado individualmente. O menu <em>Reuniões</em> aceita a seleção
     de um ou mais orientandos e classifica a reunião automaticamente. Ambas seguem as
     mesmas regras de finalização e imutabilidade.</dd>
+
+    <dt>Agendei uma reunião por engano. Apago ou cancelo?</dt>
+    <dd>Enquanto ela nada produziu (sem presença assinalada, sem reagendamento, sem ata
+    redigida e sem tarefa ligada), a agenda oferece <em>Excluir</em> e a reunião
+    desaparece. Havendo qualquer um desses registros, o botão não aparece: use
+    <em>Cancelar</em>, informando o motivo. A reunião sai da agenda e dos lembretes, e o
+    registro é preservado com o motivo, o autor e a data.</dd>
+
+    <dt>Marquei uma reunião e ninguém recebeu o e-mail.</dt>
+    <dd>O envio depende de o administrador ter configurado a conta de e-mail (menu
+    <em>E-mail</em>). Quando ele falha, a mensagem na tela diz que o aviso não saiu, e a
+    reunião fica agendada do mesmo jeito. A reunião também aparece no Painel de cada
+    participante, em <em>Próximas reuniões</em>.</dd>
 
     <dt>Não encontro o menu Reuniões.</dt>
     <dd>O menu <em>Reuniões</em> é exibido apenas para o papel <strong>orientador</strong>,

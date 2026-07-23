@@ -44,11 +44,16 @@ class AtaForm(FlaskForm):
 
 
 class AtaEdicaoForm(FlaskForm):
-    """Edição de rascunho: data/hora mudam apenas pelo fluxo de reagendamento."""
+    """Edição de rascunho: data/hora mudam apenas pelo fluxo de reagendamento.
+
+    As deliberações são opcionais aqui, e não por descuido: a reunião agendada
+    ainda não aconteceu, e exigi-las impediria de corrigir a pauta antes do
+    encontro. A obrigatoriedade vale no momento certo, o da finalização, imposta
+    por `services.atas.finalizar_ata`."""
 
     pauta = TextAreaField("Pauta", validators=[DataRequired()], description=AJUDA_MARCACAO)
     deliberacoes = TextAreaField(
-        "Deliberações", validators=[DataRequired()], description=AJUDA_MARCACAO
+        "Deliberações", validators=[Optional()], description=AJUDA_MARCACAO
     )
     marcos = MultiCheckboxField(
         "Marcos discutidos", coerce=int, validators=[Optional()], description=AJUDA_MARCOS

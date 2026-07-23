@@ -151,7 +151,10 @@ def verificar(tipo: str, reg_id: int, hash_informado: str):
     momento = None
     if tipo == "ata":
         ata = db.session.get(Ata, reg_id)
-        if ata is not None and ata.imutavel:
+        # `imutavel` não serve aqui: passou a abranger a reunião cancelada, que
+        # nunca teve ata, não tem `finalizada_em` e jamais gerou PDF. Só a
+        # finalizada é registro verificável.
+        if ata is not None and ata.status == "finalizada":
             confere = exportacao.hash_ata(ata) == hash_informado
             situacao = "finalizada"
             momento = ata.finalizada_em

@@ -26,7 +26,9 @@ def _formato_congelado(conteudo_congelado: str | None, formato_gravado: str) -> 
         return "texto"
 
 
-STATUS_ATA = ("rascunho", "finalizada")
+# "cancelada" é reunião que não vai acontecer: sai da agenda, dos lembretes e
+# das pendências sem alterar consulta alguma, pois todas filtram por "rascunho".
+STATUS_ATA = ("rascunho", "finalizada", "cancelada")
 TIPOS_ATA = ("individual", "grupo")
 TIPOS_PARECER = ("andamento", "documento", "marco")
 RESULTADOS_PARECER = ("aprovado", "aprovado_com_ressalvas", "reprovado")
@@ -97,6 +99,12 @@ class Ata(db.Model):
         db.Enum(*STATUS_ATA, name="status_ata"), nullable=False, default="rascunho"
     )
     finalizada_em = db.Column(db.DateTime, nullable=True)
+    # cancelamento: a reunião marcada que não vai ocorrer. Guardado na própria
+    # linha, e não só na auditoria, porque a tela precisa exibir o motivo sem
+    # reconstituí-lo a partir do log.
+    cancelada_em = db.Column(db.DateTime, nullable=True)
+    cancelada_por = db.Column(db.Integer, db.ForeignKey("usuario.id"), nullable=True)
+    motivo_cancelamento = db.Column(db.Text, nullable=True)
     # JSON canônico do conteúdo impresso, congelado na finalização; fonte única
     # do PDF e do hash de integridade, estável a alterações externas posteriores
     # (título do projeto, nomes)
@@ -125,10 +133,58 @@ class Ata(db.Model):
     )
     orientador = db.relationship("Usuario", foreign_keys=[orientador_id])
     redator = db.relationship("Usuario", foreign_keys=[redigida_por])
+    cancelador = db.relationship("Usuario", foreign_keys=[cancelada_por])
 
     @property
     def imutavel(self) -> bool:
-        return self.status == "finalizada"
+        """Registro fechado. Abrange a cancelada: reunião que não vai ocorrer
+        não recebe presença, não se reagenda e não tem ata a redigir."""
+        return self.status in ("finalizada", "cancelada")
+
+    @property
+    def agendada(self) -> bool:
+        """Reunião marcada e ainda por acontecer."""
+        return self.status == "rascunho" and not self.realizada
+
+    @property
+    def realizada(self) -> bool:
+        """A data da reunião já passou.
+
+        **Compara apenas a data, e de propósito.** `hora_reuniao` é hora de
+        parede digitada pelo orientador, no fuso dele; o servidor roda em UTC e
+        o sistema não guarda o fuso de ninguém. Confrontar as duas grandezas
+        daria a reunião de hoje às 16:00 como realizada às 13:00 de Brasília,
+        três horas antes de começar, e a tela anunciaria "a data já passou"
+        para quem ainda vai à reunião.
+
+        O preço é o oposto, e é o erro que se prefere: a reunião de hoje pela
+        manhã só migra para "aguardando ata" na virada do dia. Nunca se declara
+        passado o que ainda está por vir. Declarar o fuso da instituição em
+        configuração resolveria de vez, e é o caminho quando houver usuários
+        fora de um mesmo fuso."""
+        if self.status != "rascunho":
+            return False
+        from app.services.tempo import agora
+
+        return self.data_reuniao < agora().date()
+
+    @property
+    def ata_redigida(self) -> bool:
+        """Deliberações preenchidas. Reunião agendada nasce com elas em branco:
+        deliberação é o que se decidiu, e não existe antes do encontro."""
+        return bool((self.deliberacoes or "").strip())
+
+    @property
+    def tem_historico(self) -> bool:
+        """Verdadeiro se a reunião já acumulou registro que a exclusão apagaria.
+        Espelha `Marco.tem_historico`: o que está limpo pode ser apagado; o que
+        já produziu registro é preservado, e o caminho passa a ser cancelar."""
+        return (
+            self.ata_redigida
+            or bool(self.reagendamentos)
+            or bool(self.marcos)
+            or any(p.presenca != "pendente" for p in self.participacoes)
+        )
 
     @property
     def formato_conteudo(self) -> str:

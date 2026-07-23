@@ -17,8 +17,8 @@
 <nav class="hub-painel" aria-label="Acesso rápido">
   <a class="hub-item" href="{{ url_for('reunioes.index') }}">Reuniões</a>
   <a class="hub-item" href="{{ url_for('orientandos.listar') }}">Orientandos</a>
+  <a class="hub-item" href="{{ url_for('reunioes.agendar') }}">+ Agendar reunião</a>
   <a class="hub-item" href="{{ url_for('reunioes.criar_tarefa_grupo') }}">+ Nova tarefa</a>
-  <a class="hub-item" href="{{ url_for('reunioes.criar_ata_grupo') }}">+ Nova ata de reunião</a>
 </nav>
 {% elif current_user.papel == 'orientando' %}
 {% set vinculos_ativos = orientacoes | selectattr('status', 'equalto', 'ativa') | list %}
@@ -36,6 +36,50 @@
 
 {% if pendencias.total == 0 %}
 <div class="flash flash-success">Nenhuma pendência em aberto.</div>
+{% endif %}
+
+{% if pendencias.proximas_reunioes %}
+<div class="card">
+  <h2>Próximas reuniões <span class="badge">{{ pendencias.proximas_reunioes|length }}</span></h2>
+  <table>
+    <tr><th>Quando</th><th>Pauta</th><th>Participantes</th><th></th></tr>
+    {% for a in pendencias.proximas_reunioes %}
+    <tr>
+      <td>{{ a.data_reuniao.strftime('%d/%m/%Y') }}{% if a.hora_reuniao %} às {{ a.hora_reuniao.strftime('%H:%M') }}{% else %} (hora a definir){% endif %}</td>
+      <td>{{ a.pauta | truncate(60) if a.pauta else 'sem pauta' }}</td>
+      <td>{% for o in a.orientacoes %}{{ o.orientando.nome }}{% if not loop.last %}, {% endif %}{% endfor %}</td>
+      <td>
+        {% if a.orientacoes %}
+        <a href="{{ url_for('atas.detalhe_ata', orientacao_id=a.orientacoes[0].id, ata_id=a.id) }}">Abrir</a>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p><small>Agenda, e não pendência: nada a fazer até a data.</small></p>
+</div>
+{% endif %}
+
+{% if pendencias.reunioes_sem_ata %}
+<div class="card">
+  <h2>{% if avalia %}Reuniões realizadas sem ata{% else %}Reuniões realizadas cuja ata não saiu{% endif %}
+    <span class="badge">{{ pendencias.reunioes_sem_ata|length }}</span></h2>
+  <table>
+    <tr><th>Reunião</th><th>Pauta</th><th>Participantes</th><th></th></tr>
+    {% for a in pendencias.reunioes_sem_ata %}
+    <tr>
+      <td>{{ a.data_reuniao }}</td>
+      <td>{{ a.pauta | truncate(60) if a.pauta else 'sem pauta' }}</td>
+      <td>{% for o in a.orientacoes %}{{ o.orientando.nome }}{% if not loop.last %}, {% endif %}{% endfor %}</td>
+      <td>
+        {% if a.orientacoes %}
+        <a href="{{ url_for('atas.detalhe_ata', orientacao_id=a.orientacoes[0].id, ata_id=a.id) }}">Abrir</a>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
 {% endif %}
 
 {% if pendencias.entregas_a_confirmar %}

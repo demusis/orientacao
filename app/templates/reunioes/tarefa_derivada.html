@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_form %}
+{% block title %}Tarefa derivada da reunião · ARIADNE{% endblock %}
+{% block voltar %}<a class="voltar" href="{{ url_for('reunioes.index') }}">Reuniões</a>{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Tarefa derivada da reunião</h1>
+  <p><strong>Reunião de</strong> {{ ata.data_reuniao.strftime('%d/%m/%Y') }}{% if ata.hora_reuniao %} às {{ ata.hora_reuniao.strftime('%H:%M') }}{% endif %}</p>
+  <p><small>Cria um marco no cronograma de cada orientando selecionado, já
+  ligado a esta reunião. A ligação aparece no cronograma, na linha do tempo e
+  entre os marcos discutidos da ata, de modo que fique registrado de onde a
+  tarefa veio.</small></p>
+  <p><small>O acompanhamento é individual: a conclusão de um orientando não
+  afeta os demais. Enquanto o marco estiver ligado à reunião, ele conta como
+  tendo histórico e não pode ser excluído; para excluí-lo, desmarque-o antes em
+  <em>Marcos discutidos</em>, na página da ata.</small></p>
+  {{ render_form(form) }}
+</div>
+{% endblock %}

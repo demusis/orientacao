@@ -1,59 +1,155 @@
 {% extends "base.html" %}
-{% block title %}Reuniões em grupo · ARIADNE{% endblock %}
+{% block title %}Reuniões · ARIADNE{% endblock %}
+{% block voltar %}<a class="voltar" href="{{ url_for('main.dashboard') }}">Painel</a>{% endblock %}
 {% block content %}
 <h1>Reuniões</h1>
-<p>Registre atas e atribua tarefas selecionando um ou mais orientandos.
-Você possui {{ vinculos|length }} vínculo(s) ativo(s).</p>
-<p>
-  <a href="{{ url_for('reunioes.criar_ata_grupo') }}">+ Nova ata de reunião</a> ·
-  <a href="{{ url_for('reunioes.criar_tarefa_grupo') }}">+ Nova tarefa</a>
-</p>
-<p><small>Atas com um único orientando são registradas como reuniões individuais
-e ficam no módulo de atas do próprio vínculo; a tabela abaixo lista as
-reuniões em grupo.</small></p>
 
-<h2>Tarefas atribuídas em grupo</h2>
-<table>
-  <tr><th>Tarefa</th><th>Prazo</th><th>Orientandos</th><th>Conclusão</th><th>Ações</th></tr>
-  {% for t in tarefas_grupo %}
-  <tr>
-    <td>{{ t.titulo }}</td>
-    <td>{{ t.data_prevista }}</td>
-    <td>{% for m in t.marcos %}{{ m.orientacao.orientando.nome }}{% if not loop.last %}, {% endif %}{% endfor %}</td>
-    <td>{{ t.marcos | selectattr('status', 'equalto', 'concluido') | list | length }} de {{ t.marcos | length }}</td>
-    <td class="acoes">
-      <a href="{{ url_for('reunioes.editar_tarefa_grupo', grupo_id=t.grupo_id) }}">Editar</a>
-      <form method="post" action="{{ url_for('reunioes.excluir_tarefa_grupo', grupo_id=t.grupo_id) }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="link">Excluir</button>
-      </form>
-    </td>
-  </tr>
-  {% else %}
-  <tr><td colspan="5">Nenhuma tarefa atribuída em grupo.</td></tr>
-  {% endfor %}
-</table>
-<p><small>Editar propaga o conteúdo (título, prazo, etapa) a todos os orientandos da
-tarefa; a conclusão de cada um é individual. A exclusão só é admitida enquanto a tarefa
-não tem histórico em nenhum orientando.</small></p>
+<nav class="hub-painel" aria-label="Ações de reunião">
+  <a class="hub-item" href="{{ url_for('reunioes.agendar') }}">+ Agendar reunião</a>
+  <a class="hub-item" href="{{ url_for('reunioes.criar_ata_grupo') }}">+ Registrar reunião já realizada</a>
+  <a class="hub-item" href="{{ url_for('reunioes.criar_tarefa_grupo') }}">+ Nova tarefa</a>
+</nav>
 
-<h2>Atas de reuniões em grupo</h2>
-<table>
-  <tr><th>Reunião</th><th>Pauta</th><th>Participantes</th><th>Status</th><th></th></tr>
-  {% for a in atas_grupo %}
-  <tr>
-    <td>{{ a.data_reuniao }}</td>
-    <td>{{ a.pauta | truncate(60) }}</td>
-    <td>{% for o in a.orientacoes %}{{ o.orientando.nome }}{% if not loop.last %}, {% endif %}{% endfor %}</td>
-    <td><span class="badge {% if a.imutavel %}badge-concluido{% endif %}">{{ a.status }}</span></td>
-    <td>
-      {% if a.orientacoes %}
-      <a href="{{ url_for('atas.detalhe_ata', orientacao_id=a.orientacoes[0].id, ata_id=a.id) }}">Abrir</a>
-      {% endif %}
-    </td>
-  </tr>
-  {% else %}
-  <tr><td colspan="5">Nenhuma ata de reunião em grupo.</td></tr>
+<p><small>Agendar marca uma reunião futura e avisa os convidados por e-mail; as
+deliberações são preenchidas depois do encontro. Registrar reunião já realizada
+serve ao que aconteceu fora do sistema, e não dispara aviso. Você possui
+{{ vinculos|length }} vínculo(s) ativo(s).</small></p>
+
+{% macro linha_reuniao(a, acoes=false) %}
+<tr>
+  <td>{{ a.data_reuniao.strftime('%d/%m/%Y') }}{% if a.hora_reuniao %} às {{ a.hora_reuniao.strftime('%H:%M') }}{% endif %}</td>
+  <td>{{ a.pauta | truncate(60) if a.pauta else 'sem pauta' }}</td>
+  <td>{% for o in a.orientacoes %}{{ o.orientando.nome }}{% if not loop.last %}, {% endif %}{% else %}nenhum{% endfor %}</td>
+  <td class="acoes">
+    {% if a.orientacoes %}
+    <a href="{{ url_for('atas.detalhe_ata', orientacao_id=a.orientacoes[0].id, ata_id=a.id) }}">Abrir</a>
+    {% endif %}
+    {% if acoes %}
+    · <a href="{{ url_for('reunioes.convidados', ata_id=a.id) }}">Convidados</a>
+    {% if a.orientacoes %}
+    · <a href="{{ url_for('atas.reagendar', orientacao_id=a.orientacoes[0].id, ata_id=a.id) }}">Reagendar</a>
+    {% endif %}
+    · <a href="{{ url_for('reunioes.criar_tarefa_derivada', ata_id=a.id) }}">Nova tarefa</a>
+    {% if not a.tem_historico %}
+    <form method="post" action="{{ url_for('reunioes.excluir', ata_id=a.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="link">Excluir</button>
+    </form>
+    {% endif %}
+    {% endif %}
+  </td>
+</tr>
+{% endmacro %}
+
+<div class="card">
+  <h2>Próximas reuniões <span class="badge">{{ proximas|length }}</span></h2>
+  <table>
+    <tr><th>Quando</th><th>Pauta</th><th>Convidados</th><th>Ações</th></tr>
+    {% for a in proximas %}
+    {{ linha_reuniao(a, acoes=true) }}
+    {% else %}
+    <tr><td colspan="4">Nenhuma reunião agendada.</td></tr>
+    {% endfor %}
+  </table>
+  {% if proximas %}
+  <h3>Cancelar uma reunião</h3>
+  <p><small>Cancelar preserva o registro e o motivo, e avisa os convidados.
+  Excluir apaga a reunião, e só é oferecido enquanto ela nada produziu.</small></p>
+  {% for a in proximas %}
+  <form method="post" action="{{ url_for('reunioes.cancelar', ata_id=a.id) }}" class="cancelar-reuniao">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="motivo-{{ a.id }}">Motivo do cancelamento de
+      {{ a.data_reuniao.strftime('%d/%m/%Y') }}{% if a.hora_reuniao %} às {{ a.hora_reuniao.strftime('%H:%M') }}{% endif %}</label>
+    <input type="text" id="motivo-{{ a.id }}" name="motivo" required
+           placeholder="Ex.: conflito de agenda da banca">
+    <button type="submit" class="link">Cancelar reunião</button>
+  </form>
   {% endfor %}
-</table>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Aguardando ata <span class="badge">{{ aguardando_ata|length }}</span></h2>
+  <p><small>Reuniões cuja data já passou e cujas deliberações ainda não foram
+  redigidas. Abra a reunião para assinalar presenças, escrever a ata e derivar
+  tarefas.</small></p>
+  <table>
+    <tr><th>Quando</th><th>Pauta</th><th>Convidados</th><th>Ações</th></tr>
+    {% for a in aguardando_ata %}
+    {{ linha_reuniao(a, acoes=true) }}
+    {% else %}
+    <tr><td colspan="4">Nenhuma reunião esperando ata.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+{% if em_redacao %}
+<div class="card">
+  <h2>Ata em redação <span class="badge">{{ em_redacao|length }}</span></h2>
+  <p><small>Já têm deliberações escritas e aguardam a finalização, que torna o
+  registro imutável e habilita a exportação em PDF.</small></p>
+  <table>
+    <tr><th>Quando</th><th>Pauta</th><th>Convidados</th><th>Ações</th></tr>
+    {% for a in em_redacao %}
+    {{ linha_reuniao(a, acoes=true) }}
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+{% if encerradas %}
+<div class="card">
+  <h2>Encerradas <span class="badge">{{ encerradas|length }}</span></h2>
+  <table>
+    <tr><th>Quando</th><th>Pauta</th><th>Convidados</th><th>Ações</th></tr>
+    {% for a in encerradas %}
+    {{ linha_reuniao(a) }}
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+{% if canceladas %}
+<div class="card">
+  <h2>Canceladas <span class="badge">{{ canceladas|length }}</span></h2>
+  <table>
+    <tr><th>Quando</th><th>Motivo</th><th>Convidados</th><th>Cancelada em (UTC)</th></tr>
+    {% for a in canceladas %}
+    <tr>
+      <td>{{ a.data_reuniao.strftime('%d/%m/%Y') }}{% if a.hora_reuniao %} às {{ a.hora_reuniao.strftime('%H:%M') }}{% endif %}</td>
+      <td>{{ a.motivo_cancelamento | truncate(60) if a.motivo_cancelamento else 'não informado' }}</td>
+      <td>{% for o in a.orientacoes %}{{ o.orientando.nome }}{% if not loop.last %}, {% endif %}{% else %}nenhum{% endfor %}</td>
+      <td>{{ a.cancelada_em.strftime('%Y-%m-%d %H:%M') if a.cancelada_em else 'não registrada' }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Tarefas atribuídas em grupo</h2>
+  <table>
+    <tr><th>Tarefa</th><th>Prazo</th><th>Orientandos</th><th>Conclusão</th><th>Ações</th></tr>
+    {% for t in tarefas_grupo %}
+    <tr>
+      <td>{{ t.titulo }}</td>
+      <td>{{ t.data_prevista }}</td>
+      <td>{% for m in t.marcos %}{{ m.orientacao.orientando.nome }}{% if not loop.last %}, {% endif %}{% endfor %}</td>
+      <td>{{ t.marcos | selectattr('status', 'equalto', 'concluido') | list | length }} de {{ t.marcos | length }}</td>
+      <td class="acoes">
+        <a href="{{ url_for('reunioes.editar_tarefa_grupo', grupo_id=t.grupo_id) }}">Editar</a>
+        <form method="post" action="{{ url_for('reunioes.excluir_tarefa_grupo', grupo_id=t.grupo_id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="link">Excluir</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5">Nenhuma tarefa atribuída em grupo.</td></tr>
+    {% endfor %}
+  </table>
+  <p><small>Editar propaga o conteúdo (título, prazo, etapa) a todos os orientandos
+  da tarefa; a conclusão de cada um é individual. A exclusão só é admitida enquanto
+  a tarefa não tem histórico em nenhum orientando.</small></p>
+</div>
 {% endblock %}

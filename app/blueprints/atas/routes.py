@@ -20,7 +20,7 @@ from app.blueprints.atas.forms import (
 )
 from app.extensions import db
 from app.models import Ata, AtaParticipacao, Documento, Parecer, VersaoDocumento
-from app.services import auditoria, exportacao
+from app.services import auditoria, convites, exportacao
 from app.services.atas import (
     AtaImutavel,
     OperacaoInvalida,
@@ -122,7 +122,7 @@ def detalhe_ata(orientacao_id: int, ata_id: int):
             )
             db.session.commit()
             flash("Ata atualizada.", "success")
-        except AtaImutavel as exc:
+        except (AtaImutavel, OperacaoInvalida) as exc:
             db.session.commit()  # persiste o log da tentativa
             flash(str(exc), "danger")
         return redirect(
@@ -162,6 +162,11 @@ def reagendar(orientacao_id: int, ata_id: int):
             )
             db.session.commit()
             flash("Reunião reagendada; o histórico foi registrado.", "success")
+            # o aviso vai depois do commit: falar com o SMTP dentro da
+            # transação seguraria a trava de escrita do SQLite
+            entregues, falhas = convites.notificar(ata, "remarcada")
+            db.session.commit()
+            flash(*convites.mensagem_de_resultado(entregues, falhas))
         except AtaImutavel as exc:
             db.session.commit()  # persiste o log da tentativa
             flash(str(exc), "danger")
@@ -209,7 +214,9 @@ def marcar_presenca(orientacao_id: int, ata_id: int, alvo_id: int, presenca: str
 def pdf_ata(orientacao_id: int, ata_id: int):
     orientacao = orientacao_autorizada(orientacao_id)
     ata = _ata_da_orientacao(orientacao, ata_id)
-    if not ata.imutavel:
+    # `imutavel` abrange a cancelada, que não tem ata: exportá-la produziria um
+    # PDF assinável com deliberações em branco e um hash aparentemente válido
+    if ata.status != "finalizada":
         flash("Apenas atas finalizadas podem ser exportadas.", "warning")
         return redirect(
             url_for("atas.detalhe_ata", orientacao_id=orientacao.id, ata_id=ata.id)
@@ -270,7 +277,7 @@ def finalizar(orientacao_id: int, ata_id: int):
             finalizar_ata(ata)
             db.session.commit()
             flash("Ata finalizada. O registro tornou-se imutável.", "success")
-        except AtaImutavel as exc:
+        except (AtaImutavel, OperacaoInvalida) as exc:
             flash(str(exc), "warning")
     return redirect(
         url_for("atas.detalhe_ata", orientacao_id=orientacao.id, ata_id=ata.id)

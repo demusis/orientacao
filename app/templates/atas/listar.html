@@ -4,18 +4,27 @@
 {% block voltar %}<a class="voltar" href="{{ url_for('main.dashboard') }}">Painel</a>{% endblock %}
 {% block content %}
 {{ nav_modulos(orientacao, 'atas') }}
-<h1>Atas do projeto {{ orientacao.titulo_projeto }}</h1>
+<h1>Reuniões e atas do projeto {{ orientacao.titulo_projeto }}</h1>
 {% if current_user.id == orientacao.orientador_id or current_user.papel == 'admin' %}
-<p><a href="{{ url_for('atas.criar_ata', orientacao_id=orientacao.id) }}">+ Nova ata</a></p>
+<p><a href="{{ url_for('atas.criar_ata', orientacao_id=orientacao.id) }}">+ Registrar reunião já realizada</a>
+{% if current_user.papel == 'orientador' %}
+· <a href="{{ url_for('reunioes.index') }}">Agenda de reuniões</a>
+{% endif %}</p>
 {% endif %}
 <table>
-  <tr><th>Reunião</th><th>Tipo</th><th>Pauta</th><th>Status</th><th>Redigida por</th><th></th></tr>
+  <tr><th>Reunião</th><th>Tipo</th><th>Pauta</th><th>Estado</th><th>Redigida por</th><th></th></tr>
   {% for a in atas %}
   <tr>
-    <td>{{ a.data_reuniao }}</td>
+    <td>{{ a.data_reuniao }}{% if a.hora_reuniao %} às {{ a.hora_reuniao.strftime('%H:%M') }}{% endif %}</td>
     <td><span class="badge">{{ a.tipo }}</span></td>
-    <td>{{ a.pauta | truncate(80) }}</td>
-    <td><span class="badge {% if a.imutavel %}badge-concluido{% endif %}">{{ a.status }}</span></td>
+    <td>{{ a.pauta | truncate(80) if a.pauta else 'sem pauta' }}</td>
+    <td>
+      {% if a.status == 'cancelada' %}<span class="badge badge-atrasado">cancelada</span>
+      {% elif a.status == 'finalizada' %}<span class="badge badge-concluido">ata finalizada</span>
+      {% elif a.agendada %}<span class="badge">agendada</span>
+      {% elif not a.ata_redigida %}<span class="badge badge-atrasado">aguardando ata</span>
+      {% else %}<span class="badge">ata em redação</span>{% endif %}
+    </td>
     <td>{{ a.redator.nome }}</td>
     <td><a href="{{ url_for('atas.detalhe_ata', orientacao_id=orientacao.id, ata_id=a.id) }}">Abrir</a></td>
   </tr>

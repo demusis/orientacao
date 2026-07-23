@@ -97,7 +97,11 @@ def eventos(orientacao) -> list:
             "quando": _dt(a.data_reuniao),
             "data": a.data_reuniao,
             "titulo": "Reunião de orientação",
-            "detalhe": ("finalizada" if a.status == "finalizada" else "rascunho"),
+            "detalhe": (
+                "finalizada"
+                if a.status == "finalizada"
+                else ("cancelada" if a.status == "cancelada" else "rascunho")
+            ),
             "alvo": ("atas.detalhe_ata",
                      {"orientacao_id": orientacao.id, "ata_id": a.id}),
             "relacionado": f"discutiu: {discutidos}" if discutidos else "",

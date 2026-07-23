@@ -1,10 +1,14 @@
 {% extends "base.html" %}
 {% from "_macros.html" import render_form %}
-{% block title %}Nova ata de reunião · ARIADNE{% endblock %}
+{% block title %}Registrar reunião já realizada · ARIADNE{% endblock %}
 {% block voltar %}<a class="voltar" href="{{ url_for('reunioes.index') }}">Reuniões</a>{% endblock %}
 {% block content %}
 <div class="card">
-  <h1>Nova ata de reunião</h1>
+  <h1>Registrar reunião já realizada</h1>
+  <p><small>Para a reunião que já aconteceu: a ata é redigida de uma vez e
+  nenhum aviso é enviado. Reunião a realizar entra por
+  <a href="{{ url_for('reunioes.agendar') }}">Agendar reunião</a>, que avisa os
+  convidados.</small></p>
   <p><small>Selecione um ou mais orientandos. Com um único selecionado, a ata é
   registrada como reunião individual do vínculo correspondente.</small></p>
   {% if not vinculos %}
