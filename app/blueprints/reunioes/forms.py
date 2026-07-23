@@ -9,6 +9,7 @@ from wtforms import (
 )
 from wtforms.validators import DataRequired, Optional, ValidationError
 
+from app.blueprints.atas.forms import campo_link_reuniao
 from app.blueprints.cronogramas.forms import CamposMarco
 
 
@@ -29,6 +30,7 @@ class AgendarReuniaoForm(FlaskForm):
 
     data_reuniao = DateField("Data da reunião", validators=[DataRequired()])
     hora_reuniao = TimeField("Hora da reunião", validators=[Optional()])
+    link_reuniao = campo_link_reuniao()
     pauta = TextAreaField(
         "Pauta",
         validators=[DataRequired()],

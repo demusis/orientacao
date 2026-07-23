@@ -19,6 +19,7 @@ serve ao que aconteceu fora do sistema, e não dispara aviso. Você possui
 <tr>
   <td>{{ a.data_reuniao.strftime('%d/%m/%Y') }}{% if a.hora_reuniao %} às {{ a.hora_reuniao.strftime('%H:%M') }}{% endif %}</td>
   <td>{{ a.pauta | truncate(60) if a.pauta else 'sem pauta' }}</td>
+  <td>{% if a.link_reuniao %}<a href="{{ a.link_reuniao }}" rel="noopener noreferrer">Entrar</a>{% else %}presencial{% endif %}</td>
   <td>{% for o in a.orientacoes %}{{ o.orientando.nome }}{% if not loop.last %}, {% endif %}{% else %}nenhum{% endfor %}</td>
   <td class="acoes">
     {% if a.orientacoes %}
@@ -44,11 +45,11 @@ serve ao que aconteceu fora do sistema, e não dispara aviso. Você possui
 <div class="card">
   <h2>Próximas reuniões <span class="badge">{{ proximas|length }}</span></h2>
   <table>
-    <tr><th>Quando</th><th>Pauta</th><th>Convidados</th><th>Ações</th></tr>
+    <tr><th>Quando</th><th>Pauta</th><th>Sala</th><th>Convidados</th><th>Ações</th></tr>
     {% for a in proximas %}
     {{ linha_reuniao(a, acoes=true) }}
     {% else %}
-    <tr><td colspan="4">Nenhuma reunião agendada.</td></tr>
+    <tr><td colspan="5">Nenhuma reunião agendada.</td></tr>
     {% endfor %}
   </table>
   {% if proximas %}
@@ -74,11 +75,11 @@ serve ao que aconteceu fora do sistema, e não dispara aviso. Você possui
   redigidas. Abra a reunião para assinalar presenças, escrever a ata e derivar
   tarefas.</small></p>
   <table>
-    <tr><th>Quando</th><th>Pauta</th><th>Convidados</th><th>Ações</th></tr>
+    <tr><th>Quando</th><th>Pauta</th><th>Sala</th><th>Convidados</th><th>Ações</th></tr>
     {% for a in aguardando_ata %}
     {{ linha_reuniao(a, acoes=true) }}
     {% else %}
-    <tr><td colspan="4">Nenhuma reunião esperando ata.</td></tr>
+    <tr><td colspan="5">Nenhuma reunião esperando ata.</td></tr>
     {% endfor %}
   </table>
 </div>
@@ -89,7 +90,7 @@ serve ao que aconteceu fora do sistema, e não dispara aviso. Você possui
   <p><small>Já têm deliberações escritas e aguardam a finalização, que torna o
   registro imutável e habilita a exportação em PDF.</small></p>
   <table>
-    <tr><th>Quando</th><th>Pauta</th><th>Convidados</th><th>Ações</th></tr>
+    <tr><th>Quando</th><th>Pauta</th><th>Sala</th><th>Convidados</th><th>Ações</th></tr>
     {% for a in em_redacao %}
     {{ linha_reuniao(a, acoes=true) }}
     {% endfor %}
@@ -101,7 +102,7 @@ serve ao que aconteceu fora do sistema, e não dispara aviso. Você possui
 <div class="card">
   <h2>Encerradas <span class="badge">{{ encerradas|length }}</span></h2>
   <table>
-    <tr><th>Quando</th><th>Pauta</th><th>Convidados</th><th>Ações</th></tr>
+    <tr><th>Quando</th><th>Pauta</th><th>Sala</th><th>Convidados</th><th>Ações</th></tr>
     {% for a in encerradas %}
     {{ linha_reuniao(a) }}
     {% endfor %}

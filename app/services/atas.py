@@ -26,7 +26,19 @@ class OperacaoInvalida(Exception):
     pass
 
 
-def agendar_reuniao(orientador, *, vinculos, data, hora, pauta) -> Ata:
+# Sentinela de "argumento não informado", distinta de None, que aqui significa
+# "apague o valor".
+_MANTER = object()
+
+
+def limpar_link(link) -> str | None:
+    """Espaço em volta some, e o campo vazio vira NULL em vez de string vazia:
+    o template decide se mostra o link por `if ata.link_reuniao`, e `""` é falso
+    em Jinja mas ocuparia a coluna sem significar nada."""
+    return (link or "").strip() or None
+
+
+def agendar_reuniao(orientador, *, vinculos, data, hora, pauta, link=None) -> Ata:
     """Marca uma reunião futura. As deliberações nascem vazias e só são
     exigidas na finalização: não há o que deliberar antes do encontro.
 
@@ -39,6 +51,7 @@ def agendar_reuniao(orientador, *, vinculos, data, hora, pauta) -> Ata:
         orientador_id=orientador.id,
         data_reuniao=data,
         hora_reuniao=hora,
+        link_reuniao=limpar_link(link),
         pauta=pauta,
         deliberacoes="",
         redigida_por=orientador.id,
@@ -52,6 +65,7 @@ def agendar_reuniao(orientador, *, vinculos, data, hora, pauta) -> Ata:
         ata.id,
         {
             "data": f"{data} {hora or ''}".strip(),
+            "online": bool(limpar_link(link)),
             "orientacoes": [o.id for o in vinculos],
         },
     )
@@ -152,13 +166,17 @@ def excluir_reuniao(ata: Ata) -> None:
     db.session.delete(ata)
 
 
-def atualizar_ata(ata: Ata, *, pauta, deliberacoes, marcos=None):
+def atualizar_ata(ata: Ata, *, pauta, deliberacoes, marcos=None, link=_MANTER):
     """Edição de conteúdo do rascunho. Data/hora da reunião mudam apenas via
     reagendar_ata, para que toda alteração de agenda deixe registro próprio.
 
     `marcos` (lista de Marco), quando fornecida, substitui os marcos discutidos;
     a imutabilidade da ata finalizada já os congela, pois a edição é barrada
-    aqui antes de qualquer atribuição."""
+    aqui antes de qualquer atribuição.
+
+    `link` é o endereço da sala virtual, frequentemente criado depois do
+    agendamento. O padrão é a sentinela `_MANTER`, e não None, para distinguir
+    "não mexa" de "apague": quem não passa o argumento preserva o que havia."""
     if ata.imutavel:
         auditoria.registrar("tentativa_edicao_ata_finalizada", "ata", ata.id)
         raise AtaImutavel("Ata finalizada ou cancelada é imutável.")
@@ -175,6 +193,8 @@ def atualizar_ata(ata: Ata, *, pauta, deliberacoes, marcos=None):
     ata.deliberacoes = deliberacoes
     if marcos is not None:
         ata.marcos = marcos
+    if link is not _MANTER:
+        ata.link_reuniao = limpar_link(link)
     auditoria.registrar("edicao_ata", "ata", ata.id)
 
 

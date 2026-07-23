@@ -42,11 +42,12 @@
 <div class="card">
   <h2>Próximas reuniões <span class="badge">{{ pendencias.proximas_reunioes|length }}</span></h2>
   <table>
-    <tr><th>Quando</th><th>Pauta</th><th>Participantes</th><th></th></tr>
+    <tr><th>Quando</th><th>Pauta</th><th>Sala</th><th>Participantes</th><th></th></tr>
     {% for a in pendencias.proximas_reunioes %}
     <tr>
       <td>{{ a.data_reuniao.strftime('%d/%m/%Y') }}{% if a.hora_reuniao %} às {{ a.hora_reuniao.strftime('%H:%M') }}{% else %} (hora a definir){% endif %}</td>
       <td>{{ a.pauta | truncate(60) if a.pauta else 'sem pauta' }}</td>
+      <td>{% if a.link_reuniao %}<a href="{{ a.link_reuniao }}" rel="noopener noreferrer">Entrar</a>{% else %}presencial{% endif %}</td>
       <td>{% for o in a.orientacoes %}{{ o.orientando.nome }}{% if not loop.last %}, {% endif %}{% endfor %}</td>
       <td>
         {% if a.orientacoes %}

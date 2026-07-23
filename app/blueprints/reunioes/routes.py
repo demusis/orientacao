@@ -150,6 +150,7 @@ def agendar():
                 data=form.data_reuniao.data,
                 hora=form.hora_reuniao.data,
                 pauta=form.pauta.data,
+                link=form.link_reuniao.data,
             )
         except OperacaoInvalida as exc:
             flash(str(exc), "danger")

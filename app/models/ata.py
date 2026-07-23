@@ -92,6 +92,11 @@ class Ata(db.Model):
     orientador_id = db.Column(db.Integer, db.ForeignKey("usuario.id"), nullable=False)
     data_reuniao = db.Column(db.Date, nullable=False)
     hora_reuniao = db.Column(db.Time, nullable=True)
+    # Endereço da sala virtual (Meet, Zoom, Teams). Facultativo: reunião
+    # presencial não tem link. Fica fora do conteúdo congelado da ata, porque é
+    # dado operacional com prazo de validade, e não parte do registro formal do
+    # que se deliberou: um endereço morto num PDF assinado seria ruído.
+    link_reuniao = db.Column(db.String(500), nullable=True)
     pauta = db.Column(db.Text, nullable=False)
     deliberacoes = db.Column(db.Text, nullable=False)
     redigida_por = db.Column(db.Integer, db.ForeignKey("usuario.id"), nullable=False)

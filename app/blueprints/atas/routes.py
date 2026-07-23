@@ -26,6 +26,7 @@ from app.services.atas import (
     OperacaoInvalida,
     atualizar_ata,
     finalizar_ata,
+    limpar_link,
     reagendar_ata,
     registrar_presenca,
 )
@@ -78,6 +79,7 @@ def criar_ata(orientacao_id: int):
             orientador_id=orientacao.orientador_id,
             data_reuniao=form.data_reuniao.data,
             hora_reuniao=form.hora_reuniao.data,
+            link_reuniao=limpar_link(form.link_reuniao.data),
             pauta=form.pauta.data,
             deliberacoes=form.deliberacoes.data,
             redigida_por=current_user.id,
@@ -119,6 +121,7 @@ def detalhe_ata(orientacao_id: int, ata_id: int):
                 pauta=form.pauta.data,
                 deliberacoes=form.deliberacoes.data,
                 marcos=[m for m in marcos_disponiveis if m.id in form.marcos.data],
+                link=form.link_reuniao.data,
             )
             db.session.commit()
             flash("Ata atualizada.", "success")

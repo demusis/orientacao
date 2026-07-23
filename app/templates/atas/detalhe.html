@@ -53,6 +53,18 @@ redigidas. Assinale as presenças, escreva a ata e finalize-a.</p>
        · <a href="{{ url_for('atas.reagendar', orientacao_id=orientacao.id, ata_id=ata.id) }}">Reagendar</a>
      {% endif %}
   </p>
+  {% if ata.link_reuniao %}
+  {#- endereço por extenso, e não atrás de "clique aqui": quem entra precisa
+      reconhecer o domínio antes de clicar, e há quem copie para outro aparelho -#}
+  <p><strong>Sala virtual:</strong>
+    <a class="link-reuniao" href="{{ ata.link_reuniao }}" rel="noopener noreferrer">{{ ata.link_reuniao }}</a>
+    {% if ata.status == 'cancelada' %}<small>(reunião cancelada)</small>{% endif %}
+  </p>
+  {% elif ata.agendada %}
+  <p><small>Reunião presencial, ou sala virtual ainda não informada. O endereço
+  pode ser acrescentado abaixo, em <em>Editar conteúdo</em>, e entra no próximo
+  aviso enviado aos convidados.</small></p>
+  {% endif %}
   {% if ata.reagendamentos %}
   <h3>Histórico de reagendamentos</h3>
   <table>

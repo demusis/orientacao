@@ -3,12 +3,19 @@ from wtforms import (
     DateField,
     SelectField,
     SelectMultipleField,
+    StringField,
     SubmitField,
     TextAreaField,
     TimeField,
     widgets,
 )
-from wtforms.validators import DataRequired, Optional
+from wtforms.validators import (
+    URL,
+    DataRequired,
+    Length,
+    Optional,
+    ValidationError,
+)
 
 from app.models.ata import RESULTADO_LABEL, RESULTADOS_PARECER, TIPOS_PARECER
 
@@ -24,6 +31,50 @@ AJUDA_MARCOS = (
     "associação congela junto com o registro."
 )
 
+AJUDA_LINK = (
+    "Opcional. Endereço da sala virtual (Meet, Zoom, Teams), que vai no aviso "
+    "enviado aos convidados. Deixe em branco se a reunião é presencial."
+)
+
+# Esquemas admitidos no endereço da sala virtual. A restrição não é formalismo:
+# o valor é renderizado como `href` na tela e no e-mail em HTML, e um esquema
+# arbitrário abriria a porta para `javascript:` e afins. A política de conteúdo
+# do sistema já barra script, mas o e-mail sai do nosso alcance e é lido no
+# cliente do destinatário, onde política alguma nossa vale.
+ESQUEMAS_LINK = ("http://", "https://")
+
+
+def validar_link_reuniao(form, field):
+    if not field.data:
+        return
+    if not field.data.strip().lower().startswith(ESQUEMAS_LINK):
+        raise ValidationError(
+            "Informe o endereço completo da sala, começando com https://"
+        )
+
+
+def _aparar(valor):
+    """Apara o espaço em volta antes de qualquer validação. Sem isto, um
+    endereço colado com um espaço ao final seria recusado pelo validador de URL,
+    coisa que quem cola de um convite não entenderia."""
+    return valor.strip() if isinstance(valor, str) else valor
+
+
+def campo_link_reuniao():
+    """Campo do endereço da sala virtual, declarado num ponto só para que o
+    agendamento e a edição do rascunho não divirjam em rótulo nem em validação."""
+    return StringField(
+        "Link da reunião online",
+        filters=[_aparar],
+        validators=[
+            Optional(),
+            Length(max=500),
+            URL(require_tld=True, message="Endereço inválido."),
+            validar_link_reuniao,
+        ],
+        description=AJUDA_LINK,
+    )
+
 
 class MultiCheckboxField(SelectMultipleField):
     widget = widgets.ListWidget(prefix_label=False)
@@ -33,6 +84,7 @@ class MultiCheckboxField(SelectMultipleField):
 class AtaForm(FlaskForm):
     data_reuniao = DateField("Data da reunião", validators=[DataRequired()])
     hora_reuniao = TimeField("Hora da reunião", validators=[Optional()])
+    link_reuniao = campo_link_reuniao()
     pauta = TextAreaField("Pauta", validators=[DataRequired()], description=AJUDA_MARCACAO)
     deliberacoes = TextAreaField(
         "Deliberações", validators=[DataRequired()], description=AJUDA_MARCACAO
@@ -51,6 +103,7 @@ class AtaEdicaoForm(FlaskForm):
     encontro. A obrigatoriedade vale no momento certo, o da finalização, imposta
     por `services.atas.finalizar_ata`."""
 
+    link_reuniao = campo_link_reuniao()
     pauta = TextAreaField("Pauta", validators=[DataRequired()], description=AJUDA_MARCACAO)
     deliberacoes = TextAreaField(
         "Deliberações", validators=[Optional()], description=AJUDA_MARCACAO

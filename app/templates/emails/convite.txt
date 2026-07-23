@@ -22,6 +22,11 @@
 {% if participantes %}
   Participantes: {{ participantes | join(', ') }}
 {%- endif %}
+{%- if ata.link_reuniao and evento != 'cancelada' %}
+
+  A reunião é online. Endereço da sala:
+  {{ ata.link_reuniao }}
+{%- endif %}
 {% if evento == 'cancelada' and ata.motivo_cancelamento %}
 
   Motivo do cancelamento:

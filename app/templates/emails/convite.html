@@ -66,11 +66,27 @@
 
       {% if participantes %}
       <div style="{{ rotulo }}">Participantes</div>
-      <p style="margin:2px 0 0;font:15px/1.5 {{ fonte }};color:{{ texto }}">{{ participantes | join(', ') }}</p>
+      <p style="margin:2px 0 12px;font:15px/1.5 {{ fonte }};color:{{ texto }}">{{ participantes | join(', ') }}</p>
+      {% endif %}
+
+      {% if ata.link_reuniao and evento != 'cancelada' %}
+      {#- o endereço aparece por extenso, e não escondido atrás de "clique aqui":
+          quem lê precisa reconhecer o domínio antes de clicar, e há quem copie
+          o endereço para abrir noutro navegador ou noutro aparelho -#}
+      <div style="{{ rotulo }}">Sala virtual</div>
+      <p style="margin:2px 0 0;font:15px/1.5 {{ fonte }};word-break:break-all">
+        <a href="{{ ata.link_reuniao }}" style="color:{{ destaque }}">{{ ata.link_reuniao }}</a>
+      </p>
       {% endif %}
 
     </div>
   </div>
+
+  {% if ata.link_reuniao and evento != 'cancelada' %}
+  <p style="margin:0 0 24px">
+    <a href="{{ ata.link_reuniao }}" style="display:inline-block;background:{{ destaque }};color:#ffffff;text-decoration:none;padding:11px 22px;border-radius:4px;font:600 15px {{ fonte }}">Entrar na reunião</a>
+  </p>
+  {% endif %}
 
   {% if ata.pauta and evento != 'cancelada' %}
   <div style="border:1px solid {{ borda }};border-radius:4px;margin-bottom:24px">

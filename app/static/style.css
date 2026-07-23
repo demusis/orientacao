@@ -181,3 +181,7 @@ dl dd { margin: .2rem 0 0 0; }
    costuma ser transcrita à mão a partir da tela */
 .senha-gerada { margin: 1rem 0; }
 .senha-gerada code { display: inline-block; padding: .6rem 1rem; background: #f2f5f8; border: 1px solid var(--borda); border-radius: 4px; font-size: 1.35rem; letter-spacing: .06em; }
+
+/* Endereço da sala virtual exibido por extenso: precisa quebrar dentro da
+   coluna, porque link de videoconferência costuma ser longo e sem espaços */
+.link-reuniao { word-break: break-all; }

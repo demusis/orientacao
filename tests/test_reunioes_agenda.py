@@ -506,6 +506,227 @@ def test_telas_do_ciclo_renderizam(
 
 
 # ---------------------------------------------------------------------------
+# Link da reunião online
+
+SALA = "https://meet.google.com/abc-defg-hij"
+
+
+def test_link_da_sala_vai_no_convite(client, orientacao, orientador, sem_smtp):
+    """É o ponto do campo: quem recebe o convite precisa do endereço junto com
+    a data, e não numa segunda mensagem."""
+    login(client, "orientador@teste.br")
+    client.post(
+        "/reunioes/agendar",
+        data={
+            "data_reuniao": FUTURO,
+            "hora_reuniao": "14:30",
+            "link_reuniao": SALA,
+            "pauta": "Alinhar o capítulo 2",
+            "orientacoes": [str(orientacao.id)],
+        },
+        follow_redirects=True,
+    )
+    ata = Ata.query.one()
+    assert ata.link_reuniao == SALA
+
+    texto, html = sem_smtp[0][2], sem_smtp[0][3]
+    assert SALA in texto  # sem isto, quem lê em cliente sem HTML fica sem sala
+    assert f'href="{SALA}"' in html
+
+
+def test_reuniao_sem_link_nao_inventa_sala(client, orientacao, orientador, sem_smtp):
+    """Reunião presencial: o campo fica em branco e o convite não menciona sala
+    alguma. String vazia vira NULL, para que o template decida por um só teste."""
+    login(client, "orientador@teste.br")
+    _agendar(client, [orientacao])
+
+    assert Ata.query.one().link_reuniao is None
+    assert "Sala virtual" not in sem_smtp[0][3]
+    assert "Endereço da sala" not in sem_smtp[0][2]
+
+
+def test_espaco_em_volta_do_link_nao_e_gravado(client, orientacao, orientador, sem_smtp):
+    login(client, "orientador@teste.br")
+    client.post(
+        "/reunioes/agendar",
+        data={
+            "data_reuniao": FUTURO,
+            "link_reuniao": f"  {SALA}  ",
+            "pauta": "Pauta",
+            "orientacoes": [str(orientacao.id)],
+        },
+        follow_redirects=True,
+    )
+    assert Ata.query.one().link_reuniao == SALA
+
+
+@pytest.mark.parametrize(
+    "invalido",
+    [
+        "javascript://exemplo.com/%0aalert(1)",  # esquema executável
+        "meet.google.com/abc-defg-hij",  # sem esquema
+        "ftp://exemplo.com/sala",  # esquema fora do previsto
+    ],
+)
+def test_link_com_esquema_indevido_e_recusado(
+    client, orientacao, orientador, sem_smtp, invalido
+):
+    """O valor vira `href` na tela e no e-mail em HTML. A política de conteúdo
+    do sistema barra script, mas o e-mail é lido no cliente do destinatário,
+    onde política alguma nossa vale."""
+    login(client, "orientador@teste.br")
+    resposta = client.post(
+        "/reunioes/agendar",
+        data={
+            "data_reuniao": FUTURO,
+            "link_reuniao": invalido,
+            "pauta": "Pauta",
+            "orientacoes": [str(orientacao.id)],
+        },
+        follow_redirects=True,
+    )
+    assert Ata.query.count() == 0
+    assert resposta.status_code == 200
+    assert sem_smtp == []
+
+
+def test_link_pode_ser_acrescentado_depois(client, orientacao, orientador, sem_smtp):
+    """Caso comum: agenda-se a reunião e a sala só é criada depois. O endereço
+    entra pela edição do rascunho e passa a valer no próximo aviso."""
+    login(client, "orientador@teste.br")
+    _agendar(client, [orientacao])
+    ata = Ata.query.one()
+    assert ata.link_reuniao is None
+
+    client.post(
+        f"/orientacoes/{orientacao.id}/atas/{ata.id}",
+        data={
+            "pauta": "Alinhar o capítulo 2",
+            "deliberacoes": "",
+            "link_reuniao": SALA,
+            "submit": "Salvar alterações",
+        },
+        follow_redirects=True,
+    )
+    assert ata.link_reuniao == SALA
+
+    sem_smtp.clear()
+    client.post(
+        f"/orientacoes/{orientacao.id}/atas/{ata.id}/reagendar",
+        data={"data_reuniao": FUTURO, "motivo": "Conflito"},
+        follow_redirects=True,
+    )
+    assert SALA in sem_smtp[0][2]
+
+
+def test_editar_so_a_pauta_preserva_o_link(client, orientacao, orientador, sem_smtp):
+    """O caso que o desenho mais precisa proteger: corrigir a pauta não pode
+    apagar a sala. A rota sempre passa `link=` ao serviço, então o valor tem de
+    vir pré-preenchido no formulário; se um dia deixar de vir, a sala sumiria em
+    silêncio do próximo aviso. Este teste falha se esse acoplamento quebrar."""
+    login(client, "orientador@teste.br")
+    client.post(
+        "/reunioes/agendar",
+        data={
+            "data_reuniao": FUTURO,
+            "link_reuniao": SALA,
+            "pauta": "Pauta original",
+            "orientacoes": [str(orientacao.id)],
+        },
+        follow_redirects=True,
+    )
+    ata = Ata.query.one()
+
+    # o formulário de edição chega com o link já preenchido (obj=ata); reenviá-lo
+    # é o que o navegador faz ao submeter só com a pauta alterada
+    client.post(
+        f"/orientacoes/{orientacao.id}/atas/{ata.id}",
+        data={
+            "pauta": "Pauta corrigida",
+            "deliberacoes": "",
+            "link_reuniao": SALA,
+            "submit": "Salvar alterações",
+        },
+        follow_redirects=True,
+    )
+    assert ata.pauta == "Pauta corrigida"
+    assert ata.link_reuniao == SALA
+
+
+def test_editar_com_link_em_branco_apaga_a_sala(client, orientacao, orientador, sem_smtp):
+    """A contrapartida: esvaziar o campo é a forma de dizer que a reunião deixou
+    de ser online. `""` vira NULL, e o convite volta a não mencionar sala."""
+    login(client, "orientador@teste.br")
+    client.post(
+        "/reunioes/agendar",
+        data={
+            "data_reuniao": FUTURO,
+            "link_reuniao": SALA,
+            "pauta": "Pauta",
+            "orientacoes": [str(orientacao.id)],
+        },
+        follow_redirects=True,
+    )
+    ata = Ata.query.one()
+
+    client.post(
+        f"/orientacoes/{orientacao.id}/atas/{ata.id}",
+        data={"pauta": "Pauta", "deliberacoes": "", "link_reuniao": "",
+              "submit": "Salvar alterações"},
+        follow_redirects=True,
+    )
+    assert ata.link_reuniao is None
+
+
+def test_aviso_de_cancelamento_omite_a_sala(client, orientacao, orientador, sem_smtp):
+    """A reunião não vai ocorrer: oferecer o endereço convidaria a entrar numa
+    sala vazia."""
+    login(client, "orientador@teste.br")
+    client.post(
+        "/reunioes/agendar",
+        data={
+            "data_reuniao": FUTURO,
+            "link_reuniao": SALA,
+            "pauta": "Pauta",
+            "orientacoes": [str(orientacao.id)],
+        },
+        follow_redirects=True,
+    )
+    ata = Ata.query.one()
+    sem_smtp.clear()
+
+    client.post(
+        f"/reunioes/{ata.id}/cancelar",
+        data={"motivo": "Conflito de agenda"},
+        follow_redirects=True,
+    )
+    assert SALA not in sem_smtp[0][2]
+    assert SALA not in sem_smtp[0][3]
+
+
+def test_sala_aparece_na_pagina_da_reuniao_e_na_agenda(
+    client, orientacao, orientador, sem_smtp
+):
+    login(client, "orientador@teste.br")
+    client.post(
+        "/reunioes/agendar",
+        data={
+            "data_reuniao": FUTURO,
+            "link_reuniao": SALA,
+            "pauta": "Pauta",
+            "orientacoes": [str(orientacao.id)],
+        },
+        follow_redirects=True,
+    )
+    ata = Ata.query.one()
+
+    assert SALA in client.get("/reunioes/").data.decode()
+    pagina = client.get(f"/orientacoes/{orientacao.id}/atas/{ata.id}").data.decode()
+    assert "Sala virtual" in pagina and SALA in pagina
+    assert SALA in client.get("/dashboard").data.decode()
+
+
+# ---------------------------------------------------------------------------
 # Fronteira entre "imutável" e "finalizada"
 #
 # `imutavel` passou a abranger a cancelada. Todo ponto que antes o usava como
