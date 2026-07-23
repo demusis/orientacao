@@ -194,7 +194,17 @@ def restaurar(arquivo, executor: Usuario) -> dict:
     """Substitui integralmente o conteúdo da base pelo do pacote.
 
     A conta de quem executa é preservada: um backup anterior à sua criação
-    deixaria o operador trancado do lado de fora."""
+    deixaria o operador trancado do lado de fora.
+
+    **Confirma o banco antes de tocar nos arquivos.** As operações de disco
+    (apagar os uploads atuais e gravar os do pacote) são irreversíveis e não
+    participam da transação. Fossem elas antes do commit, uma falha ao confirmar
+    o banco — disco cheio, `database is locked` — reverteria as linhas mas
+    deixaria os uploads já substituídos, e as versões antigas apontariam para
+    arquivos inexistentes. Comitando primeiro, a falha provável (a do commit)
+    ocorre com os uploads ainda intactos: banco e disco permanecem ambos no
+    estado anterior. Por isso esta função confirma sua própria transação, ao
+    contrário das demais do módulo."""
     # capturado antes de qualquer exclusão: depois de apagar a linha, o objeto
     # ORM fica obsoleto e qualquer leitura de atributo falha
     credencial = {
@@ -281,6 +291,11 @@ def restaurar(arquivo, executor: Usuario) -> dict:
             )
 
         _ajustar_sequencias()
+
+        # Fronteira deliberada: confirma o banco antes das operações de disco
+        # irreversíveis abaixo. Uma falha aqui reverte o banco com os uploads
+        # ainda intactos (ver docstring).
+        db.session.commit()
 
         _limpar_uploads()
         pasta = _pasta_uploads()
