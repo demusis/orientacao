@@ -3,6 +3,7 @@ from urllib.parse import urlparse
 
 from flask import flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.blueprints.auth import bp
 from app.blueprints.auth.forms import (
@@ -22,6 +23,13 @@ _EXCESSO = (
     "Muitas tentativas a partir deste endereço. Aguarde alguns minutos e "
     "tente novamente."
 )
+
+# Hash descartável, gerado com o mesmo método das senhas reais, para gastar —
+# quando o e-mail não existe — o mesmo tempo de uma verificação de verdade. Sem
+# isto, a resposta ao e-mail inexistente volta na hora (o hash nunca roda) e o
+# tempo distingue conta cadastrada de inexistente, o oráculo que esqueci_senha
+# tem o cuidado de não abrir.
+_HASH_FALSO = generate_password_hash("conta-inexistente-para-nivelar-o-tempo")
 
 
 def _destino_seguro(destino: str) -> bool:
@@ -59,7 +67,14 @@ def login():
             flash(_EXCESSO, "danger")
             return render_template("auth/login.html", form=form), 429
         usuario = Usuario.query.filter_by(email=form.email.data.lower().strip()).first()
-        if usuario is None or not usuario.verificar_senha(form.senha.data):
+        # roda um hash mesmo quando o e-mail não existe, para que o tempo de
+        # resposta não denuncie quais e-mails têm conta (ver _HASH_FALSO)
+        senha_confere = (
+            usuario.verificar_senha(form.senha.data)
+            if usuario is not None
+            else check_password_hash(_HASH_FALSO, form.senha.data)
+        )
+        if usuario is None or not senha_confere:
             auditoria.registrar("login_falho", "usuario", dados={"email": form.email.data})
             db.session.commit()
             flash("Credenciais inválidas.", "danger")
