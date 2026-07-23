@@ -658,22 +658,30 @@ def disparar_se_devido() -> dict | None:
 
     A ordem das confirmações é o que torna isto seguro. A reserva é confirmada
     **antes** do SMTP, para não segurar a trava de escrita do SQLite durante a
-    rede. O registro de quem recebeu é confirmado **logo após** o envio, e antes
-    de qualquer outra coisa: se a auditoria falhasse depois e arrastasse tudo num
-    rollback, o lote inteiro seria reenviado na janela seguinte."""
+    rede. O registro de quem recebeu é confirmado **logo após** o envio, em
+    transação própria, antes de qualquer outro passo: as mensagens já saíram, e
+    reunir esse registro no mesmo commit do fechamento do dia significava que uma
+    única falha de commit (um `database is locked` do SQLite) perderia o registro
+    e faria a janela seguinte reenviar o lote inteiro. Fechar o dia vai num
+    segundo commit: se ele falhar, o registro de entregas já persistido impede o
+    reenvio, e a próxima janela apenas refaz o fechamento, sem destinatários."""
     if not reservar_tentativa():
         return None
     db.session.commit()  # libera a trava de escrita antes de falar com a rede
 
     resumo = enviar_pendentes(ja_atendidos=entregues_hoje())
 
+    # quem recebeu, persistido já: é o passo mais urgente depois do envio, e
+    # isolado num commit próprio para não depender do sucesso do fechamento
     if resumo["enviados"]:
         registrar_entregues(resumo["enviados"])
+        db.session.commit()
     # o dia se encerra quando nada ficou por entregar; havendo falha, a próxima
-    # janela repete apenas para quem faltou
+    # janela repete apenas para quem faltou. Commit à parte: uma falha aqui não
+    # desfaz o registro de entregas acima
     if not resumo["falhas"]:
         marcar_dia_como_enviado()
-    db.session.commit()
+        db.session.commit()
     return resumo
 
 
