@@ -28,6 +28,11 @@ from app.extensions import db
 
 # Ordem ditada pelas chaves estrangeiras: uma tabela só entra depois daquelas
 # a que se refere. 'usuario' tem auto-referência (criado_por), tratada à parte.
+# Espelha ORDEM_TABELAS de services/backup.py: toda tabela portadora de dado
+# entra aqui, senão a cópia a deixa para trás e a conferência — que percorre
+# esta mesma lista — não acusa a falta. 'configuracao_email' fica de fora de
+# propósito (credencial de SMTP pertence à instalação, não ao acervo; mesmo
+# critério do backup).
 ORDEM = [
     "usuario",
     "orientacao",
@@ -36,8 +41,10 @@ ORDEM = [
     "marco",
     "documento",
     "versao_documento",
+    "modelo_documento",
     "ata",
     "ata_orientacao",
+    "ata_marco",
     "reagendamento",
     "parecer",
     "log_auditoria",
