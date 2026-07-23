@@ -24,6 +24,28 @@ _EXCESSO = (
 )
 
 
+def _destino_seguro(destino: str) -> bool:
+    """True se `destino` (o parâmetro `next`) aponta para dentro do próprio site.
+
+    Aceita caminho relativo (`/reunioes`) ou URL absoluta do próprio host; recusa
+    tudo que leve para fora. Os casos que a checagem ingênua `not netloc` deixava
+    passar e que aqui são barrados um a um: host externo (`//evil.com`,
+    `https://evil.com`); a forma opaca (`https:evil.com`, `http:/evil.com`), que
+    tem netloc vazio no urlparse mas o navegador lê como host externo; esquema
+    perigoso (`javascript:`); e a barra invertida (`/\\evil.com`), que o
+    navegador normaliza para `//evil.com` antes de nós."""
+    if not destino or "\\" in destino or "\x00" in destino:
+        return False
+    partes = urlparse(destino)
+    if partes.scheme and partes.scheme not in ("http", "https"):
+        return False
+    if partes.scheme and not partes.netloc:  # opaco: navegador o lê como host
+        return False
+    if partes.netloc and partes.netloc != urlparse(request.host_url).netloc:
+        return False
+    return True
+
+
 @bp.route("/login", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
@@ -62,7 +84,7 @@ def login():
             )
             return redirect(url_for("auth.trocar_senha"))
         destino = request.args.get("next", "")
-        if destino and not urlparse(destino).netloc:
+        if _destino_seguro(destino):
             return redirect(destino)
         return redirect(url_for("main.dashboard"))
     return render_template("auth/login.html", form=form)
