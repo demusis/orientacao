@@ -3,7 +3,7 @@ import os
 import uuid
 
 from flask import current_app
-from sqlalchemy import func
+from sqlalchemy import event, func
 from werkzeug.utils import secure_filename
 
 from app.extensions import db
@@ -63,6 +63,12 @@ def salvar_versao(documento: Documento, storage, usuario, comentario: str | None
     os.makedirs(pasta, exist_ok=True)
     caminho = os.path.join(pasta, nome_fisico)
     storage.save(caminho)
+    # O arquivo vai a disco antes de a linha ser confirmada. Rastreia-o na sessão
+    # para que um rollback posterior — colisão de numeração na UNIQUE ao dar
+    # flush, ou "database is locked" no commit — não o deixe órfão na pasta de
+    # uploads (que o backup ainda incluiria). A remoção fica nos eventos de
+    # sessão abaixo, que cobrem todos os chamadores de salvar_versao.
+    db.session.info.setdefault("uploads_novos", []).append(caminho)
     tamanho = os.path.getsize(caminho)
 
     proxima = (
@@ -83,3 +89,21 @@ def salvar_versao(documento: Documento, storage, usuario, comentario: str | None
     )
     db.session.add(versao)
     return versao
+
+
+# Confirmada a transação, os arquivos rastreados estão referenciados por uma
+# linha e devem permanecer; só se descarta o rastreio.
+@event.listens_for(db.session, "after_commit")
+def _uploads_confirmados(session):
+    session.info.pop("uploads_novos", None)
+
+
+# Revertida a transação (falha no flush/commit, ou o rollback do teardown da
+# requisição), o arquivo gravado não tem linha que o referencie: remove-o.
+@event.listens_for(db.session, "after_rollback")
+def _uploads_descartados(session):
+    for caminho in session.info.pop("uploads_novos", []):
+        try:
+            os.remove(caminho)
+        except OSError:
+            current_app.logger.warning("Upload órfão não removido: %s", caminho)

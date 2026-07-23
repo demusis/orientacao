@@ -23,6 +23,9 @@ def salvar_modelo(storage, *, titulo: str, descricao: str | None, autor) -> Mode
     os.makedirs(pasta, exist_ok=True)
     caminho = os.path.join(pasta, nome_fisico)
     storage.save(caminho)
+    # rastreia para o rollback remover o arquivo órfão, como em salvar_versao —
+    # os eventos de sessão em services/uploads.py cuidam da remoção
+    db.session.info.setdefault("uploads_novos", []).append(caminho)
     tamanho = os.path.getsize(caminho)
 
     modelo = ModeloDocumento(
