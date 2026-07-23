@@ -1,15 +1,15 @@
 {% extends "base.html" %}
 {% from "_macros.html" import nav_modulos, render_form %}
-{% block title %}Ata {{ ata.data_reuniao }} — ARIADNE{% endblock %}
+{% block title %}Ata {{ ata.data_reuniao }} · ARIADNE{% endblock %}
 {% block voltar %}<a class="voltar" href="{{ url_for('atas.listar_atas', orientacao_id=orientacao.id) }}">Atas</a>{% endblock %}
 {% block content %}
 {{ nav_modulos(orientacao, 'atas') }}
-<h1>Ata de {{ ata.data_reuniao }} — {{ orientacao.titulo_projeto }}</h1>
+<h1>Ata de {{ ata.data_reuniao }}, projeto {{ orientacao.titulo_projeto }}</h1>
 <p>
   Tipo: <span class="badge">{{ ata.tipo }}</span> ·
   Status: <span class="badge {% if ata.imutavel %}badge-concluido{% endif %}">{{ ata.status }}</span>
-  {% if ata.finalizada_em %} — finalizada em {{ ata.finalizada_em.strftime('%Y-%m-%d %H:%M') }} (UTC){% endif %}
-  {% if ata.imutavel %} —
+  {% if ata.finalizada_em %} · finalizada em {{ ata.finalizada_em.strftime('%Y-%m-%d %H:%M') }} (UTC){% endif %}
+  {% if ata.imutavel %} ·
   <a href="{{ url_for('atas.pdf_ata', orientacao_id=orientacao.id, ata_id=ata.id) }}">Exportar PDF</a>
   {% endif %}
 </p>
@@ -19,7 +19,7 @@
   <p><strong>Data:</strong> {{ ata.data_reuniao }}
      {% if ata.hora_reuniao %} às {{ ata.hora_reuniao.strftime('%H:%M') }}{% endif %}
      {% if pode_finalizar and not ata.imutavel %}
-       — <a href="{{ url_for('atas.reagendar', orientacao_id=orientacao.id, ata_id=ata.id) }}">Reagendar</a>
+       · <a href="{{ url_for('atas.reagendar', orientacao_id=orientacao.id, ata_id=ata.id) }}">Reagendar</a>
      {% endif %}
   </p>
   {% if ata.reagendamentos %}

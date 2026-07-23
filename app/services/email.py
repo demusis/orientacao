@@ -165,7 +165,7 @@ def testar(destinatario: str) -> str:
             config,
             montar(
                 destinatario,
-                "ARIADNE — teste de configuração",
+                "ARIADNE: teste de configuração",
                 "Se você recebeu esta mensagem, o envio de e-mail do ARIADNE "
                 "está funcionando.\n\nNenhuma ação é necessária.",
             ),
@@ -176,15 +176,15 @@ def testar(destinatario: str) -> str:
         return str(exc)
     except SegredoIlegivel:
         return (
-            "A senha guardada não pôde ser decifrada — provavelmente a chave do "
+            "A senha guardada não pôde ser decifrada; provavelmente a chave do "
             "servidor (SECRET_KEY) mudou. Digite a senha de app novamente."
         )
     except smtplib.SMTPAuthenticationError:
         return (
             "O servidor recusou as credenciais. Com o Gmail, é preciso usar uma "
             "senha de app (16 caracteres, gerada em myaccount.google.com com a "
-            "verificação em duas etapas ativa) — a senha comum da conta não "
+            "verificação em duas etapas ativa). A senha comum da conta não "
             "funciona."
         )
     except (smtplib.SMTPException, OSError) as exc:
-        return f"Não foi possível falar com {config.servidor}:{config.porta} — {exc}"
+        return f"Não foi possível falar com {config.servidor}:{config.porta}. {exc}"

@@ -116,7 +116,7 @@ def _enviar_link(usuario: Usuario) -> None:
         "permanece válida.\n\n"
         "Mensagem automática; não responda a este e-mail."
     )
-    email_service.enviar(usuario.email, "ARIADNE — redefinição de senha", corpo)
+    email_service.enviar(usuario.email, "ARIADNE: redefinição de senha", corpo)
 
 
 @bp.route("/redefinir/<token>", methods=["GET", "POST"])

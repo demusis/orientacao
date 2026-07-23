@@ -217,12 +217,12 @@ def _rodape_verificacao(estilos, tipo: str, reg_id: int, hash_hex: str, url_veri
 
 def gerar_pdf_ata(ata: Ata, url_verificacao: str) -> bytes:
     buffer = BytesIO()
-    doc, estilos = _documento_base(buffer, f"ARIADNE — Ata {ata.id}")
+    doc, estilos = _documento_base(buffer, f"ARIADNE · Ata {ata.id}")
     d = _dados_vigentes_ata(ata)
     h = hash_ata(ata)
 
     fluxo = [
-        Paragraph("ARIADNE — Ata de reunião de orientação", estilos["Title"]),
+        Paragraph("ARIADNE · Ata de reunião de orientação", estilos["Title"]),
         _tabela(
             [
                 ["Identificador", f"ata-{d['id']}"],
@@ -286,12 +286,12 @@ def gerar_pdf_ata(ata: Ata, url_verificacao: str) -> bytes:
 
 def gerar_pdf_parecer(parecer: Parecer, url_verificacao: str) -> bytes:
     buffer = BytesIO()
-    doc, estilos = _documento_base(buffer, f"ARIADNE — Parecer {parecer.id}")
+    doc, estilos = _documento_base(buffer, f"ARIADNE · Parecer {parecer.id}")
     d = _dados_vigentes_parecer(parecer)
     h = hash_parecer(parecer)
 
     fluxo = [
-        Paragraph("ARIADNE — Parecer técnico", estilos["Title"]),
+        Paragraph("ARIADNE · Parecer técnico", estilos["Title"]),
         _tabela(
             [
                 ["Identificador", f"parecer-{d['id']}"],

@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% from "_macros.html" import render_form %}
-{% block title %}Coorientadores — ARIADNE{% endblock %}
+{% block title %}Coorientadores · ARIADNE{% endblock %}
 {% block voltar %}<a class="voltar" href="{{ url_for('admin.listar_orientacoes') }}">Orientações</a>{% endblock %}
 {% block content %}
-<h1>Equipe de orientação — {{ orientacao.titulo_projeto }}</h1>
+<h1>Equipe de orientação do projeto {{ orientacao.titulo_projeto }}</h1>
 <p><strong>Orientador principal:</strong> {{ orientacao.orientador.nome }}</p>
 
 <h2>Coorientadores</h2>

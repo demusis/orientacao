@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "_macros.html" import nav_modulos, render_form %}
-{% block title %}{{ documento.titulo }} — ARIADNE{% endblock %}
+{% block title %}{{ documento.titulo }} · ARIADNE{% endblock %}
 {% block voltar %}<a class="voltar" href="{{ url_for('documentos.listar', orientacao_id=orientacao.id) }}">Documentos</a>{% endblock %}
 {% block content %}
 {{ nav_modulos(orientacao, 'documentos') }}

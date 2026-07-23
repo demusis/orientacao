@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% from "_macros.html" import nav_modulos %}
-{% block title %}Documentos — ARIADNE{% endblock %}
+{% block title %}Documentos · ARIADNE{% endblock %}
 {% block voltar %}<a class="voltar" href="{{ url_for('main.dashboard') }}">Painel</a>{% endblock %}
 {% block content %}
 {{ nav_modulos(orientacao, 'documentos') }}
-<h1>Documentos — {{ orientacao.titulo_projeto }}</h1>
+<h1>Documentos do projeto {{ orientacao.titulo_projeto }}</h1>
 <p><a href="{{ url_for('documentos.criar', orientacao_id=orientacao.id) }}">+ Novo documento</a></p>
 <table>
   <tr><th>Título</th><th>Versão atual</th><th>Enviado por</th><th>Em</th><th></th></tr>
@@ -12,7 +12,7 @@
   {% set v = d.versao_atual %}
   <tr>
     <td>{{ d.titulo }}</td>
-    <td>{% if v %}v{{ v.numero_versao }} — {{ v.nome_original }}{% else %}—{% endif %}</td>
+    <td>{% if v %}v{{ v.numero_versao }} ({{ v.nome_original }}){% else %}—{% endif %}</td>
     <td>{{ v.remetente.nome if v else '—' }}</td>
     <td>{{ v.enviado_em.strftime('%Y-%m-%d %H:%M') if v else '—' }}</td>
     <td><a href="{{ url_for('documentos.detalhe', orientacao_id=orientacao.id, documento_id=d.id) }}">Histórico</a></td>

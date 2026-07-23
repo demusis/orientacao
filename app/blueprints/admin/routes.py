@@ -532,7 +532,7 @@ def listar_auditoria():
     from app.models import LogAuditoria
 
     form = FiltroAuditoriaForm(formdata=request.args)
-    form.usuario_id.choices = [(0, "— todos —")] + [
+    form.usuario_id.choices = [(0, "(todos)")] + [
         (u.id, u.nome) for u in Usuario.query.order_by(Usuario.nome)
     ]
     acoes = [
@@ -541,7 +541,7 @@ def listar_auditoria():
         .distinct()
         .order_by(LogAuditoria.acao)
     ]
-    form.acao.choices = [("", "— todas —")] + [(a, a) for a in acoes]
+    form.acao.choices = [("", "(todas)")] + [(a, a) for a in acoes]
 
     consulta = LogAuditoria.query
     if form.validate():

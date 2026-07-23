@@ -301,7 +301,7 @@ def emitir_parecer(orientacao_id: int):
         .order_by(VersaoDocumento.enviado_em.desc())
         .all()
     )
-    form.versao_documento_id.choices = [(0, "— nenhuma —")] + [
+    form.versao_documento_id.choices = [(0, "(nenhuma)")] + [
         (v.id, f"{v.documento.titulo} (v{v.numero_versao})") for v in versoes
     ]
 

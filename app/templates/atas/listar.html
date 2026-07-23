@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% from "_macros.html" import nav_modulos %}
-{% block title %}Atas — ARIADNE{% endblock %}
+{% block title %}Atas · ARIADNE{% endblock %}
 {% block voltar %}<a class="voltar" href="{{ url_for('main.dashboard') }}">Painel</a>{% endblock %}
 {% block content %}
 {{ nav_modulos(orientacao, 'atas') }}
-<h1>Atas — {{ orientacao.titulo_projeto }}</h1>
+<h1>Atas do projeto {{ orientacao.titulo_projeto }}</h1>
 {% if current_user.id == orientacao.orientador_id or current_user.papel == 'admin' %}
 <p><a href="{{ url_for('atas.criar_ata', orientacao_id=orientacao.id) }}">+ Nova ata</a></p>
 {% endif %}

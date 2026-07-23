@@ -84,7 +84,7 @@ def eventos(orientacao) -> list:
             "tipo": "parecer",
             "quando": _dt(p.emitido_em),
             "data": p.emitido_em,
-            "titulo": f"Parecer — {RESULTADO_LABEL[p.resultado]}",
+            "titulo": f"Parecer: {RESULTADO_LABEL[p.resultado]}",
             "detalhe": f"por {p.emissor.nome}",
             "alvo": ("atas.listar_pareceres", {"orientacao_id": orientacao.id}),
             "relacionado": alvo_txt,

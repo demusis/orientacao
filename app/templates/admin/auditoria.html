@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "_macros.html" import render_form, paginacao_nav %}
-{% block title %}Auditoria — ARIADNE{% endblock %}
+{% block title %}Auditoria · ARIADNE{% endblock %}
 {% block content %}
 <h1>Trilha de auditoria</h1>
 <div class="card">
@@ -12,7 +12,7 @@
 
 <p>
   {% if paginacao.total %}
-    <strong>{{ paginacao.total }}</strong> registro(s) atendem ao filtro —
+    <strong>{{ paginacao.total }}</strong> registro(s) atendem ao filtro;
     página <strong>{{ paginacao.page }}</strong> de <strong>{{ paginacao.pages }}</strong>,
     {{ limite }} por página, do mais recente para o mais antigo.
   {% else %}

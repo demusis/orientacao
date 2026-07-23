@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% from "_macros.html" import nav_modulos %}
-{% block title %}Cronograma — ARIADNE{% endblock %}
+{% block title %}Cronograma · ARIADNE{% endblock %}
 {% block voltar %}<a class="voltar" href="{{ url_for('main.dashboard') }}">Painel</a>{% endblock %}
 {% block content %}
 {{ nav_modulos(orientacao, 'cronograma') }}
-<h1>Cronograma — {{ orientacao.titulo_projeto }}</h1>
+<h1>Cronograma do projeto {{ orientacao.titulo_projeto }}</h1>
 {% if current_user.id == orientacao.orientador_id or current_user.papel == 'admin' %}
 <p><a href="{{ url_for('cronogramas.criar', orientacao_id=orientacao.id) }}">+ Novo marco</a></p>
 {% endif %}

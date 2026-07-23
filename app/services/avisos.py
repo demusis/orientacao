@@ -81,7 +81,7 @@ SECOES = {
             "Abra o sistema e clique em Painel; a orientação aparece na lista.",
             "Dentro dela, vá em Cronograma.",
             "No marco já concluído, clique em Sinalizar conclusão. Seu "
-            "orientador recebe o aviso e faz a confirmação — só então o marco "
+            "orientador recebe o aviso e faz a confirmação; só então o marco "
             "passa a concluído.",
             "Se o prazo não for mais viável, converse com seu orientador: ele "
             "pode alterar a data prevista.",
@@ -92,11 +92,11 @@ SECOES = {
         "explicacao": (
             "São tarefas do cronograma dos seus orientandos cuja data prevista "
             "já passou e que ainda não constam como concluídas. O acompanhamento "
-            "é individual — cabe a você tratar cada caso."
+            "é individual: cabe a você tratar cada caso."
         ),
         "passos": [
             "Abra a orientação indicada pelo Painel e vá em Cronograma.",
-            "Se o orientando já entregou, clique em Confirmar conclusão — o "
+            "Se o orientando já entregou, clique em Confirmar conclusão, e o "
             "marco deixa de figurar como vencido.",
             "Caso contrário, trate com o orientando; se o prazo não for mais "
             "viável, edite o marco no cronograma e ajuste a data prevista.",
@@ -149,14 +149,14 @@ SECOES = {
         "titulo": "Marcos com prazo próximo",
         "explicacao": (
             "São tarefas do seu cronograma cujo prazo vence nos próximos dias e "
-            "ainda não constam como concluídas. Aviso preventivo — nada está "
+            "ainda não constam como concluídas. É aviso preventivo: nada está "
             "atrasado ainda."
         ),
         "passos": [
             "Abra o sistema, vá em Painel e depois em Cronograma da orientação.",
             "Ao concluir a tarefa, clique em Sinalizar conclusão.",
             "Prevendo que o prazo não será cumprido, avise seu orientador com "
-            "antecedência — ele pode ajustar a data prevista.",
+            "antecedência; ele pode ajustar a data prevista.",
         ],
     },
     "reunioes_proximas": {
@@ -166,7 +166,7 @@ SECOES = {
         ),
         "passos": [
             "Confirme a data e a hora na página da orientação, em Atas.",
-            "Precisando remarcar, use Reagendar enquanto a ata está em rascunho — "
+            "Precisando remarcar, use Reagendar enquanto a ata está em rascunho; "
             "a nova data fica registrada no histórico.",
         ],
     },
@@ -202,7 +202,7 @@ def marcos_atrasados(destino: dict) -> None:
             m.orientacao.orientando,
             "marcos_vencidos",
             m.titulo,
-            f"Previsto para {m.data_prevista.strftime('%d/%m/%Y')} — "
+            f"Previsto para {m.data_prevista.strftime('%d/%m/%Y')} · "
             f"{dias} {'dia' if dias == 1 else 'dias'} de atraso · "
             f"{m.orientacao.titulo_projeto}",
         )
@@ -277,7 +277,7 @@ def marcos_atrasados_dos_orientandos(destino: dict) -> None:
             "orientandos_atrasados",
             m.titulo,
             f"{m.orientacao.orientando.nome} · previsto para "
-            f"{m.data_prevista.strftime('%d/%m/%Y')} — "
+            f"{m.data_prevista.strftime('%d/%m/%Y')} · "
             f"{dias} {'dia' if dias == 1 else 'dias'} de atraso · "
             f"{m.orientacao.titulo_projeto}",
         )
@@ -499,8 +499,8 @@ AVISO_AUTOMATICO = (
 )
 RODAPE_QUEM_PROCURAR = (
     "Para tratar de assuntos da orientação, escreva diretamente ao seu "
-    "orientador. Para problemas de acesso ao sistema — senha esquecida, por "
-    "exemplo —, procure o administrador."
+    "orientador. Para problemas de acesso ao sistema, como senha esquecida, "
+    "procure o administrador."
 )
 RODAPE_FREQUENCIA = (
     "Você recebe este aviso no máximo uma vez por dia, e somente quando há "
@@ -539,7 +539,7 @@ def assunto(secoes: dict) -> str:
     precisar abrir para saber o tamanho."""
     total = _contar(secoes)
     return (
-        f"ARIADNE — {total} pendência{'s' if total != 1 else ''} "
+        f"ARIADNE: {total} pendência{'s' if total != 1 else ''} "
         "no seu acompanhamento"
     )
 

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "_macros.html" import nav_modulos, render_form %}
-{% block title %}Reagendar reunião — ARIADNE{% endblock %}
+{% block title %}Reagendar reunião · ARIADNE{% endblock %}
 {% block voltar %}<a class="voltar" href="{{ url_for('atas.detalhe_ata', orientacao_id=orientacao.id, ata_id=ata.id) }}">Ata</a>{% endblock %}
 {% block content %}
 {{ nav_modulos(orientacao, 'atas') }}

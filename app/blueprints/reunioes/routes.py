@@ -21,7 +21,7 @@ def _vinculos_ativos():
 
 
 def _choices(vinculos):
-    return [(o.id, f"{o.orientando.nome} — {o.titulo_projeto}") for o in vinculos]
+    return [(o.id, f"{o.orientando.nome} ({o.titulo_projeto})") for o in vinculos]
 
 
 def _marcos_do_grupo(grupo_id: str) -> list:

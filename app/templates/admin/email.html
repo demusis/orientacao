@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "_macros.html" import render_form %}
-{% block title %}Envio de e-mail — ARIADNE{% endblock %}
+{% block title %}Envio de e-mail · ARIADNE{% endblock %}
 {% block content %}
 <h1>Envio de e-mail</h1>
 
@@ -31,7 +31,7 @@
 
 <div class="card">
   <h2>Conferir</h2>
-  <p><small>Envia uma mensagem de teste pelo mesmo caminho de código do envio real —
+  <p><small>Envia uma mensagem de teste pelo mesmo caminho de código do envio real;
   um teste que exercitasse outro caminho não provaria nada. Falhando, a causa é
   exibida.</small></p>
   {{ render_form(teste_form, action=url_for('admin.testar_email')) }}
@@ -43,16 +43,19 @@
   reunindo o que lhe cabe:</p>
   <table>
     <tr><th>Quem recebe</th><th>O que é comunicado</th></tr>
-    <tr><td>Orientando</td><td>marcos com prazo vencido</td></tr>
-    <tr><td rowspan="3">Orientador</td><td>entregas aguardando confirmação</td></tr>
+    <tr><td rowspan="2">Orientando</td><td>marcos com prazo vencido</td></tr>
+    <tr><td>marcos a vencer nos próximos 7 dias</td></tr>
+    <tr><td rowspan="4">Orientador</td><td>marcos vencidos dos seus orientandos</td></tr>
+    <tr><td>entregas aguardando confirmação</td></tr>
     <tr><td>entregas aguardando parecer</td></tr>
     <tr><td>atas em rascunho há mais de 15 dias</td></tr>
+    <tr><td>Ambos</td><td>reuniões agendadas nas próximas 48 horas</td></tr>
   </table>
   {% if pendentes.destinatarios %}
     <p>Pendências neste momento: <strong>{{ pendentes.itens }}</strong> item(ns),
     distribuídos entre <strong>{{ pendentes.destinatarios }}</strong> pessoa(s).</p>
   {% else %}
-    <p>Nenhuma pendência neste momento — nada seria enviado.</p>
+    <p>Nenhuma pendência neste momento; nada seria enviado.</p>
   {% endif %}
 
   {% if ultimo_envio %}
@@ -88,8 +91,8 @@
   <p class="flash flash-warning">Prefira uma <strong>conta dedicada ao sistema</strong>,
   não a sua pessoal. A senha fica no servidor, e quem obtiver o servidor inteiro consegue
   enviar mensagens como a conta configurada. Guardá-la cifrada protege contra o
-  vazamento do banco isolado — em pacote de backup, por exemplo, do qual esta
-  configuração é deliberadamente excluída —, mas não contra o comprometimento do
+  vazamento do banco isolado (em pacote de backup, por exemplo, do qual esta
+  configuração é deliberadamente excluída), mas não contra o comprometimento do
   servidor, porque a aplicação precisa saber decifrar a senha para usá-la. A conta
   dedicada é o que limita o estrago.</p>
 </div>

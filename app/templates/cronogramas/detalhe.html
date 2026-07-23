@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "_macros.html" import nav_modulos, render_form %}
-{% block title %}{{ marco.titulo }} — ARIADNE{% endblock %}
+{% block title %}{{ marco.titulo }} · ARIADNE{% endblock %}
 {% block voltar %}<a class="voltar" href="{{ url_for('cronogramas.listar', orientacao_id=orientacao.id) }}">Cronograma</a>{% endblock %}
 {% block content %}
 {{ nav_modulos(orientacao, 'cronograma') }}
@@ -63,7 +63,7 @@
 
 <div class="card">
   <h2>Anexar documento</h2>
-  <p><small>Opcional. Envie um arquivo como entrega desta tarefa — ele fica
+  <p><small>Opcional. Envie um arquivo como entrega desta tarefa; ele fica
   ligado a este marco. Para enviar novas versões depois, abra o documento na aba
   <a href="{{ url_for('documentos.listar', orientacao_id=orientacao.id) }}">Documentos</a>
   do vínculo.</small></p>

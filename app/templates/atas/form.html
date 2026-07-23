@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% from "_macros.html" import nav_modulos, render_form %}
-{% block title %}Nova ata — ARIADNE{% endblock %}
+{% block title %}Nova ata · ARIADNE{% endblock %}
 {% block voltar %}<a class="voltar" href="{{ url_for('atas.listar_atas', orientacao_id=orientacao.id) }}">Atas</a>{% endblock %}
 {% block content %}
 {{ nav_modulos(orientacao, 'atas') }}
 <div class="card">
-  <h1>Nova ata — {{ orientacao.titulo_projeto }}</h1>
+  <h1>Nova ata no projeto {{ orientacao.titulo_projeto }}</h1>
   {{ render_form(form) }}
 </div>
 {% endblock %}

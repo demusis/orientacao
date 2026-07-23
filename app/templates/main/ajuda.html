@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Ajuda — ARIADNE{% endblock %}
+{% block title %}Ajuda · ARIADNE{% endblock %}
 {% block content %}
 <h1>Ajuda</h1>
 <p class="ajuda-intro">
@@ -32,7 +32,7 @@
   <p>O sistema organiza-se em torno do <strong>vínculo de orientação</strong>: a relação
   formal entre um orientador e um orientando, com modalidade (Iniciação Científica,
   Mestrado ou Doutorado), título de projeto, datas de início e fim previsto. Todo o
-  conteúdo — cronograma, documentos, atas e pareceres — pertence a um vínculo.</p>
+  conteúdo (cronograma, documentos, atas e pareceres) pertence a um vínculo.</p>
   <p>Há três papéis, com permissões estritas:</p>
   <table>
     <tr><th>Papel</th><th>O que pode fazer</th></tr>
@@ -67,7 +67,7 @@
   <p>Esqueceu a senha? Use <strong>Esqueci minha senha</strong>, na tela de acesso.
   Informe o e-mail da conta e, havendo conta ativa com esse endereço, o sistema envia um
   link para definir nova senha, válido por uma hora. Ao redefinir, as sessões abertas
-  naquela conta são encerradas — útil quando se suspeita de acesso indevido. O envio
+  naquela conta são encerradas, o que é útil quando se suspeita de acesso indevido. O envio
   depende de o e-mail estar configurado pelo administrador; não estando, ele ainda pode
   definir uma nova senha inicial manualmente.</p>
 </section>
@@ -85,7 +85,7 @@
   página do vínculo, que reúne os quatro módulos: Cronograma, Documentos, Atas e
   Pareceres.</p>
   <p>No <strong>menu superior</strong>, o Painel fica em destaque à esquerda. Para o
-  administrador, as funções são agrupadas em dois menus que abrem ao clique —
+  administrador, as funções são agrupadas em dois menus que abrem ao clique:
   <strong>Gestão</strong> (Usuários, Orientações) e <strong>Sistema</strong> (Modelos,
   E-mail, Backup, Auditoria). À direita, o menu com o seu nome reúne <em>Senha</em> e
   <em>Sair</em>.</p>
@@ -98,27 +98,27 @@
   <p>A <strong>página do vínculo</strong> apresenta, além dos quatro módulos, mais dois
   recursos de leitura da orientação:</p>
   <ul>
-    <li>a <strong>Linha do tempo</strong> — uma cronologia única que reúne marcos,
+    <li>a <strong>Linha do tempo</strong>, uma cronologia única que reúne marcos,
     entregas de documentos, pareceres e reuniões, do mais recente ao mais antigo, com
     as ligações entre eles (o parecer indica a versão que avaliou; a entrega, o marco a
     que pertence; a reunião, os marcos que discutiu). Um filtro por tipo permite ver
     apenas marcos, apenas pareceres, e assim por diante. Enquanto as quatro abas
     respondem "o que existe", a linha do tempo responde "o que aconteceu, e em que
     ordem";</li>
-    <li>o <strong>Relatório de acompanhamento (PDF)</strong> — um retrato consolidado do
+    <li>o <strong>Relatório de acompanhamento (PDF)</strong>, um retrato consolidado do
     vínculo (cronograma, reuniões, entregas e pareceres) para levar à banca ou à
     coordenação. É um retrato do momento, gerado a cada acesso; por isso, diferentemente
     da ata e do parecer, não carrega <em>hash</em> de verificação.</li>
   </ul>
   <ul>
-    <li><strong>Entregas aguardando confirmação</strong> — marcos que o orientando
+    <li><strong>Entregas aguardando confirmação</strong>: marcos que o orientando
     sinalizou como concluídos e que esperam a confirmação do orientador. Para o
     orientando, o mesmo quadro aparece como "suas entregas aguardando avaliação".</li>
-    <li><strong>Tarefas em aberto</strong> — marcos ainda não concluídos, em ordem de
+    <li><strong>Tarefas em aberto</strong>: marcos ainda não concluídos, em ordem de
     prazo, com selo <em>atrasado</em> quando a data prevista já venceu.</li>
-    <li><strong>Atas em rascunho</strong> — reuniões registradas cuja ata ainda não foi
+    <li><strong>Atas em rascunho</strong>: reuniões registradas cuja ata ainda não foi
     finalizada.</li>
-    <li><strong>Versões aguardando parecer</strong> — a versão mais recente de cada
+    <li><strong>Versões aguardando parecer</strong>: a versão mais recente de cada
     documento que ainda não recebeu parecer. Versões superadas por outra não aparecem.</li>
   </ul>
   <p>Não havendo nada pendente, o Painel informa isso expressamente. Cada linha leva ao
@@ -144,21 +144,21 @@
     ativar/desativar a conta. Conta desativada não autentica, mas preserva o histórico.</li>
   </ol>
   <p>O administrador também pode <strong>excluir</strong> usuários, mas somente contas
-  <em>sem histórico</em> — sem vínculos, conteúdo ou ações auditadas. Contas com
+  <em>sem histórico</em>, isto é, sem vínculos, conteúdo ou ações auditadas. Contas com
   histórico devem ser <em>desativadas</em>, o que preserva a integridade dos registros.</p>
   <p>Salvaguardas: um administrador <strong>não pode</strong> alterar o próprio papel,
   desativar ou excluir a própria conta, e o sistema recusa a despromoção ou exclusão do
-  último administrador ativo — todas as tentativas ficam registradas em auditoria.</p>
+  último administrador ativo; todas as tentativas ficam registradas em auditoria.</p>
   <h3>4.3 Criação de orientandos pelo orientador</h3>
   <p>O orientador dispõe do menu <strong>Orientandos</strong> para criar contas de
   orientando (papel fixo). A criação é um ato único: além da conta, o sistema constitui
   o <strong>vínculo de orientação já ativo</strong> entre o orientando e o orientador que
-  o criou — por isso o formulário pede também modalidade, título do projeto e datas.
+  o criou; por isso o formulário pede também modalidade, título do projeto e datas.
   Não é necessário recorrer ao administrador.</p>
   <p><strong>Desativar e excluir contas compete exclusivamente ao administrador.</strong>
   O orientador cria a conta e o vínculo, mas não os remove; para encerrar um
   acompanhamento, solicite ao administrador a desativação da conta ou o encerramento do
-  vínculo — ambos preservam o histórico. A exclusão física, pelo administrador, continua
+  vínculo; ambos preservam o histórico. A exclusão física, pelo administrador, continua
   admitida apenas para contas sem qualquer registro (marco, documento, ata ou parecer);
   nesse caso o vínculo ainda vazio é removido junto.</p>
   <h3>4.4 Backup, restauração e expurgo</h3>
@@ -166,12 +166,12 @@
   primeira, <em>gerar backup</em>, produz um arquivo <code>.zip</code> com todos os dados
   e os arquivos enviados; guarde-o com cuidado, pois contém dados pessoais e senhas
   cifradas. As outras duas são <strong>destrutivas e sem desfazer</strong>, e por isso
-  exigem digitar uma palavra de confirmação — não basta clicar.</p>
+  exigem digitar uma palavra de confirmação: não basta clicar.</p>
   <p><em>Restaurar backup</em> substitui integralmente o conteúdo atual pelo do arquivo
   enviado. É recusada se o backup tiver sido gerado sob outra versão da estrutura do
   banco. Caso a conta de quem restaura não conste do arquivo, ela é preservada, para que
   o sistema não fique sem administrador.</p>
-  <p><em>Apagar a base</em> remove todo o conteúdo — inclusive a trilha de auditoria —
+  <p><em>Apagar a base</em> remove todo o conteúdo, inclusive a trilha de auditoria,
   preservando apenas a conta de quem executa. Um único registro novo documenta o ato, com
   data, autor e quantidade removida de cada tipo; o histórico anterior não é recuperável.
   Gere um backup antes.</p>
@@ -189,24 +189,24 @@
   dias. Ao orientador: marcos vencidos dos seus orientandos, entregas aguardando confirmação,
   entregas aguardando parecer e atas em rascunho há mais de 15 dias. A ambos: reuniões
   agendadas nas próximas 48 horas. Quem
-  não tem pendência não recebe nada — e os avisos a vencer são preventivos, para dar tempo
+  não tem pendência não recebe nada, e os avisos a vencer são preventivos, para dar tempo
   de agir antes do atraso.</p>
-  <p>O disparo aproveita o tráfego do site — na primeira visita de cada dia os avisos
+  <p>O disparo aproveita o tráfego do site: na primeira visita de cada dia os avisos
   saem, e nas demais nada acontece. A hospedagem gratuita não oferece tarefas agendadas,
   de modo que um dia inteiro sem nenhum acesso adia o envio para o dia seguinte. Cada
   disparo fica na trilha de auditoria, e a tela de e-mail mostra o resultado do último,
   destacando eventuais falhas de entrega.</p>
   <p><strong>Sobre a proteção da senha.</strong> Ela é guardada cifrada e nunca é
-  devolvida à tela — o campo aparece sempre em branco e só substitui a guardada quando
+  devolvida à tela: o campo aparece sempre em branco e só substitui a guardada quando
   algo é digitado. A tabela de configuração também não entra no pacote de backup, que é a
   via de vazamento mais provável, por sair do servidor. Convém saber o limite disso: para
   enviar, o sistema precisa decifrar a senha, logo precisa da chave, logo quem obtiver o
   servidor inteiro consegue enviar mensagens como a conta configurada. Por isso a
   recomendação de usar uma <strong>conta dedicada ao sistema</strong>, e não a conta
-  pessoal — é o que limita o estrago, mais do que a cifragem.</p>
+  pessoal, que é o que limita o estrago, mais do que a cifragem.</p>
   <h3>4.7 Modelos de documento</h3>
   <p>No menu <strong>Modelos</strong>, o administrador mantém um acervo de
-  arquivos-modelo — pontos de partida que os usuários podem baixar ao criar um
+  arquivos-modelo, pontos de partida que os usuários podem baixar ao criar um
   documento. Envie um modelo informando título, uma descrição opcional e o arquivo
   (mesmas extensões e limite de tamanho dos documentos); remova-o quando deixar de
   servir. O acervo é comum a todo o sistema, não pertence a vínculo algum, e o
@@ -241,17 +241,17 @@
     {% if current_user.papel in ('orientador', 'orientando') %}<span class="badge badge-papel">seu papel</span>{% endif %}
   </h2>
   <p>O cronograma é composto de <strong>marcos</strong>: entregas ou etapas metodológicas
-  com data prevista (ex.: "Qualificação", "Capítulo 2 — revisão"). É por meio de marcos
+  com data prevista (ex.: "Qualificação", "Capítulo 2: revisão"). É por meio de marcos
   que o orientador atribui tarefas datadas ao orientando.</p>
   <p>Cada marco recebe duas classificações, que respondem a perguntas diferentes e nunca
   usam o mesmo rótulo:</p>
   <ul>
-    <li>o <strong>tipo</strong> é o ato ou produto devido naquela data — projeto de
+    <li>o <strong>tipo</strong> é o ato ou produto devido naquela data: projeto de
     pesquisa, comitê de ética, qualificação, relatório (parcial, anual ou final),
     publicação, defesa ou outro. A lista reúne apenas atos que o orientador aprecia,
     assina ou julga em banca; o que estiver fora dela (uma apresentação em congresso, um
     exame de proficiência) entra como <em>Outro</em>, com o título descrevendo o caso;</li>
-    <li>a <strong>etapa do projeto</strong> é o período em que o marco se insere —
+    <li>a <strong>etapa do projeto</strong> é o período em que o marco se insere:
     planejamento, revisão de literatura, coleta e experimentos, análise de resultados,
     redação ou encerramento.</li>
   </ul>
@@ -266,9 +266,9 @@
     <li><strong>Orientando</strong> <strong>abre a tarefa</strong> (clicando no título
     do marco, no cronograma). Na página da tarefa vê a descrição, as entregas e reuniões
     já ligadas, e pode <em>anexar um documento</em> como entrega e/ou escrever uma
-    <em>nota</em> — ambos opcionais, pois há marcos que são só atos (Comitê de Ética,
+    <em>nota</em>, ambos opcionais, pois há marcos que são só atos (Comitê de Ética,
     Defesa). Ao concluir o trabalho, clica em <em>Sinalizar conclusão</em>: o marco passa
-    a <em>em andamento</em> com o selo "sinalizado" — é uma declaração, não a conclusão
+    a <em>em andamento</em> com o selo "sinalizado". É uma declaração, não a conclusão
     definitiva.</li>
     <li><strong>Orientador</strong> abre a mesma tarefa, examina a entrega e a nota, e
     clica em <em>Confirmar conclusão</em>. Só então o status muda para <em>concluído</em>,
@@ -286,17 +286,17 @@
   com os orientandos e o resumo de quantos já concluíram, e oferece duas ações:</p>
   <ul>
     <li><strong>Editar</strong> altera título, prazo e etapa de uma vez para todos os
-    orientandos da tarefa — o conteúdo é propagado a cada cronograma, enquanto a
+    orientandos da tarefa: o conteúdo é propagado a cada cronograma, enquanto a
     conclusão de cada um permanece individual;</li>
     <li><strong>Excluir</strong> só é admitida enquanto a tarefa <em>não tem
-    histórico</em> em nenhum orientando — ou seja, nenhum marco do grupo foi concluído,
+    histórico</em> em nenhum orientando, ou seja, nenhum marco do grupo foi concluído,
     sinalizado, recebeu documento ou foi discutido em reunião. Havendo histórico, a
     exclusão é recusada, preservando o registro; nesse caso, edite a tarefa ou trate
     cada cronograma individualmente.</li>
   </ul>
   <h3>5.3 Atraso</h3>
   <p>Marco com data prevista vencida e não concluído recebe automaticamente o selo
-  <em>atrasado</em> — na listagem e no alerta do Painel. O selo desaparece quando a
+  <em>atrasado</em>, na listagem e no alerta do Painel. O selo desaparece quando a
   conclusão é confirmada.</p>
 </section>
 
@@ -315,7 +315,7 @@
     <li>O envio cria a <strong>versão 1</strong>.</li>
   </ol>
   <p>Havendo <strong>modelos</strong> cadastrados pela administração, a página de
-  novo documento os lista para download — pontos de partida opcionais que você
+  novo documento os lista para download: pontos de partida opcionais que você
   baixa, preenche e depois envia como seu documento.</p>
   <h3>6.2 Enviar nova versão</h3>
   <ol>
@@ -352,10 +352,10 @@
   mesma ata em seus vínculos, com a lista de presentes. Em ambos os tipos, a ata
   formaliza-se em duas fases:</p>
   <ol>
-    <li><strong>Rascunho</strong> — o orientador registra data da reunião, pauta e
+    <li><strong>Rascunho</strong>: o orientador registra data da reunião, pauta e
     deliberações em <em>Atas → + Nova ata</em>. Enquanto rascunho, pode ser editada
     livremente (cada edição é auditada). O orientando visualiza.</li>
-    <li><strong>Finalizada</strong> — o botão <em>Finalizar ata</em> formaliza o
+    <li><strong>Finalizada</strong>: o botão <em>Finalizar ata</em> formaliza o
     registro com carimbo de data/hora. A partir daí a ata é
     <strong>imutável</strong>: não pode ser editada nem excluída por ninguém, inclusive
     quem a redigiu. Tentativas de alteração são recusadas e registradas em auditoria.</li>
@@ -363,7 +363,7 @@
   <h3>7.1 Formatação do texto</h3>
   <p>A <strong>pauta</strong>, as <strong>deliberações</strong> e o texto do
   <strong>parecer</strong> aceitam marcação. O que se digita é interpretado tanto na
-  tela quanto no <strong>PDF assinável</strong>, a partir da mesma leitura — o documento
+  tela quanto no <strong>PDF assinável</strong>, a partir da mesma leitura: o documento
   conferido na tela é o documento assinado no papel.</p>
   <table>
     <tr><th>Para obter</th><th>Digite</th></tr>
@@ -377,7 +377,7 @@
     <tr><td>Tabela</td><td><code>| Coluna | Coluna |</code> e, na linha seguinte, <code>|---|---|</code></td></tr>
   </table>
   <p>Quebras de linha são preservadas: o texto sai como foi digitado.
-  <strong>Imagens e HTML não são aceitos</strong> — um documento destinado à assinatura
+  <strong>Imagens e HTML não são aceitos</strong>: um documento destinado à assinatura
   não deve buscar recurso externo nem conter marcação arbitrária; se digitados, aparecem
   como texto literal. <strong>Links</strong> são impressos com o endereço à vista
   (<em>texto (endereço)</em>), para que o destino não fique oculto atrás da palavra.</p>
@@ -386,8 +386,8 @@
   <h3>7.2 Reagendamento</h3>
   <p>Enquanto a ata está em rascunho, o orientador pode <strong>reagendar</strong> a
   reunião (nova data e hora, com motivo opcional) pelo botão <em>Reagendar</em> na
-  página da ata. Cada reagendamento fica no histórico da própria ata — de/para, autor,
-  motivo e data/hora do registro — além da trilha de auditoria. A edição comum do
+  página da ata. Cada reagendamento fica no histórico da própria ata (de/para, autor,
+  motivo e data/hora do registro), além da trilha de auditoria. A edição comum do
   rascunho não altera a data: toda mudança de agenda passa pelo reagendamento, o que
   garante o registro. Ata finalizada não se reagenda.</p>
   <h3>7.3 Presenças e justificativas</h3>
@@ -405,9 +405,9 @@
   assinatura eletrônica externa (gov.br/SEI). O PDF traz identificador e
   <em>hash</em> de integridade; qualquer pessoa com o documento pode conferir, pelo
   endereço de verificação impresso no rodapé, que o conteúdo corresponde ao registro
-  interno — a verificação não divulga o conteúdo, apenas a correspondência.</p>
+  interno; a verificação não divulga o conteúdo, apenas a correspondência.</p>
   <p>Recomendação de uso: finalize a ata logo após a reunião, com as presenças
-  assinaladas e as deliberações validadas pelas partes — depois de finalizada,
+  assinaladas e as deliberações validadas pelas partes; depois de finalizada,
   correções exigem nova ata complementar.</p>
 </section>
 
@@ -421,7 +421,7 @@
     <li><strong>Tipo</strong>: andamento (avaliação geral do período), documento
     (apreciação de uma entrega) ou marco (avaliação de uma etapa);</li>
     <li><strong>Versão de documento</strong> (opcional): vincula o parecer a uma versão
-    específica — recomendado no tipo "documento", pois fixa exatamente o que foi
+    específica, recomendado no tipo "documento", pois fixa exatamente o que foi
     avaliado;</li>
     <li><strong>Conteúdo</strong> e <strong>resultado</strong>: aprovado, aprovado com
     ressalvas ou reprovado.</li>
@@ -432,7 +432,7 @@
   o mesmo botão aparece na página do documento, ao lado de cada versão. Por esse caminho o
   formulário já chega com a versão escolhida e o tipo em "documento", exibindo o título, o
   número da versão, quem enviou, quando, e um link para baixar o arquivo antes de opinar.
-  Se aquela versão já tiver recebido parecer, um aviso o informa — sem impedir a emissão
+  Se aquela versão já tiver recebido parecer, um aviso o informa, sem impedir a emissão
   de outro, pois a decisão é sua.</p>
   <h3>8.2 Formatação e imutabilidade</h3>
   <p>O texto do parecer aceita a <strong>mesma formatação das atas</strong> (ver 7.1):
@@ -442,16 +442,16 @@
   imutável desde a emissão. Revisões de juízo exigem novo parecer.</p>
   <p class="flash flash-warning">Atenção a uma consequência prática: a ata é congelada ao
   ser <em>finalizada</em>, e até lá você pode conferir a formatação; o parecer é congelado
-  <strong>no instante da emissão</strong>. Não há etapa de conferência posterior — o que
+  <strong>no instante da emissão</strong>. Não há etapa de conferência posterior: o que
   você escreve é o que fica no registro e no PDF. Ao emitir o primeiro, vale abrir a
   listagem de pareceres para ver como a formatação saiu e calibrar os seguintes.</p>
 </section>
 
 <section id="auditoria" class="card">
   <h2>9. Trilha de auditoria {% if current_user.papel == 'admin' %}<span class="badge badge-papel">seu papel</span>{% endif %}</h2>
-  <p>Toda operação relevante — login e tentativas falhas, criação e alteração de
+  <p>Toda operação relevante (login e tentativas falhas, criação e alteração de
   usuários e vínculos, marcos, envios e downloads de documentos, atas, pareceres e
-  tentativas de operação recusada — gera um registro com autor, ação, entidade, data/hora
+  tentativas de operação recusada) gera um registro com autor, ação, entidade, data/hora
   (UTC) e endereço IP de origem. A trilha é <em>append-only</em>: o sistema não possui
   função de edição ou exclusão de registros. O administrador a consulta no menu
   <strong>Auditoria</strong>.</p>
@@ -460,9 +460,9 @@
   filtros são <em>intervalo de data e hora</em> (início e fim, em UTC, ambos opcionais),
   <em>usuário</em> e <em>ação</em>. O endereço da consulta reflete o filtro e a página,
   de modo que um recorte pode ser guardado ou compartilhado como link.</p>
-  <p>A coluna <strong>Dados</strong> traz os detalhes de cada registro — os identificadores
+  <p>A coluna <strong>Dados</strong> traz os detalhes de cada registro: os identificadores
   e valores que particularizam a ação (por exemplo, os marcos e orientandos de uma tarefa
-  em grupo) — apresentados em pares <em>rótulo → valor</em>, um por linha. Registros sem
+  em grupo), apresentados em pares <em>rótulo → valor</em>, um por linha. Registros sem
   detalhe adicional deixam a coluna em branco.</p>
   <p>No pé da página há a navegação entre páginas: <em>« Primeira</em>,
   <em>‹ Anterior</em>, os números das páginas próximas à atual, <em>Próxima ›</em> e
@@ -513,7 +513,7 @@
     <dt>Por que não consigo excluir um usuário?</dt>
     <dd>A exclusão física é admitida apenas para contas sem qualquer registro no
     sistema. Se a conta participa de vínculo, criou conteúdo ou possui ações
-    auditadas, a via correta é a desativação — o histórico institucional não pode
+    auditadas, a via correta é a desativação; o histórico institucional não pode
     ser apagado.</dd>
 
     <dt>O que acontece quando o vínculo é encerrado?</dt>

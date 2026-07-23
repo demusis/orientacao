@@ -392,7 +392,7 @@ def test_mensagem_leva_o_endereco_do_sistema(app, client, orientacao, orientando
 def test_assunto_informa_a_quantidade(client, orientacao, orientando):
     _marco_atrasado(orientacao)
     assert avisos.assunto(avisos.coletar()[orientando]).startswith(
-        "ARIADNE — 1 pendência"
+        "ARIADNE: 1 pendência"
     )
 
 

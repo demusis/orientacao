@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "_macros.html" import render_form %}
-{% block title %}Backup e restauração — ARIADNE{% endblock %}
+{% block title %}Backup e restauração · ARIADNE{% endblock %}
 {% block content %}
 <h1>Backup, restauração e expurgo</h1>
 
@@ -31,7 +31,7 @@
 <div class="card">
   <h2>2. Restaurar backup</h2>
   <p class="flash flash-danger"><strong>Operação destrutiva.</strong> Todo o conteúdo
-  atual — vínculos, marcos, documentos, atas, pareceres e a trilha de auditoria — é
+  atual (vínculos, marcos, documentos, atas, pareceres e a trilha de auditoria) é
   substituído pelo do arquivo enviado. Não há desfazer. Gere um backup do estado atual
   antes de prosseguir.</p>
   <p>A restauração é recusada se o backup tiver sido gerado sob outra versão do esquema
@@ -52,7 +52,7 @@
   ({{ current_user.email }}), para que o sistema não fique sem administrador.</p>
   <p>Um único registro novo de auditoria documenta o expurgo, com a data, o seu
   identificador e a quantidade removida de cada tipo. O histórico anterior não é
-  recuperável — restaure um backup se precisar dele de volta.</p>
+  recuperável: restaure um backup se precisar dele de volta.</p>
   {{ render_form(expurgar_form, action=url_for('admin.expurgar_base')) }}
   <p><small>Digite <strong>APAGAR</strong> no campo de confirmação.</small></p>
 </div>

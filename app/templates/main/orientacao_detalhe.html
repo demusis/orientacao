@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "_macros.html" import nav_modulos %}
-{% block title %}{{ orientacao.titulo_projeto }} — ARIADNE{% endblock %}
+{% block title %}{{ orientacao.titulo_projeto }} · ARIADNE{% endblock %}
 {% block voltar %}<a class="voltar" href="{{ url_for('main.dashboard') }}">Painel</a>{% endblock %}
 {% block content %}
 {{ nav_modulos(orientacao, 'vinculo') }}
@@ -10,7 +10,7 @@
   <p><a href="{{ url_for('main.alterar_titulo', orientacao_id=orientacao.id) }}">Alterar título do projeto</a></p>
   {% endif %}
   <p><a href="{{ url_for('main.relatorio_orientacao', orientacao_id=orientacao.id) }}">Relatório de acompanhamento (PDF)</a>
-  <small>— retrato consolidado do cronograma, reuniões, entregas e pareceres.</small></p>
+  <small>(retrato consolidado do cronograma, reuniões, entregas e pareceres).</small></p>
   <p><strong>Modalidade:</strong> {{ MODALIDADE_LABEL[orientacao.modalidade] }} |
      <strong>Status:</strong> {{ orientacao.status }}</p>
   <p><strong>Orientador:</strong> {{ orientacao.orientador.nome }}
@@ -24,8 +24,8 @@
 
 <section class="card" id="linha-do-tempo">
   <h2>Linha do tempo</h2>
-  <p><small>Tudo o que aconteceu no vínculo — marcos, entregas, pareceres e
-  reuniões — numa só cronologia, do mais recente ao mais antigo. As abas acima
+  <p><small>Tudo o que aconteceu no vínculo (marcos, entregas, pareceres e
+  reuniões) numa só cronologia, do mais recente ao mais antigo. As abas acima
   respondem "o que existe"; esta seção, "o que aconteceu, e em que ordem".</small></p>
   <p class="filtros-tempo">
     <a href="{{ url_for('main.orientacao_detalhe', orientacao_id=orientacao.id) }}#linha-do-tempo"
@@ -43,7 +43,7 @@
       <span class="evento-tipo">{{ tipos[e.tipo] }}</span>
       <a href="{{ url_for(e.alvo[0], **e.alvo[1]) }}" class="evento-titulo">{{ e.titulo }}</a>
       {% if e.detalhe %}<span class="evento-detalhe">{{ e.detalhe }}</span>{% endif %}
-      {% if e.relacionado %}<span class="evento-relacionado">— {{ e.relacionado }}</span>{% endif %}
+      {% if e.relacionado %}<span class="evento-relacionado">· {{ e.relacionado }}</span>{% endif %}
     </li>
     {% endfor %}
   </ul>

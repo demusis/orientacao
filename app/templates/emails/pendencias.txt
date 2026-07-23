@@ -40,7 +40,7 @@ Acesse: {{ url }}
    automática aparece TAMBÉM logo após a saudação — recolhido aqui, segue
    visível lá. #}
 -- 
-ARIADNE — {{ acronimo }}.
+ARIADNE: {{ acronimo }}.
 
 {{ aviso_automatico }}
 {{ rodape_quem_procurar }}

@@ -40,7 +40,7 @@ def listar(orientacao_id: int):
 def criar(orientacao_id: int):
     orientacao = orientacao_autorizada(orientacao_id)
     form = NovoDocumentoForm()
-    form.marco_id.choices = [(0, "— nenhum —")] + [
+    form.marco_id.choices = [(0, "(nenhum)")] + [
         (m.id, m.titulo) for m in orientacao.marcos
     ]
     if form.validate_on_submit():

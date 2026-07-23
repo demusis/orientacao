@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 {% from "_macros.html" import nav_modulos, render_form %}
-{% block title %}Emitir parecer — ARIADNE{% endblock %}
+{% block title %}Emitir parecer · ARIADNE{% endblock %}
 {% block voltar %}<a class="voltar" href="{{ url_for('atas.listar_pareceres', orientacao_id=orientacao.id) }}">Pareceres</a>{% endblock %}
 {% block content %}
 {{ nav_modulos(orientacao, 'pareceres') }}
 {% if avaliada %}
 <div class="card">
   <h1>Emitir parecer</h1>
-  <p><strong>{{ avaliada.documento.titulo }}</strong> — versão {{ avaliada.numero_versao }}</p>
+  <p><strong>{{ avaliada.documento.titulo }}</strong>, versão {{ avaliada.numero_versao }}</p>
   <p><small>
     Enviada por {{ avaliada.documento.orientacao.orientando.nome }}
     em {{ avaliada.enviado_em.strftime('%d/%m/%Y às %H:%M') }} (UTC) ·
@@ -19,13 +19,13 @@
   em {{ parecer_existente.emitido_em.strftime('%d/%m/%Y') }}
   ({{ RESULTADO_LABEL[parecer_existente.resultado] }}), emitido por
   {{ parecer_existente.emissor.nome }}. Emitir outro é possível, e o anterior
-  permanece no histórico — mas confira se não chegou aqui por um link antigo.</p>
+  permanece no histórico, mas confira se não chegou aqui por um link antigo.</p>
   {% endif %}
 </div>
 {% endif %}
 
 <div class="card">
-  {% if not avaliada %}<h1>Emitir parecer — {{ orientacao.titulo_projeto }}</h1>{% endif %}
+  {% if not avaliada %}<h1>Emitir parecer no projeto {{ orientacao.titulo_projeto }}</h1>{% endif %}
   <p><small>O parecer é imutável após a emissão e pode ser exportado em PDF para
   assinatura eletrônica.</small></p>
   {{ render_form(form) }}

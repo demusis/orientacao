@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "_macros.html" import nav_modulos, render_form %}
-{% block title %}Novo documento — ARIADNE{% endblock %}
+{% block title %}Novo documento · ARIADNE{% endblock %}
 {% block voltar %}<a class="voltar" href="{{ url_for('documentos.listar', orientacao_id=orientacao.id) }}">Documentos</a>{% endblock %}
 {% block content %}
 {{ nav_modulos(orientacao, 'documentos') }}
@@ -13,14 +13,14 @@
     {% for m in modelos %}
     <li>
       <a href="{{ url_for('main.baixar_modelo', modelo_id=m.id) }}">{{ m.titulo }}</a>
-      {% if m.descricao %}<span class="modelo-descricao">— {{ m.descricao }}</span>{% endif %}
+      {% if m.descricao %}<span class="modelo-descricao">({{ m.descricao }})</span>{% endif %}
     </li>
     {% endfor %}
   </ul>
 </div>
 {% endif %}
 <div class="card">
-  <h1>Novo documento — {{ orientacao.titulo_projeto }}</h1>
+  <h1>Novo documento no projeto {{ orientacao.titulo_projeto }}</h1>
   {{ render_form(form, enctype='multipart/form-data') }}
 </div>
 {% endblock %}

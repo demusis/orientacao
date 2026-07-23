@@ -45,7 +45,7 @@ def _linha_do_tempo(orientacao, estilos) -> list:
     for e in eventos:
         desc = e["titulo"]
         if e.get("detalhe"):
-            desc += f" — {e['detalhe']}"
+            desc += f": {e['detalhe']}"
         if e.get("relacionado"):
             desc += f" · {e['relacionado']}"
         linhas.append([
@@ -116,7 +116,7 @@ def _pareceres(orientacao, estilos) -> list:
             alvo = (f" · {p.versao_documento.documento.titulo} "
                     f"(v{p.versao_documento.numero_versao})")
         blocos.append(Paragraph(
-            f"<b>{p.tipo.capitalize()}</b> — {RESULTADO_LABEL[p.resultado]}"
+            f"<b>{p.tipo.capitalize()}</b>: {RESULTADO_LABEL[p.resultado]}"
             f"{_texto(alvo)}<br/>"
             f"<font size=7 color='#5a6570'>Emitido por {_texto(p.emissor.nome)} "
             f"em {p.emitido_em.strftime('%d/%m/%Y')}</font>",
@@ -142,7 +142,7 @@ def _entregas(orientacao, estilos) -> list:
         linhas.append([
             Paragraph(_texto(d.titulo), estilos["BodyText"]),
             str(len(versoes)),
-            (f"v{ultima.numero_versao} — "
+            (f"v{ultima.numero_versao}, "
              f"{ultima.enviado_em.strftime('%d/%m/%Y')}") if ultima else "—",
         ])
     return _secao(estilos, "Documentos entregues") + [_tabela(linhas)]
@@ -151,12 +151,12 @@ def _entregas(orientacao, estilos) -> list:
 def gerar_pdf_relatorio(orientacao) -> bytes:
     buffer = BytesIO()
     doc, estilos = _documento_base(
-        buffer, f"ARIADNE — Relatório do vínculo {orientacao.id}"
+        buffer, f"ARIADNE · Relatório do vínculo {orientacao.id}"
     )
     coorientadores = ", ".join(u.nome for u in orientacao.coorientadores) or "—"
 
     fluxo = [
-        Paragraph("ARIADNE — Relatório de acompanhamento", estilos["Title"]),
+        Paragraph("ARIADNE · Relatório de acompanhamento", estilos["Title"]),
         _tabela([
             ["Projeto", Paragraph(_texto(orientacao.titulo_projeto), estilos["BodyText"])],
             ["Modalidade", MODALIDADE_LABEL.get(orientacao.modalidade, orientacao.modalidade)],

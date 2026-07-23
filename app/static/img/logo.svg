@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ARIADNE">
-  <title>ARIADNE — o fio de Ariadne percorrendo o labirinto até o centro</title>
+  <title>ARIADNE: o fio de Ariadne percorrendo o labirinto até o centro</title>
   <rect x="0" y="0" width="64" height="64" rx="13" fill="#1a4b7a"/>
   <!-- Muralhas do labirinto: espiral quadrada com abertura embaixo à esquerda.
        Corredor único (unicursal), que é a essência da metáfora. -->
