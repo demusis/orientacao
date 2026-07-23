@@ -6,9 +6,9 @@
   <title>{% block title %}ARIADNE{% endblock %}</title>
   {#- o ?v defeita o cache agressivo de favicon do navegador; incremente ao
       trocar o ícone. O SVG vem primeiro para navegadores que o preferem. -#}
-  <link rel="icon" href="{{ url_for('static', filename='img/logo.svg') }}?v=2" type="image/svg+xml">
-  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}?v=2" sizes="16x16 32x32 48x48">
-  <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/logo-256.png') }}?v=2">
+  <link rel="icon" href="{{ url_for('static', filename='img/logo.svg') }}?v=3" type="image/svg+xml">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}?v=3" sizes="16x16 32x32 48x48">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/logo-256.png') }}?v=3">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>

@@ -1,18 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ARIADNE">
-  <title>ARIADNE: o fio de Ariadne percorrendo o labirinto até o centro</title>
+  <title>ARIADNE: o labirinto de Creta, com o fio conduzindo ao centro</title>
   <rect x="0" y="0" width="64" height="64" rx="13" fill="#1a4b7a"/>
-  <!-- Muralhas do labirinto: espiral quadrada com abertura embaixo à esquerda.
-       Corredor único (unicursal), que é a essência da metáfora. -->
-  <path d="M 8 56 V 8 H 56 V 56 H 20 V 20 H 44 V 44 H 32"
-        fill="none" stroke="#ffffff" stroke-width="4"
-        stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- Fio de Ariadne: entra pela abertura e serpenteia pelos corredores até o
-       centro, dobrando a cada muralha. -->
-  <path d="M 14 63 Q 14 58 14 54 V 14 H 50 V 50 H 26 V 26 H 38 V 34 H 33"
-        fill="none" stroke="#e8b84b" stroke-width="2.6"
-        stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- Novelo no ponto de partida, embaixo -->
-  <circle cx="14" cy="63" r="3.4" fill="#e8b84b"/>
-  <!-- Centro alcançado -->
-  <circle cx="32" cy="32" r="3.4" fill="#e8b84b"/>
+  <!-- Labirinto cretense de sete circuitos, o mesmo símbolo das moedas de
+       Cnossos: caminho único (unicursal) traçado inteiramente por arcos.
+       As muralhas vão em branco sobre o azul da marca; o corredor é o vão
+       entre elas. A geometria é a do símbolo original, reenquadrada num
+       distintivo 64x64 (o grupo mantém o scale(1,-1) da fonte). -->
+  <g transform="translate(32,32) scale(0.059355) translate(-25,150) scale(1,-1)">
+    <path fill="none" stroke="#ffffff" stroke-width="25"
+          stroke-linecap="round" stroke-linejoin="round"
+          d="M-100,-100 C-210.457,-100,-300,-10.4568,-300,100 V125 C-300,304.492,-154.492,450,25,450 C204.492,450,350,304.492,350,125 V100 C350,-38.071,238.071,-150,100,-150 C72.386,-150,50,-127.614,50,-100 C50,-72.386,72.386,-50,100,-50 C182.843,-50,250,17.1575,250,100 V125 C250,249.264,149.264,350,25,350 C-99.2639,350,-200,249.264,-200,125 V100 C-200,44.7717,-155.228,0,-100,0 H100 C155.228,0,200,44.7717,200,100 V125 C200,221.65,121.65,300,25,300 C-71.6497,300,-150,221.65,-150,125 V100 C-150,72.386,-127.614,50,-100,50 C-72.386,50,-50,72.386,-50,100 V125 C-50,166.421,-16.4211,200,25,200 C66.4211,200,100,166.421,100,125 V100 M100,-100 C210.457,-100,300,-10.4568,300,100 V125 C300,276.878,176.878,400,25,400 C-126.878,400,-250,276.878,-250,125 V100 C-250,17.1575,-182.843,-50,-100,-50 C-72.386,-50,-50,-72.386,-50,-100 C-50,-127.614,-72.386,-150,-100,-150 C-238.071,-150,-350,-38.071,-350,100 V125 C-350,332.107,-182.107,500,25,500 C232.107,500,400,332.107,400,125 V100 C400,-65.6853,265.685,-200,100,-200 C44.7717,-200,0,-155.228,0,-100 V125 C0,138.807,11.1931,150,25,150 C38.8069,150,50,138.807,50,125 V100 C50,72.386,72.386,50,100,50 C127.614,50,150,72.386,150,100 V125 C150,194.035,94.0354,250,25,250 C-44.0354,250,-100,194.035,-100,125 V100"/>
+  </g>
+  <!-- Fio de Ariadne: o centro alcançado, no coração do labirinto. -->
+  <circle cx="32" cy="32" r="4.4" fill="#e8b84b"/>
 </svg>
