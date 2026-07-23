@@ -85,6 +85,11 @@ def load_user(identidade: str):
     usuario = db.session.get(Usuario, int(id_txt))
     if usuario is None:
         return None
+    if not usuario.ativo:
+        # conta desativada não sustenta sessão aberta: sem isto, o Flask-Login
+        # só consulta `ativo` no login_user(), e uma conta desligada por suspeita
+        # de uso indevido seguiria com acesso total até o cookie expirar
+        return None
     if marca and marca != (usuario.senha_hash or "")[-16:]:
         return None  # senha trocada desde que a sessão foi aberta
     return usuario
