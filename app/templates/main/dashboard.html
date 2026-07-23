@@ -47,7 +47,7 @@
     {% for m in pendencias.entregas_a_confirmar %}
     <tr>
       <td>{{ m.titulo }}</td>
-      <td>{{ ETAPA_MARCO_LABEL.get(m.etapa, '—') }}</td>
+      <td>{{ ETAPA_MARCO_LABEL.get(m.etapa, 'Não classificada') }}</td>
       {% if avalia %}<td>{{ m.orientacao.orientando.nome }}</td>{% endif %}
       <td>{{ m.data_prevista }}{% if m.atrasado %} <span class="badge badge-atrasado">atrasado</span>{% endif %}</td>
       <td><a href="{{ url_for('cronogramas.detalhe', orientacao_id=m.orientacao_id, marco_id=m.id) }}">Abrir</a></td>
@@ -65,7 +65,7 @@
     {% for m in pendencias.tarefas_abertas %}
     <tr>
       <td>{{ m.titulo }}</td>
-      <td>{{ ETAPA_MARCO_LABEL.get(m.etapa, '—') }}</td>
+      <td>{{ ETAPA_MARCO_LABEL.get(m.etapa, 'Não classificada') }}</td>
       {% if avalia %}<td>{{ m.orientacao.orientando.nome }}</td>{% endif %}
       <td>{{ m.data_prevista }}{% if m.atrasado %} <span class="badge badge-atrasado">atrasado</span>{% endif %}</td>
       <td><a href="{{ url_for('cronogramas.detalhe', orientacao_id=m.orientacao_id, marco_id=m.id) }}">Abrir</a></td>

@@ -10,9 +10,9 @@
 <div class="card">
   <h1>{{ marco.titulo }} <span class="badge">{{ TIPO_MARCO_LABEL[marco.tipo] }}</span></h1>
   <p>
-    <strong>Etapa:</strong> {{ ETAPA_MARCO_LABEL.get(marco.etapa, '—') }} |
+    <strong>Etapa:</strong> {{ ETAPA_MARCO_LABEL.get(marco.etapa, 'Não classificada') }} |
     <strong>Prazo:</strong> {{ marco.data_prevista }} |
-    <strong>Conclusão:</strong> {{ marco.data_conclusao or '—' }}
+    <strong>Conclusão:</strong> {{ marco.data_conclusao or 'em aberto' }}
   </p>
   <p>
     <span class="badge {% if marco.status == 'concluido' %}badge-concluido{% endif %}">{{ marco.status }}</span>
@@ -38,8 +38,8 @@
     {% for d in marco.documentos %}
     <tr>
       <td>{{ d.titulo }}</td>
-      <td>{% if d.versao_atual %}v{{ d.versao_atual.numero_versao }}{% else %}—{% endif %}</td>
-      <td>{% if d.versao_atual %}{{ d.versao_atual.enviado_em.strftime('%Y-%m-%d %H:%M') }}{% else %}—{% endif %}</td>
+      <td>{% if d.versao_atual %}v{{ d.versao_atual.numero_versao }}{% else %}sem versão{% endif %}</td>
+      <td>{% if d.versao_atual %}{{ d.versao_atual.enviado_em.strftime('%Y-%m-%d %H:%M') }}{% endif %}</td>
       <td><a href="{{ url_for('documentos.detalhe', orientacao_id=orientacao.id, documento_id=d.id) }}">Abrir</a></td>
     </tr>
     {% endfor %}

@@ -28,7 +28,7 @@ STATUS_MARCO_LABEL = {
     "em_andamento": "Em andamento",
     "concluido": "Concluído",
 }
-PRESENCA_LABEL = {"pendente": "—", "presente": "Presente", "ausente": "Ausente"}
+PRESENCA_LABEL = {"pendente": "Pendente", "presente": "Presente", "ausente": "Ausente"}
 
 
 def _secao(estilos, titulo: str) -> list:
@@ -69,7 +69,7 @@ def _cronograma(orientacao, estilos) -> list:
             situacao += " (atrasado)"
         linhas.append([
             Paragraph(
-                f"{ETAPA_MARCO_LABEL.get(m.etapa, '—')}<br/>"
+                f"{ETAPA_MARCO_LABEL.get(m.etapa, 'Não classificada')}<br/>"
                 f"<font size=7 color='#5a6570'>{TIPO_MARCO_LABEL.get(m.tipo, '')}</font>",
                 estilos["BodyText"],
             ),
@@ -92,7 +92,7 @@ def _reunioes(orientacao, estilos) -> list:
         part = next(
             (p for p in a.participacoes if p.orientacao_id == orientacao.id), None
         )
-        presenca = PRESENCA_LABEL[part.presenca] if part else "—"
+        presenca = PRESENCA_LABEL[part.presenca] if part else "Pendente"
         situacao = "Finalizada" if a.status == "finalizada" else "Rascunho"
         linhas.append([
             a.data_reuniao.strftime("%d/%m/%Y")
@@ -143,7 +143,7 @@ def _entregas(orientacao, estilos) -> list:
             Paragraph(_texto(d.titulo), estilos["BodyText"]),
             str(len(versoes)),
             (f"v{ultima.numero_versao}, "
-             f"{ultima.enviado_em.strftime('%d/%m/%Y')}") if ultima else "—",
+             f"{ultima.enviado_em.strftime('%d/%m/%Y')}") if ultima else "sem versão",
         ])
     return _secao(estilos, "Documentos entregues") + [_tabela(linhas)]
 
@@ -153,7 +153,7 @@ def gerar_pdf_relatorio(orientacao) -> bytes:
     doc, estilos = _documento_base(
         buffer, f"ARIADNE · Relatório do vínculo {orientacao.id}"
     )
-    coorientadores = ", ".join(u.nome for u in orientacao.coorientadores) or "—"
+    coorientadores = ", ".join(u.nome for u in orientacao.coorientadores) or "nenhum"
 
     fluxo = [
         Paragraph("ARIADNE · Relatório de acompanhamento", estilos["Title"]),
@@ -166,7 +166,7 @@ def gerar_pdf_relatorio(orientacao) -> bytes:
             ["Início", orientacao.data_inicio.strftime("%d/%m/%Y")],
             ["Fim previsto",
              orientacao.data_fim_prevista.strftime("%d/%m/%Y")
-             if orientacao.data_fim_prevista else "—"],
+             if orientacao.data_fim_prevista else "não definido"],
             ["Situação", orientacao.status.capitalize()],
         ]),
     ]

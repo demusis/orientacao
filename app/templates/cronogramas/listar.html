@@ -12,7 +12,7 @@
   <tr><th>Etapa</th><th>Marco</th><th>Prevista</th><th>Conclusão</th><th>Status</th><th>Ações</th></tr>
   {% for m in marcos %}
   <tr>
-    <td>{{ ETAPA_MARCO_LABEL.get(m.etapa, '—') }}</td>
+    <td>{{ ETAPA_MARCO_LABEL.get(m.etapa, 'Não classificada') }}</td>
     <td><a href="{{ url_for('cronogramas.detalhe', orientacao_id=orientacao.id, marco_id=m.id) }}">{{ m.titulo }}</a> <span class="badge">{{ TIPO_MARCO_LABEL[m.tipo] }}</span>
         {% if m.descricao %}<br><small>{{ m.descricao }}</small>{% endif %}
         {#- ligações do marco: entregas feitas para ele e reuniões que o discutiram -#}
@@ -23,7 +23,7 @@
         </small>
         {% endif %}</td>
     <td>{{ m.data_prevista }}</td>
-    <td>{{ m.data_conclusao or '—' }}</td>
+    <td>{{ m.data_conclusao or 'em aberto' }}</td>
     <td>
       <span class="badge {% if m.status == 'concluido' %}badge-concluido{% endif %}">{{ m.status }}</span>
       {% if m.atrasado %}<span class="badge badge-atrasado">atrasado</span>{% endif %}

@@ -37,7 +37,7 @@ def _formatar_valor(valor):
     if isinstance(valor, bool):
         return "sim" if valor else "não"
     if valor is None or valor == "" or valor == []:
-        return "—"
+        return "(vazio)"
     if isinstance(valor, list):
         # listas de identificadores inteiros ganham o prefixo # (ex.: #12, #13)
         if all(isinstance(v, int) and not isinstance(v, bool) for v in valor):

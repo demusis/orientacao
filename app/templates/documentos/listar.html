@@ -12,9 +12,9 @@
   {% set v = d.versao_atual %}
   <tr>
     <td>{{ d.titulo }}</td>
-    <td>{% if v %}v{{ v.numero_versao }} ({{ v.nome_original }}){% else %}—{% endif %}</td>
-    <td>{{ v.remetente.nome if v else '—' }}</td>
-    <td>{{ v.enviado_em.strftime('%Y-%m-%d %H:%M') if v else '—' }}</td>
+    <td>{% if v %}v{{ v.numero_versao }} ({{ v.nome_original }}){% else %}sem versão{% endif %}</td>
+    <td>{{ v.remetente.nome if v else '' }}</td>
+    <td>{{ v.enviado_em.strftime('%Y-%m-%d %H:%M') if v else '' }}</td>
     <td><a href="{{ url_for('documentos.detalhe', orientacao_id=orientacao.id, documento_id=d.id) }}">Histórico</a></td>
   </tr>
   {% else %}

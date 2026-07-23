@@ -19,7 +19,7 @@
      {%- endif %} |
      <strong>Orientando:</strong> {{ orientacao.orientando.nome }}</p>
   <p><strong>Início:</strong> {{ orientacao.data_inicio }} |
-     <strong>Fim previsto:</strong> {{ orientacao.data_fim_prevista or '—' }}</p>
+     <strong>Fim previsto:</strong> {{ orientacao.data_fim_prevista or 'não definido' }}</p>
 </div>
 
 <section class="card" id="linha-do-tempo">
@@ -61,9 +61,9 @@
     <tr>
       <td>{{ TIPO_EVENTO_LABEL[e.tipo] }}</td>
       <td>
-        {% if e.tipo == 'prorrogacao' %}{{ e.data_anterior or '—' }} → {{ e.data_nova }}
+        {% if e.tipo == 'prorrogacao' %}{{ e.data_anterior or 'não definida' }} → {{ e.data_nova }}
         {% elif e.tipo == 'mudanca_titulo' %}{{ e.texto_anterior | truncate(40) }} → {{ e.texto_novo | truncate(40) }}
-        {% else %}—{% endif %}
+        {% else %}não se aplica{% endif %}
       </td>
       <td>{{ e.fundamentacao }}</td>
       <td>{{ e.registrado_em.strftime('%Y-%m-%d %H:%M') }}</td>

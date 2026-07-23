@@ -30,7 +30,7 @@
     <tr>
       <td>{{ r.data_anterior }}{% if r.hora_anterior %} {{ r.hora_anterior.strftime('%H:%M') }}{% endif %}</td>
       <td>{{ r.data_nova }}{% if r.hora_nova %} {{ r.hora_nova.strftime('%H:%M') }}{% endif %}</td>
-      <td>{{ r.motivo or '—' }}</td>
+      <td>{{ r.motivo or 'não informado' }}</td>
       <td>{{ r.autor.nome }}</td>
       <td>{{ r.registrado_em.strftime('%Y-%m-%d %H:%M') }}</td>
     </tr>
@@ -52,7 +52,7 @@
       <td>
         {% if p.presenca_registrada_em %}
           {{ p.presenca_registrada_em.strftime('%Y-%m-%d %H:%M') }} (UTC) por {{ p.registrador.nome }}
-        {% else %}—{% endif %}
+        {% else %}não registrada{% endif %}
       </td>
       {% if mostrar_acoes %}
       <td class="acoes">

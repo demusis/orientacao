@@ -25,7 +25,7 @@
   {% for log in logs %}
   <tr>
     <td>{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
-    <td>{{ log.usuario.nome if log.usuario else '—' }}</td>
+    <td>{{ log.usuario.nome if log.usuario else 'sistema' }}</td>
     <td>{{ log.acao }}</td>
     <td>{{ log.entidade }}{% if log.entidade_id %}#{{ log.entidade_id }}{% endif %}</td>
     <td>
@@ -39,7 +39,7 @@
       <small>{{ log.dados_json }}</small>
       {% endif %}
     </td>
-    <td>{{ log.ip or '—' }}</td>
+    <td>{{ log.ip or 'não registrado' }}</td>
   </tr>
   {% else %}
   <tr><td colspan="6">Nenhum registro para o filtro informado.</td></tr>

@@ -234,7 +234,7 @@ def gerar_pdf_ata(ata: Ata, url_verificacao: str) -> bytes:
                 ],
                 ["Orientador responsável", d["orientador"]],
                 ["Redigida por", d["redator"]],
-                ["Finalizada em (UTC)", d["finalizada_em"] or "—"],
+                ["Finalizada em (UTC)", d["finalizada_em"] or "não finalizada"],
             ],
             larguras=[45 * mm, 115 * mm],
         ),
@@ -271,7 +271,7 @@ def gerar_pdf_ata(ata: Ata, url_verificacao: str) -> bytes:
                     [
                         r["de"],
                         r["para"],
-                        Paragraph(_texto(r["motivo"] or "—"), estilos["BodyText"]),
+                        Paragraph(_texto(r["motivo"] or "não informado"), estilos["BodyText"]),
                         r["registrado_em"],
                     ]
                     for r in d["reagendamentos"]
@@ -302,7 +302,7 @@ def gerar_pdf_parecer(parecer: Parecer, url_verificacao: str) -> bytes:
                 [
                     "Documento avaliado",
                     Paragraph(
-                        _texto(d["documento_avaliado"] or "—"), estilos["BodyText"]
+                        _texto(d["documento_avaliado"] or "não vinculado"), estilos["BodyText"]
                     ),
                 ],
                 ["Emitido por", d["emissor"]],

@@ -13,7 +13,7 @@ comum a todo o sistema; qualquer usuário pode baixá-los ao enviar um documento
     {% for m in modelos %}
     <tr>
       <td>{{ m.titulo }}</td>
-      <td>{{ m.descricao or '—' }}</td>
+      <td>{{ m.descricao or 'sem descrição' }}</td>
       <td><a href="{{ url_for('main.baixar_modelo', modelo_id=m.id) }}">{{ m.nome_original }}</a></td>
       <td>{{ (m.tamanho_bytes / 1024) | round(1) }} KB</td>
       <td class="acoes">
