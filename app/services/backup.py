@@ -40,10 +40,19 @@ ORDEM_TABELAS = [
     "modelo_documento",
     "ata",
     "ata_orientacao",
+    "ata_marco",
     "reagendamento",
     "parecer",
     "log_auditoria",
 ]
+
+# Tabelas acrescentadas à lista depois que pacotes de backup já circulavam. Um
+# pacote gerado antes não traz o JSON correspondente; recusá-lo por isso seria
+# perder a compatibilidade com backups legítimos já baixados. Na restauração,
+# tabela opcional ausente entra vazia. (ata_marco — os marcos discutidos em cada
+# reunião — passou a ser incluída em 23/07/2026; antes disso, backup e migração
+# a deixavam de fora, perdendo essa ligação em silêncio.)
+TABELAS_OPCIONAIS_NA_RESTAURACAO = {"ata_marco"}
 
 # `configuracao_email` está deliberadamente FORA da lista acima, por dois
 # motivos que se somam:
@@ -238,15 +247,23 @@ def restaurar(arquivo, executor: Usuario) -> dict:
                 "correspondentes antes de restaurar."
             )
         faltando = [
-            nome for nome in ORDEM_TABELAS if f"dados/{nome}.json" not in pacote.namelist()
+            nome
+            for nome in ORDEM_TABELAS
+            if f"dados/{nome}.json" not in pacote.namelist()
+            and nome not in TABELAS_OPCIONAIS_NA_RESTAURACAO
         ]
         if faltando:
             raise BackupInvalido(
                 "Pacote incompleto; faltam as tabelas: " + ", ".join(faltando)
             )
 
+        # tabela opcional ausente (pacote anterior à sua adoção) entra vazia
         dados = {
-            nome: json.loads(pacote.read(f"dados/{nome}.json"))
+            nome: (
+                json.loads(pacote.read(f"dados/{nome}.json"))
+                if f"dados/{nome}.json" in pacote.namelist()
+                else []
+            )
             for nome in ORDEM_TABELAS
         }
 
