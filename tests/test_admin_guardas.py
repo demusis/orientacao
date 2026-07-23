@@ -7,7 +7,6 @@ def _editar(client, usuario, papel, ativo=True):
         "nome": usuario.nome,
         "email": usuario.email,
         "papel": papel,
-        "senha": "",
     }
     if ativo:
         dados["ativo"] = "y"

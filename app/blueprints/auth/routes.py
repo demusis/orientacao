@@ -52,6 +52,15 @@ def login():
         usuario.ultimo_acesso = datetime.now(UTC)
         auditoria.registrar("login", "usuario", usuario.id)
         db.session.commit()
+        if usuario.senha_provisoria:
+            # o desvio já viria do `before_request`; anunciá-lo aqui evita que
+            # a pessoa chegue à tela de troca sem saber por que foi parar nela
+            flash(
+                "Você entrou com uma senha temporária. Escolha a sua senha "
+                "para continuar.",
+                "warning",
+            )
+            return redirect(url_for("auth.trocar_senha"))
         destino = request.args.get("next", "")
         if destino and not urlparse(destino).netloc:
             return redirect(destino)
@@ -146,14 +155,35 @@ def redefinir_senha(token: str):
 @bp.route("/senha", methods=["GET", "POST"])
 @login_required
 def trocar_senha():
+    """Troca de senha pelo titular. Quando a senha em uso foi gerada pelo
+    sistema, esta é a única tela alcançável até que a troca se conclua."""
+    obrigatoria = current_user.senha_provisoria
     form = TrocaSenhaForm()
     if form.validate_on_submit():
         if not current_user.verificar_senha(form.senha_atual.data):
             flash("Senha atual incorreta.", "danger")
+        elif form.nova_senha.data == form.senha_atual.data:
+            # sem isto, a troca obrigatória se cumpriria repetindo a provisória,
+            # e a senha que trafegou por e-mail seguiria valendo
+            flash("A nova senha deve ser diferente da atual.", "danger")
         else:
+            # set_senha limpa a marca de provisória: a senha passa a ser a que
+            # só o titular conhece
             current_user.set_senha(form.nova_senha.data)
-            auditoria.registrar("troca_senha", "usuario", current_user.id)
+            # Reemite a identidade da sessão. `get_id` carrega um trecho do
+            # hash, de propósito, para que trocar a senha encerre as sessões
+            # abertas; sem esta linha isso alcançaria também a sessão de quem
+            # acabou de trocar, que era devolvido ao login logo depois de
+            # escolher a senha. No primeiro acesso, esse era o primeiro contato
+            # de todo usuário novo com o sistema.
+            login_user(current_user._get_current_object())
+            auditoria.registrar(
+                "troca_senha", "usuario", current_user.id,
+                {"obrigatoria": obrigatoria} if obrigatoria else None,
+            )
             db.session.commit()
             flash("Senha alterada.", "success")
             return redirect(url_for("main.dashboard"))
-    return render_template("auth/trocar_senha.html", form=form)
+    return render_template(
+        "auth/trocar_senha.html", form=form, obrigatoria=obrigatoria
+    )

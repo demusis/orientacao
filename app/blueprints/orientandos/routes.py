@@ -5,6 +5,7 @@ from app.blueprints.orientandos import bp
 from app.blueprints.orientandos.forms import OrientandoForm
 from app.extensions import db
 from app.models import Orientacao, Usuario
+from app.services import credenciais
 from app.services.rbac import role_required
 from app.services.usuarios import (
     GestaoUsuarioInvalida,
@@ -43,10 +44,9 @@ def criar():
     form = OrientandoForm()
     if form.validate_on_submit():
         try:
-            criar_orientando_com_vinculo(
+            orientacao, senha = criar_orientando_com_vinculo(
                 nome=form.nome.data,
                 email=form.email.data.lower().strip(),
-                senha=form.senha.data,
                 orientador=current_user,
                 modalidade=form.modalidade.data,
                 titulo_projeto=form.titulo_projeto.data,
@@ -59,6 +59,22 @@ def criar():
                 "Orientando criado e vínculo de orientação atribuído a você.",
                 "success",
             )
+            # depois do commit: falar com o SMTP dentro da transação seguraria
+            # a trava de escrita do SQLite
+            orientando = orientacao.orientando
+            enviado = credenciais.enviar(orientando, senha, "criacao")
+            db.session.commit()
+            if not enviado:
+                # renderiza em vez de redirecionar com flash: a mensagem de
+                # flash viaja na sessão, um cookie assinado mas não cifrado
+                return render_template(
+                    "admin/senha_gerada.html",
+                    usuario=orientando,
+                    senha=senha,
+                    motivo=credenciais.motivo_de_falha(),
+                    voltar_url=url_for("orientandos.listar"),
+                )
+            flash(credenciais.mensagem_de_sucesso(orientando), "success")
             return redirect(url_for("orientandos.listar"))
         except GestaoUsuarioInvalida as exc:
             flash(str(exc), "danger")

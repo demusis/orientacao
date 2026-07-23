@@ -1,0 +1,87 @@
+{#-
+  Credenciais de acesso, parte em HTML.
+
+  Estilos vão embutidos em cada elemento, e não numa folha ou num bloco <style>:
+  cliente de e-mail ignora a primeira e vários descartam o segundo.
+
+  Sem imagens, deliberadamente: imagem remota em e-mail vaza confirmação de
+  leitura ao remetente e aumenta a chance de o filtro de spam reter a mensagem,
+  o que aqui deixaria o titular sem acesso.
+-#}
+{%- set fonte = "-apple-system,Segoe UI,Roboto,Arial,sans-serif" -%}
+{%- set mono = "SFMono-Regular,Consolas,Liberation Mono,Menlo,monospace" -%}
+{%- set azul = "#1a4b7a" -%}
+{%- set texto = "#1f2933" -%}
+{%- set apagado = "#5a6570" -%}
+{%- set borda = "#d0d5db" -%}
+{%- set p = "margin:0 0 12px;font:15px/1.55 " ~ fonte ~ ";color:" ~ texto -%}
+{%- set rotulo = "font:600 13px/1.4 " ~ fonte ~ ";color:" ~ apagado ~ ";text-transform:uppercase;letter-spacing:.04em" -%}
+<div style="max-width:620px;margin:0 auto;padding:24px;background:#ffffff">
+
+  <div style="border-left:4px solid {{ azul }};padding-left:12px;margin-bottom:20px">
+    <div style="font:700 18px/1.3 {{ fonte }};color:{{ azul }}">ARIADNE</div>
+    <div style="font:13px/1.4 {{ fonte }};color:{{ apagado }}">Acompanhamento de orientação acadêmica</div>
+  </div>
+
+  <p style="{{ p }}">Olá, {{ usuario.nome }}.</p>
+  <p style="{{ p }}"><strong>{{ rotulos.abertura }}</strong></p>
+
+  <p style="margin:0 0 16px;padding:10px 12px;background:#fff3cd;border:1px solid #e0c96a;border-radius:4px;font:13px/1.5 {{ fonte }};color:#5c4d13">
+    {{ aviso_automatico }}
+  </p>
+
+  <div style="border:1px solid {{ borda }};border-radius:4px;margin-bottom:24px">
+    <div style="font:600 15px/1.4 {{ fonte }};color:#ffffff;background:{{ azul }};margin:0;padding:8px 12px;border-radius:4px 4px 0 0">Dados de acesso</div>
+    <div style="padding:14px 12px">
+
+      <div style="{{ rotulo }}">E-mail (usuário)</div>
+      <p style="margin:2px 0 14px;font:15px/1.5 {{ mono }};color:{{ texto }}">{{ usuario.email }}</p>
+
+      <div style="{{ rotulo }}">Senha temporária</div>
+      <p style="margin:2px 0 14px;padding:8px 10px;background:#f2f5f8;border:1px solid {{ borda }};border-radius:4px;font:600 18px/1.4 {{ mono }};color:{{ texto }};letter-spacing:.06em">{{ senha }}</p>
+
+      {% if url %}
+      <div style="{{ rotulo }}">Endereço do sistema</div>
+      <p style="margin:2px 0 0;font:15px/1.5 {{ fonte }}"><a href="{{ url }}" style="color:{{ azul }}">{{ url }}</a></p>
+      {% endif %}
+
+    </div>
+  </div>
+
+  <div style="border:1px solid {{ borda }};border-radius:4px;margin-bottom:24px">
+    <div style="font:600 15px/1.4 {{ fonte }};color:#ffffff;background:{{ azul }};margin:0;padding:8px 12px;border-radius:4px 4px 0 0">Como proceder</div>
+    <div style="padding:14px 12px">
+      <ol style="margin:0 0 12px;padding-left:20px;font:15px/1.6 {{ fonte }};color:{{ texto }}">
+        <li style="margin-bottom:6px">Acesse o sistema{% if url %} pelo endereço acima{% endif %} e entre com o e-mail e a senha temporária.</li>
+        <li style="margin-bottom:6px">O sistema pedirá imediatamente uma nova senha. <strong>A troca é obrigatória</strong>: até concluí-la, nenhuma outra tela fica disponível.</li>
+        <li>Escolha uma senha de ao menos 8 caracteres, que você não use em outro serviço.</li>
+      </ol>
+      <p style="margin:0;font:13px/1.55 {{ fonte }};color:{{ apagado }}">
+        A senha acima foi gerada pelo sistema e trafegou por e-mail, de modo que pode
+        ter sido lida por quem tenha acesso a esta caixa. Ela vale até ser trocada, e não
+        dá acesso a mais nada: quem a tiver só consegue chegar à tela de troca. Por isso
+        não adie o primeiro acesso. Não repasse esta mensagem; ninguém do sistema vai lhe
+        pedir a sua senha.
+      </p>
+      {% if evento == 'reposicao' %}
+      <p style="margin:12px 0 0;font:13px/1.55 {{ fonte }};color:{{ apagado }}">
+        Se não foi você que pediu a reposição, procure o administrador: alguém com
+        acesso administrativo repôs a senha da sua conta.
+      </p>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if url %}
+  <p style="margin:0 0 28px">
+    <a href="{{ url }}" style="display:inline-block;background:{{ azul }};color:#ffffff;text-decoration:none;padding:11px 22px;border-radius:4px;font:600 15px {{ fonte }}">Abrir o ARIADNE</a>
+  </p>
+  {% endif %}
+
+  <hr style="border:0;border-top:1px solid {{ borda }};margin:8px 0 12px">
+  <p style="margin:0;font:12px/1.65 {{ fonte }};color:#8a939b">
+    <strong>ARIADNE</strong>: Ambiente de Revisão, Integração, Acompanhamento Discente e Normatização de Estudos.<br>
+    {{ aviso_automatico }}<br>
+    Para problemas de acesso ao sistema, procure o administrador.
+  </p>
+</div>

@@ -6,8 +6,11 @@
 <div class="card">
   <h1>Novo orientando</h1>
   <p><small>A conta é criada com papel de orientando e o vínculo de orientação é
-  atribuído a você no mesmo ato, já ativo. Informe a senha inicial ao orientando
-  para que ele a altere no primeiro acesso.</small></p>
+  atribuído a você no mesmo ato, já ativo.</small></p>
+  <p><small>Não há campo de senha: o sistema gera uma aleatória e a envia ao
+  orientando junto com as instruções de acesso, e a troca é exigida no primeiro
+  login. Falhando o envio do e-mail, a senha aparece uma única vez na tela
+  seguinte, para que você a entregue por outro meio.</small></p>
   {{ render_form(form) }}
 </div>
 {% endblock %}

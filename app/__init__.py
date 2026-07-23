@@ -54,6 +54,7 @@ def create_app(config_name: str | None = None) -> Flask:
 
     register_cli(app)
     register_template_globals(app)
+    register_troca_obrigatoria(app)
     register_avisos_diarios(app)
     register_seguranca(app)
     register_erros(app)
@@ -132,6 +133,44 @@ def register_erros(app: Flask) -> None:
         ), 500
 
 
+# Endpoints que a conta com senha provisória ainda alcança. São o mínimo para
+# que a troca seja possível e para que o usuário possa desistir: a própria tela
+# de troca, a saída, os arquivos estáticos e as telas de acesso, para as quais o
+# navegador pode ter uma aba aberta. Qualquer outro destino desvia para a troca.
+_LIVRES_DE_TROCA = {
+    "auth.trocar_senha",
+    "auth.logout",
+    "auth.login",
+    "static",
+}
+
+
+def register_troca_obrigatoria(app: Flask) -> None:
+    """Prende à tela de troca quem entrou com senha gerada pelo sistema.
+
+    A senha provisória trafegou em texto claro por e-mail e pode ter sido lida
+    por quem tenha acesso à caixa. Recomendar a troca não bastaria: quem entra e
+    encontra o sistema funcionando adia indefinidamente, e a exposição dura o
+    que durar a conta. O bloqueio é o que faz da troca a única coisa que a senha
+    provisória permite.
+
+    Vale para toda requisição, e não apenas para a primeira depois do login:
+    fosse só ali, bastaria digitar um endereço interno para contornar."""
+
+    @app.before_request
+    def exigir_troca_de_senha():
+        from flask import redirect, request, url_for
+        from flask_login import current_user
+
+        if not current_user.is_authenticated:
+            return None
+        if not getattr(current_user, "senha_provisoria", False):
+            return None
+        if request.endpoint in _LIVRES_DE_TROCA or request.endpoint is None:
+            return None
+        return redirect(url_for("auth.trocar_senha"))
+
+
 def register_avisos_diarios(app: Flask) -> None:
     """Dispara os avisos de pendência uma vez por dia, aproveitando o tráfego.
 
@@ -203,9 +242,20 @@ def register_cli(app: Flask) -> None:
     @app.cli.command("seed-admin")
     @click.option("--nome", default="Administrador")
     @click.option("--email", required=True)
-    @click.option("--senha", required=True)
-    def seed_admin(nome: str, email: str, senha: str):
-        """Cria o usuário administrador inicial."""
+    @click.option(
+        "--senha",
+        default=None,
+        help="Opcional. Omitida, o sistema gera uma e a imprime, e a troca "
+             "passa a ser exigida no primeiro acesso.",
+    )
+    def seed_admin(nome: str, email: str, senha: str | None):
+        """Cria o usuário administrador inicial.
+
+        Sem `--senha`, gera uma aleatória, imprime-a no terminal e marca a conta
+        para troca obrigatória. É a via preferível: senha passada na linha de
+        comando fica no histórico do shell e é visível em `ps` para qualquer
+        usuário da máquina. Informá-la explicitamente segue possível, para o
+        provisionamento automatizado que já a traga de um cofre."""
         from email_validator import EmailNotValidError, validate_email
 
         from app.models import Usuario
@@ -219,11 +269,19 @@ def register_cli(app: Flask) -> None:
         if Usuario.query.filter_by(email=email).first():
             click.echo(f"Usuário {email} já existe.")
             return
+        from app.services import senhas
+
+        gerada = senha is None
+        if gerada:
+            senha = senhas.gerar()
         admin = Usuario(nome=nome, email=email, papel="admin")
-        admin.set_senha(senha)
+        admin.set_senha(senha, provisoria=gerada)
         db.session.add(admin)
         db.session.commit()
         click.echo(f"Administrador {email} criado.")
+        if gerada:
+            click.echo(f"Senha temporária: {senha}")
+            click.echo("A troca será exigida no primeiro acesso.")
 
     @app.cli.command("indicadores")
     @click.option("--dias", default=30, help="Janela de análise da trilha, em dias.")

@@ -1,7 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms import (
     DateField,
-    PasswordField,
     SelectField,
     StringField,
     SubmitField,
@@ -13,15 +12,19 @@ from app.models.orientacao import MODALIDADE_LABEL, MODALIDADES
 
 class OrientandoForm(FlaskForm):
     """Criação da conta e do vínculo de orientação em ato único: o orientador
-    que cria o orientando torna-se seu orientador principal."""
+    que cria o orientando torna-se seu orientador principal.
+
+    Sem campo de senha: ela é gerada e enviada ao orientando, que é obrigado a
+    trocá-la no primeiro acesso. O orientador não conhece a senha de ninguém."""
 
     nome = StringField("Nome", validators=[DataRequired(), Length(max=120)])
-    email = StringField("E-mail", validators=[DataRequired(), Email(), Length(max=254)])
+    email = StringField(
+        "E-mail", validators=[DataRequired(), Email(), Length(max=254)],
+        description="É o nome de usuário no acesso, e o endereço para onde vão "
+                    "a senha inicial e os avisos do sistema.",
+    )
     telefone = StringField(
         "Telefone celular", validators=[Optional(), Length(max=32)]
-    )
-    senha = PasswordField(
-        "Senha inicial", validators=[DataRequired(), Length(min=8, max=128)]
     )
     modalidade = SelectField(
         "Modalidade", choices=[(m, MODALIDADE_LABEL[m]) for m in MODALIDADES]

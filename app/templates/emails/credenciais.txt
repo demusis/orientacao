@@ -1,0 +1,61 @@
+{#-
+  Credenciais de acesso, parte em texto simples.
+
+  Não é resumo do HTML nem remete a ele: é o que aparece em leitor de tela, em
+  cliente sem HTML e na pré-visualização da caixa de entrada. Aqui a exigência é
+  mais forte que nas demais mensagens, porque sem esta parte o destinatário fica
+  sem a senha e sem acesso.
+
+  A senha vai numa linha só dela, sem pontuação encostada: qualquer sinal
+  adjacente acaba selecionado junto na hora de copiar.
+-#}
+Olá, {{ usuario.nome }}.
+
+{{ rotulos.abertura }}
+
+{{ aviso_automatico }}
+
+{{ '=' * 68 }}
+DADOS DE ACESSO
+{{ '=' * 68 }}
+
+  E-mail (usuário):
+  {{ usuario.email }}
+
+  Senha temporária:
+  {{ senha }}
+{% if url %}
+  Endereço do sistema:
+  {{ url }}
+{% endif %}
+{{ '=' * 68 }}
+COMO PROCEDER
+{{ '=' * 68 }}
+
+  1. Acesse o sistema{% if url %} pelo endereço acima{% endif %} e entre com o e-mail e a senha temporária.
+  2. O sistema pedirá imediatamente uma nova senha. A troca é obrigatória: até
+     concluí-la, nenhuma outra tela fica disponível.
+  3. Escolha uma senha de ao menos 8 caracteres, que você não use em outro
+     serviço.
+
+  A senha acima foi gerada pelo sistema e trafegou por e-mail, de modo que pode
+  ter sido lida por quem tenha acesso a esta caixa. Ela vale até ser trocada, e
+  não dá acesso a mais nada: quem a tiver só consegue chegar à tela de troca.
+  Por isso não adie o primeiro acesso.
+
+  Não repasse esta mensagem. Ninguém do sistema vai lhe pedir a sua senha.
+{% if evento == 'reposicao' %}
+  Se não foi você que pediu a reposição, procure o administrador: alguém com
+  acesso administrativo repôs a senha da sua conta.
+{% endif %}
+{# Atenção ao abrir este comentário com {#- : o hífen comeria a linha em branco
+   acima, colando a assinatura no último bloco.
+   "-- " com espaço ao final é a marca de assinatura do RFC 3676. Clientes de
+   e-mail a usam para recolher o rodapé, e é por isso que o aviso de mensagem
+   automática aparece TAMBÉM logo após a saudação: recolhido aqui, segue
+   visível lá. #}
+-- 
+ARIADNE: Ambiente de Revisão, Integração, Acompanhamento Discente e Normatização de Estudos.
+
+{{ aviso_automatico }}
+Para problemas de acesso ao sistema, procure o administrador.

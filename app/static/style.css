@@ -176,3 +176,8 @@ dl dd { margin: .2rem 0 0 0; }
 .dados-audit { display: grid; grid-template-columns: auto 1fr; gap: .1rem .6rem; margin: 0; font-size: .82rem; }
 .dados-audit dt { color: #8a939b; font-weight: 600; white-space: nowrap; }
 .dados-audit dd { margin: 0; color: #1f2933; word-break: break-word; }
+
+/* Senha gerada exibida quando o e-mail não saiu: grande e monoespaçada, porque
+   costuma ser transcrita à mão a partir da tela */
+.senha-gerada { margin: 1rem 0; }
+.senha-gerada code { display: inline-block; padding: .6rem 1rem; background: #f2f5f8; border: 1px solid var(--borda); border-radius: 4px; font-size: 1.35rem; letter-spacing: .06em; }

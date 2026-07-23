@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Senha gerada · ARIADNE{% endblock %}
+{% block voltar %}<a class="voltar" href="{{ voltar_url }}">Voltar</a>{% endblock %}
+{% block content %}
+{#-
+  A senha é renderizada aqui, e não devolvida por `flash`: a mensagem de flash
+  viaja na sessão, que no Flask é um cookie assinado mas NÃO cifrado. A senha de
+  terceiro ficaria gravada no navegador do administrador, legível em qualquer
+  captura de tráfego ou nas ferramentas do navegador. Esta página é a resposta
+  direta do POST, de modo que a senha não atravessa cookie algum.
+-#}
+<div class="card">
+  <h1>Senha gerada, e não enviada</h1>
+  <p class="flash flash-warning">{{ motivo }}</p>
+  <p>Entregue a senha abaixo a <strong>{{ usuario.nome }}</strong>
+  ({{ usuario.email }}) por outro meio. <strong>Ela não será exibida de
+  novo</strong>: o sistema guarda apenas o resumo criptográfico, e a única saída
+  depois desta tela é gerar outra senha.</p>
+
+  <p class="senha-gerada"><code>{{ senha }}</code></p>
+
+  <p><small>A troca continua obrigatória no primeiro acesso: quem receber esta
+  senha só conseguirá escolher a sua, e nenhuma outra tela ficará disponível até
+  lá.</small></p>
+  <p><a href="{{ voltar_url }}">Concluir</a></p>
+</div>
+{% endblock %}

@@ -16,7 +16,7 @@ from app.models import (
     VersaoDocumento,
 )
 from app.models.ata import AtaParticipacao
-from app.services import auditoria
+from app.services import auditoria, senhas
 
 
 class GestaoUsuarioInvalida(Exception):
@@ -96,41 +96,82 @@ def motivo_bloqueio_exclusao(
     return None
 
 
-def criar_usuario(*, nome, email, papel, senha, autor, ativo=True, telefone=None) -> Usuario:
+def criar_usuario(
+    *, nome, email, papel, autor, ativo=True, telefone=None
+) -> tuple[Usuario, str]:
+    """Cria a conta com senha gerada e devolve `(usuario, senha)`.
+
+    A senha nunca é escolhida por quem cria a conta: senha alheia digitada por
+    terceiro tende a ser fraca, repetida entre contas e conhecida por quem a
+    digitou por tempo indeterminado. Gerada e marcada como provisória, ela vale
+    até o titular trocá-la, e não abre nada além da tela de troca.
+
+    A senha é devolvida, e não guardada: quem chama a envia ao titular e, se o
+    e-mail falhar, a exibe uma vez na tela. Depois disto só existe o hash."""
     if Usuario.query.filter_by(email=email).first():
         raise GestaoUsuarioInvalida("E-mail já cadastrado.")
+    senha = senhas.gerar()
     usuario = Usuario(
         nome=nome, email=email, papel=papel, ativo=ativo, criado_por=autor.id,
         telefone=telefone or None,
     )
-    usuario.set_senha(senha)
+    usuario.set_senha(senha, provisoria=True)
     db.session.add(usuario)
     db.session.flush()
     auditoria.registrar(
         "criacao_usuario", "usuario", usuario.id, {"email": email, "papel": papel}
     )
-    return usuario
+    return usuario, senha
+
+
+def repor_senha(usuario: Usuario, executor: Usuario) -> str:
+    """Gera nova senha provisória e devolve-a para envio ao titular.
+
+    Recusa a própria conta: além de o administrador ter a tela de troca à mão, a
+    reposição invalida a sessão corrente (o hash entra em `get_id`), e ele se
+    deslogaria sem entender por quê.
+
+    Recusa conta desativada: a senha chegaria ao titular sem servir para nada,
+    pois conta inativa não autentica. Reative primeiro."""
+    if usuario.id == executor.id:
+        raise GestaoUsuarioInvalida(
+            "Para trocar a própria senha, use o menu Senha."
+        )
+    if not usuario.ativo:
+        raise GestaoUsuarioInvalida(
+            "A conta está desativada e não autentica. Reative-a antes de repor "
+            "a senha."
+        )
+    senha = senhas.gerar()
+    usuario.set_senha(senha, provisoria=True)
+    # a senha jamais entra na trilha: a auditoria é legível pelo administrador,
+    # e marcá-la como provisória serve justamente para encurtar quem a conhece
+    auditoria.registrar(
+        "reposicao_senha", "usuario", usuario.id, {"email": usuario.email}
+    )
+    return senha
 
 
 def criar_orientando_com_vinculo(
     *,
     nome,
     email,
-    senha,
     orientador: Usuario,
     modalidade,
     titulo_projeto,
     data_inicio,
     data_fim_prevista=None,
     telefone=None,
-) -> Orientacao:
+) -> tuple[Orientacao, str]:
     """Cria a conta do orientando e, no mesmo ato, o vínculo de orientação com
-    quem a criou. Dispensa a intermediação do administrador."""
-    usuario = criar_usuario(
+    quem a criou. Dispensa a intermediação do administrador.
+
+    Devolve `(orientacao, senha)`: a senha provisória segue para o e-mail de
+    boas-vindas, pelo mesmo caminho da criação feita pelo administrador."""
+    usuario, senha = criar_usuario(
         nome=nome,
         email=email,
         papel="orientando",
-        senha=senha,
         autor=orientador,
         telefone=telefone,
     )
@@ -155,7 +196,7 @@ def criar_orientando_com_vinculo(
             "origem": "criacao_de_orientando",
         },
     )
-    return orientacao
+    return orientacao, senha
 
 
 def excluir_usuario(

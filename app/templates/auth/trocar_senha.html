@@ -3,7 +3,16 @@
 {% block title %}Trocar senha · ARIADNE{% endblock %}
 {% block content %}
 <div class="card">
-  <h1>Trocar senha</h1>
+  <h1>{% if obrigatoria %}Escolha a sua senha{% else %}Trocar senha{% endif %}</h1>
+  {% if obrigatoria %}
+  <p class="flash flash-warning"><strong>A troca é obrigatória.</strong> A senha
+  que você usou para entrar foi gerada pelo sistema e enviada por e-mail, de modo
+  que pode ter sido lida por quem tenha acesso àquela caixa. Enquanto não
+  escolher a sua, nenhuma outra tela fica disponível.</p>
+  <p><small>Em <strong>Senha atual</strong>, informe a senha temporária que
+  recebeu. Escolha uma nova de ao menos 8 caracteres, diferente da temporária e
+  que você não use em outro serviço.</small></p>
+  {% endif %}
   {{ render_form(form) }}
 </div>
 {% endblock %}

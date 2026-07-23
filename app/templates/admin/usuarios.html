@@ -4,19 +4,33 @@
 {% block content %}
 <h1>Usuários</h1>
 <p><a href="{{ url_for('admin.criar_usuario') }}">+ Novo usuário</a></p>
+<p><small>A conta nasce com senha gerada pelo sistema, enviada ao titular por
+e-mail; a troca é exigida no primeiro acesso. <em>Senha temporária</em> repõe o
+acesso de quem não consegue mais entrar, invalidando a senha anterior e as
+sessões abertas naquela conta.</small></p>
 <p><small>A exclusão só é admitida para contas sem histórico (sem vínculos,
 conteúdo ou ações auditadas); nos demais casos, utilize a desativação em
 Editar, que preserva o histórico.</small></p>
 <table>
-  <tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Ativo</th><th>Ações</th></tr>
+  <tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Ativo</th><th>Senha</th><th>Ações</th></tr>
   {% for u in usuarios %}
   <tr>
     <td>{{ u.nome }}</td>
     <td>{{ u.email }}</td>
     <td>{{ u.papel }}</td>
     <td>{{ 'sim' if u.ativo else 'não' }}</td>
+    <td>
+      {% if u.senha_provisoria %}<span class="badge badge-atrasado">temporária</span>
+      {% else %}<span class="badge">própria</span>{% endif %}
+    </td>
     <td class="acoes">
       <a href="{{ url_for('admin.editar_usuario', usuario_id=u.id) }}">Editar</a>
+      {% if u.id != current_user.id and u.ativo %}
+      <form method="post" action="{{ url_for('admin.senha_temporaria', usuario_id=u.id) }}">
+        {{ senha_form.hidden_tag() }}
+        <button type="submit" class="link">Senha temporária</button>
+      </form>
+      {% endif %}
       {% if u.id != current_user.id %}
       <form method="post" action="{{ url_for('admin.excluir_usuario', usuario_id=u.id) }}">
         {{ excluir_form.hidden_tag() }}

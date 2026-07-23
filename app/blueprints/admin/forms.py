@@ -25,15 +25,31 @@ from app.models.user import PAPEIS
 
 
 class UsuarioForm(FlaskForm):
+    """Cadastro da conta, sem campo de senha.
+
+    O administrador não digita senha alheia: a da criação é gerada e enviada ao
+    titular, e a reposição tem botão próprio. Senha escolhida por terceiro tende
+    a ser fraca, repetida entre contas e conhecida por quem a digitou por tempo
+    indeterminado."""
+
     nome = StringField("Nome", validators=[DataRequired(), Length(max=120)])
-    email = StringField("E-mail", validators=[DataRequired(), Email(), Length(max=254)])
+    email = StringField(
+        "E-mail", validators=[DataRequired(), Email(), Length(max=254)],
+        description="É o nome de usuário no acesso, e o endereço para onde vão "
+                    "a senha inicial e os avisos do sistema.",
+    )
     telefone = StringField(
         "Telefone celular", validators=[Optional(), Length(max=32)]
     )
     papel = SelectField("Papel", choices=[(p, p.capitalize()) for p in PAPEIS])
-    senha = PasswordField("Senha inicial", validators=[Optional(), Length(min=8, max=128)])
     ativo = BooleanField("Ativo", default=True)
     submit = SubmitField("Salvar")
+
+
+class SenhaTemporariaForm(FlaskForm):
+    """Reposição de acesso: gera senha aleatória e a envia ao titular."""
+
+    submit = SubmitField("Gerar senha temporária e enviar")
 
 
 class ModeloForm(FlaskForm):

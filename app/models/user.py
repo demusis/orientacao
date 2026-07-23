@@ -27,6 +27,15 @@ class Usuario(UserMixin, db.Model):
     # (contas ociosas, nunca acessadas); não registra o que a pessoa fez —
     # leituras permanecem fora da auditoria por decisão de 20/07/2026.
     ultimo_acesso = db.Column(db.DateTime, nullable=True)
+    # Senha gerada pelo sistema (criação da conta ou reposição pelo
+    # administrador) e transmitida por e-mail. Enquanto verdadeira, o acesso
+    # fica restrito à tela de troca de senha: a senha trafegou em texto claro
+    # por correio eletrônico e pode ter sido lida por quem tem acesso à caixa.
+    # Trocar a senha é o que encerra essa exposição, e é por isso que a troca é
+    # obrigatória e não apenas recomendada.
+    senha_provisoria = db.Column(
+        db.Boolean, nullable=False, default=False, server_default="0"
+    )
 
     orientacoes_como_orientador = db.relationship(
         "Orientacao",
@@ -41,8 +50,12 @@ class Usuario(UserMixin, db.Model):
         lazy="dynamic",
     )
 
-    def set_senha(self, senha: str) -> None:
+    def set_senha(self, senha: str, *, provisoria: bool = False) -> None:
+        """Grava a senha. `provisoria` marca as que o sistema gerou e enviou por
+        e-mail, que o titular é obrigado a trocar no primeiro acesso. A troca
+        feita pelo próprio titular limpa a marca, que é o padrão do parâmetro."""
         self.senha_hash = generate_password_hash(senha)
+        self.senha_provisoria = provisoria
 
     def verificar_senha(self, senha: str) -> bool:
         return check_password_hash(self.senha_hash, senha)

@@ -26,6 +26,7 @@ from app.blueprints.admin.forms import (
     OrientacaoForm,
     RemoverForm,
     RestaurarBackupForm,
+    SenhaTemporariaForm,
     TesteEmailForm,
     UsuarioForm,
 )
@@ -38,7 +39,7 @@ from app.models import (
     OrientacaoOrientador,
     Usuario,
 )
-from app.services import auditoria, avisos, cripto
+from app.services import auditoria, avisos, credenciais, cripto
 from app.services import email as email_service
 from app.services import modelos as modelos_service
 from app.services import usuarios as usuarios_service
@@ -60,6 +61,7 @@ def listar_usuarios():
         usuarios=paginacao.items,
         paginacao=paginacao,
         excluir_form=ExcluirForm(),
+        senha_form=SenhaTemporariaForm(),
     )
 
 
@@ -68,25 +70,79 @@ def listar_usuarios():
 def criar_usuario():
     form = UsuarioForm()
     if form.validate_on_submit():
-        if not form.senha.data:
-            flash("Senha inicial é obrigatória na criação.", "danger")
-        else:
-            try:
-                usuarios_service.criar_usuario(
-                    nome=form.nome.data,
-                    email=form.email.data.lower().strip(),
-                    papel=form.papel.data,
-                    senha=form.senha.data,
-                    autor=current_user,
-                    ativo=form.ativo.data,
-                    telefone=form.telefone.data,
+        try:
+            usuario, senha = usuarios_service.criar_usuario(
+                nome=form.nome.data,
+                email=form.email.data.lower().strip(),
+                papel=form.papel.data,
+                autor=current_user,
+                ativo=form.ativo.data,
+                telefone=form.telefone.data,
+            )
+            db.session.commit()
+            flash("Usuário criado.", "success")
+            if not usuario.ativo:
+                # mandar credenciais a quem não autentica é anunciar um acesso
+                # que não existe; mesma guarda de `repor_senha`
+                flash(
+                    "A conta foi criada desativada, e por isso nenhuma "
+                    "credencial foi enviada. Ao ativá-la, use Senha temporária "
+                    "para dar acesso ao titular.",
+                    "warning",
                 )
-                db.session.commit()
-                flash("Usuário criado.", "success")
                 return redirect(url_for("admin.listar_usuarios"))
-            except GestaoUsuarioInvalida as exc:
-                flash(str(exc), "danger")
+            # o envio vem depois do commit: falar com o SMTP dentro da
+            # transação seguraria a trava de escrita do SQLite
+            enviado = credenciais.enviar(usuario, senha, "criacao")
+            db.session.commit()
+            if enviado:
+                flash(credenciais.mensagem_de_sucesso(usuario), "success")
+                return redirect(url_for("admin.listar_usuarios"))
+            return _tela_da_senha(usuario, senha)
+        except GestaoUsuarioInvalida as exc:
+            flash(str(exc), "danger")
     return render_template("admin/usuario_form.html", form=form, titulo="Novo usuário")
+
+
+def _tela_da_senha(usuario, senha: str):
+    """Exibe a senha gerada quando o e-mail não saiu.
+
+    Renderiza em vez de redirecionar com `flash`: a mensagem de flash viaja na
+    sessão, que é um cookie assinado mas não cifrado, e a senha de terceiro
+    ficaria gravada no navegador do administrador."""
+    return render_template(
+        "admin/senha_gerada.html",
+        usuario=usuario,
+        senha=senha,
+        motivo=credenciais.motivo_de_falha(),
+        voltar_url=url_for("admin.listar_usuarios"),
+    )
+
+
+@bp.route("/usuarios/<int:usuario_id>/senha-temporaria", methods=["POST"])
+@role_required("admin")
+def senha_temporaria(usuario_id: int):
+    """Repõe o acesso de quem não consegue mais entrar, sem que o administrador
+    conheça a senha definitiva de ninguém.
+
+    A senha anterior deixa de valer no ato, e como o hash entra em
+    `Usuario.get_id`, as sessões abertas naquela conta se encerram. É o que
+    torna a reposição útil também quando se suspeita de acesso indevido."""
+    usuario = db.session.get(Usuario, usuario_id) or abort(404)
+    form = SenhaTemporariaForm()
+    if form.validate_on_submit():
+        try:
+            senha = usuarios_service.repor_senha(usuario, current_user)
+        except GestaoUsuarioInvalida as exc:
+            flash(str(exc), "danger")
+            return redirect(url_for("admin.listar_usuarios"))
+        db.session.commit()
+        enviado = credenciais.enviar(usuario, senha, "reposicao")
+        db.session.commit()
+        if not enviado:
+            return _tela_da_senha(usuario, senha)
+        flash(credenciais.mensagem_de_sucesso(usuario), "success")
+    return redirect(url_for("admin.listar_usuarios"))
 
 
 @bp.route("/usuarios/<int:usuario_id>/excluir", methods=["POST"])
@@ -144,8 +200,6 @@ def editar_usuario(usuario_id: int):
         usuario.telefone = form.telefone.data or None
         usuario.papel = form.papel.data
         usuario.ativo = form.ativo.data
-        if form.senha.data:
-            usuario.set_senha(form.senha.data)
         auditoria.registrar(
             "edicao_usuario", "usuario", usuario.id, {"papel": usuario.papel, "ativo": usuario.ativo}
         )

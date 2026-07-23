@@ -60,16 +60,26 @@
 <section id="primeiro-acesso" class="card">
   <h2>2. Primeiro acesso e senha</h2>
   <ol>
-    <li>Sua conta é criada pelo administrador, que informa e-mail e senha inicial.</li>
+    <li>Sua conta é criada pelo administrador (ou pelo seu orientador, se você é
+    orientando). Você recebe por <strong>e-mail</strong> o endereço do sistema, o seu
+    usuário, que é o próprio e-mail, e uma <strong>senha temporária</strong> gerada pelo
+    sistema.</li>
     <li>Entre em <em>Login</em> com essas credenciais.</li>
-    <li>Troque a senha inicial no menu <strong>Senha</strong> (mínimo de 8 caracteres).</li>
+    <li>O sistema pede imediatamente uma nova senha. <strong>A troca é obrigatória</strong>:
+    até concluí-la, nenhuma outra tela fica disponível. Escolha uma senha de ao menos 8
+    caracteres, diferente da temporária, que você não use em outro serviço.</li>
   </ol>
+  <p>A senha temporária trafegou por e-mail em texto legível, e pode ter sido lida por
+  quem tenha acesso àquela caixa. Ela <strong>vale até ser trocada</strong> e não dá
+  acesso a mais nada: quem a tiver só consegue chegar à tela de troca. Por isso não adie
+  o primeiro acesso. Ninguém do sistema vai lhe pedir a sua senha.</p>
   <p>Esqueceu a senha? Use <strong>Esqueci minha senha</strong>, na tela de acesso.
   Informe o e-mail da conta e, havendo conta ativa com esse endereço, o sistema envia um
   link para definir nova senha, válido por uma hora. Ao redefinir, as sessões abertas
   naquela conta são encerradas, o que é útil quando se suspeita de acesso indevido. O envio
-  depende de o e-mail estar configurado pelo administrador; não estando, ele ainda pode
-  definir uma nova senha inicial manualmente.</p>
+  depende de o e-mail estar configurado pelo administrador. Não estando, procure-o: ele
+  pode gerar uma <em>senha temporária</em> e, se o envio falhar, entregá-la a você por
+  outro meio.</p>
 </section>
 
 <section id="painel" class="card">
@@ -146,11 +156,24 @@
   <h3>4.1 Usuários</h3>
   <ol>
     <li>Menu <strong>Usuários → + Novo usuário</strong>: informe nome, e-mail
-    institucional, papel e senha inicial (a ser trocada pelo titular no primeiro acesso).
-    O <em>telefone celular</em> é opcional.</li>
-    <li><em>Editar</em> permite corrigir dados, trocar papel, redefinir senha e
-    ativar/desativar a conta. Conta desativada não autentica, mas preserva o histórico.</li>
+    institucional e papel. O <em>telefone celular</em> é opcional. <strong>Não há campo
+    de senha</strong>: o sistema gera uma aleatória e a envia ao titular com as
+    instruções de acesso.</li>
+    <li><em>Editar</em> permite corrigir dados, trocar papel e ativar/desativar a conta.
+    Conta desativada não autentica, mas preserva o histórico.</li>
+    <li><em>Senha temporária</em>, na lista de usuários, repõe o acesso de quem não
+    consegue mais entrar: gera nova senha aleatória, envia-a ao titular e invalida a
+    anterior.</li>
   </ol>
+  <p><strong>O administrador não digita senha alheia.</strong> Senha escolhida por
+  terceiro tende a ser fraca, repetida entre contas e conhecida por quem a digitou por
+  tempo indeterminado. Gerada pelo sistema, ela vale até o titular trocá-la: a coluna
+  <em>Senha</em> na lista mostra <em>temporária</em> enquanto o titular não escolher a
+  sua, e <em>própria</em> depois disso.</p>
+  <p>A reposição também encerra as <strong>sessões abertas</strong> naquela conta, o que
+  a torna a resposta correta à suspeita de acesso indevido. Falhando o envio do e-mail, a
+  senha gerada aparece <strong>uma única vez</strong> na tela, para que você a entregue
+  por outro meio; não há como exibi-la de novo, apenas gerar outra.</p>
   <p>O administrador também pode <strong>excluir</strong> usuários, mas somente contas
   <em>sem histórico</em>, isto é, sem vínculos, conteúdo ou ações auditadas. Contas com
   histórico devem ser <em>desativadas</em>, o que preserva a integridade dos registros.</p>
@@ -162,7 +185,9 @@
   orientando (papel fixo). A criação é um ato único: além da conta, o sistema constitui
   o <strong>vínculo de orientação já ativo</strong> entre o orientando e o orientador que
   o criou; por isso o formulário pede também modalidade, título do projeto e datas.
-  Não é necessário recorrer ao administrador.</p>
+  Não é necessário recorrer ao administrador. Como na criação pelo administrador, não há
+  campo de senha: o orientando recebe por e-mail uma senha temporária e é obrigado a
+  trocá-la no primeiro acesso, de modo que o orientador não conhece a senha de ninguém.</p>
   <p><strong>Desativar e excluir contas compete exclusivamente ao administrador.</strong>
   O orientador cria a conta e o vínculo, mas não os remove; para encerrar um
   acompanhamento, solicite ao administrador a desativação da conta ou o encerramento do
@@ -199,9 +224,9 @@
   agendadas nas próximas 48 horas. Quem
   não tem pendência não recebe nada, e os avisos a vencer são preventivos, para dar tempo
   de agir antes do atraso.</p>
-  <p>Fora desse lote, o sistema envia <strong>na hora</strong> o convite de reunião
-  (agendada, remarcada, com participantes alterados ou cancelada) e o link de redefinição
-  de senha. São eventos, não pendências: esperar o resumo do dia seguinte os tornaria
+  <p>Fora desse lote, o sistema envia <strong>na hora</strong> as credenciais de acesso
+  (conta criada ou senha temporária reposta), o convite de reunião (agendada, remarcada,
+  com participantes alterados ou cancelada) e o link de redefinição de senha. São eventos, não pendências: esperar o resumo do dia seguinte os tornaria
   inúteis. Falhando o envio, a operação segue seu curso e a tela informa que o aviso não
   saiu.</p>
   <p>O disparo aproveita o tráfego do site: na primeira visita de cada dia os avisos
@@ -532,7 +557,22 @@
   <h2>10. Perguntas frequentes</h2>
   <dl>
     <dt>Esqueci minha senha.</dt>
-    <dd>Solicite ao administrador uma nova senha inicial e troque-a no primeiro acesso.</dd>
+    <dd>Use <em>Esqueci minha senha</em>, na tela de acesso: chega um link para definir
+    outra, válido por uma hora. Não funcionando, peça ao administrador uma
+    <em>senha temporária</em>, que chega por e-mail e deve ser trocada no primeiro
+    acesso.</dd>
+
+    <dt>Entrei e o sistema só me mostra a tela de trocar senha.</dt>
+    <dd>Você entrou com a senha temporária que recebeu por e-mail. Ela vale só até você
+    trocá-la, porque trafegou em texto legível e pode ter sido lida por terceiros. Informe-a
+    em <em>Senha atual</em>, escolha uma nova, diferente dela, e o sistema se abre. Sair
+    continua possível, mas na volta a troca será pedida de novo.</dd>
+
+    <dt>Criei um usuário e ele não recebeu o e-mail.</dt>
+    <dd>O envio depende da conta configurada em <em>E-mail</em>. Quando falha, a senha
+    gerada aparece uma única vez na tela, logo após a criação, para que você a entregue
+    por outro meio. Se a mensagem já saiu da tela, use <em>Senha temporária</em> na lista
+    de usuários para gerar outra.</dd>
 
     <dt>Meu arquivo foi recusado com "extensão não permitida" ou "conteúdo não
     corresponde à extensão".</dt>

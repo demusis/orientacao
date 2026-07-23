@@ -5,6 +5,12 @@
 {% block content %}
 <div class="card">
   <h1>{{ titulo }}</h1>
+  <p><small>Não há campo de senha: ao salvar, o sistema gera uma senha
+  aleatória e a envia ao titular junto com as instruções de acesso, e a troca é
+  exigida no primeiro login. Para repor o acesso de uma conta já existente, use
+  <em>Senha temporária</em> na lista de usuários.</small></p>
+  <p><small>Falhando o envio do e-mail, a senha gerada aparece uma única vez na
+  tela seguinte, para que você a entregue por outro meio.</small></p>
   {{ render_form(form) }}
 </div>
 {% endblock %}

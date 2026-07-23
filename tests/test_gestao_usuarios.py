@@ -13,7 +13,6 @@ def test_admin_cria_usuario_com_autor_registrado(client, admin):
             "nome": "Novo Orientador",
             "email": "novo@teste.br",
             "papel": "orientador",
-            "senha": "senha-teste-123",
             "ativo": "y",
         },
         follow_redirects=True,
@@ -31,7 +30,6 @@ def test_admin_cria_usuario_com_telefone(client, admin):
             "email": "fone@teste.br",
             "telefone": "(65) 99999-1234",
             "papel": "orientador",
-            "senha": "senha-teste-123",
             "ativo": "y",
         },
         follow_redirects=True,
@@ -50,7 +48,6 @@ def test_telefone_e_opcional(client, admin):
             "email": "semfone@teste.br",
             "telefone": "",
             "papel": "orientando",
-            "senha": "senha-teste-123",
             "ativo": "y",
         },
         follow_redirects=True,
@@ -83,7 +80,6 @@ def test_admin_exclui_conta_limpa(client, admin):
             "nome": "Descartável",
             "email": "descartavel@teste.br",
             "papel": "orientando",
-            "senha": "senha-teste-123",
             "ativo": "y",
         },
     )
@@ -120,7 +116,6 @@ def _dados_orientando(nome, email):
     return {
         "nome": nome,
         "email": email,
-        "senha": "senha-teste-123",
         "modalidade": "mestrado",
         "titulo_projeto": f"Projeto de {nome}",
         "data_inicio": "2026-03-01",
@@ -228,7 +223,6 @@ def test_desativacao_de_conta_e_privativa_do_admin(client, admin, orientador, or
             "nome": orientando.nome,
             "email": orientando.email,
             "papel": "orientando",
-            "senha": "",
         },  # 'ativo' ausente => desmarcado
         follow_redirects=True,
     )
