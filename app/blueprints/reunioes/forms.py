@@ -79,10 +79,13 @@ class AtaGrupoForm(FlaskForm):
     submit = SubmitField("Salvar")
 
     def validate_data_reuniao(self, field):
-        # a ata rápida é retroativa: reunião a realizar entra por "agendar"
-        if field.data and field.data > agora().date():
+        # só barra data futura quando se pede finalizar já: não se finaliza o
+        # registro de uma reunião que ainda não ocorreu. Sem finalizar, a ata de
+        # grupo pode ser marcada para o futuro (é o mesmo ponto de criação usado
+        # pelos fluxos de presença e reagendamento).
+        if self.finalizar_agora.data and field.data and field.data > agora().date():
             raise ValidationError(
-                "A data não pode ser futura: para reunião a realizar, use Agendar."
+                "Não é possível finalizar agora uma reunião com data futura."
             )
 
 
