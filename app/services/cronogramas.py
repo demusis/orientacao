@@ -9,6 +9,7 @@ from datetime import date, timedelta
 
 from app.extensions import db
 from app.models import Marco
+from app.services import auditoria
 
 # Modelo por modalidade: (título, tipo, etapa, mês a partir de data_inicio). É o
 # único ponto a editar para mudar o que se semeia. Tipos válidos: TIPOS_MARCO em
@@ -64,3 +65,18 @@ def semear_cronograma(orientacao) -> list[Marco]:
         db.session.add(marco)
         criados.append(marco)
     return criados
+
+
+def confirmar_conclusao(marco: Marco) -> bool:
+    """Confirma a conclusão do marco (o segundo passo do ciclo, a cargo do
+    orientador): marca-o como concluído na data de hoje e registra na trilha.
+    Devolve False, sem efeito, se já estava concluído. **Não faz commit** — a
+    transação é do chamador, para que a confirmação participe do mesmo commit da
+    operação que a acompanha (a rota de confirmação, ou a emissão de um parecer
+    que fecha o marco)."""
+    if marco.status == "concluido":
+        return False
+    marco.status = "concluido"
+    marco.data_conclusao = date.today()
+    auditoria.registrar("conclusao_marco", "marco", marco.id)
+    return True

@@ -1,5 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms import (
+    BooleanField,
     DateField,
     SelectField,
     SelectMultipleField,
@@ -141,5 +142,12 @@ class ParecerForm(FlaskForm):
     )
     resultado = SelectField(
         "Resultado", choices=[(r, RESULTADO_LABEL[r]) for r in RESULTADOS_PARECER]
+    )
+    # Fecha, no mesmo passo, o marco que a versão apreciada cumpre — evita a dupla
+    # contabilidade de emitir o parecer e depois confirmar o marco à parte. Só age
+    # com resultado favorável e quando o documento da versão está ligado a um marco
+    # ainda não concluído (imposto na rota).
+    concluir_marco = BooleanField(
+        "Concluir o marco vinculado ao documento, quando houver, ao aprovar"
     )
     submit = SubmitField("Emitir parecer")

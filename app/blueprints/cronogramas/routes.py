@@ -1,5 +1,3 @@
-from datetime import date
-
 from flask import abort, flash, redirect, render_template, url_for
 from flask_login import current_user, login_required
 
@@ -202,10 +200,7 @@ def confirmar_conclusao(orientacao_id: int, marco_id: int):
         abort(403)
     marco = _marco_da_orientacao(orientacao, marco_id)
     form = ConfirmacaoForm()
-    if form.validate_on_submit() and marco.status != "concluido":
-        marco.status = "concluido"
-        marco.data_conclusao = date.today()
-        auditoria.registrar("conclusao_marco", "marco", marco.id)
+    if form.validate_on_submit() and servico_cronograma.confirmar_conclusao(marco):
         db.session.commit()
         flash("Marco concluído.", "success")
     return redirect(
