@@ -184,6 +184,17 @@ dl dd { margin: .2rem 0 0 0; }
 .dados-audit { display: grid; grid-template-columns: auto 1fr; gap: .1rem .6rem; margin: 0; font-size: .82rem; }
 .dados-audit dt { color: #8a939b; font-weight: 600; white-space: nowrap; }
 .dados-audit dd { margin: 0; color: #1f2933; word-break: break-word; }
+/* No celular a tabela da trilha rola na horizontal e a coluna Dados fica
+   espremida; o grid rótulo→valor então quebrava os valores em fatias ilegíveis
+   — chegava a uma letra por linha quando um rótulo longo (ex.: "Conta
+   preservada") consumia a coluna. Abaixo de 700px a coluna ganha largura de
+   leitura e empilha rótulo sobre valor, dando ao valor a largura inteira. No
+   desktop, a grade compacta de duas colunas permanece. */
+@media (max-width: 699px) {
+  .dados-audit { display: block; min-width: 13rem; }
+  .dados-audit dt { margin-top: .35rem; }
+  .dados-audit dt:first-child { margin-top: 0; }
+}
 
 /* Senha gerada exibida quando o e-mail não saiu: grande e monoespaçada, porque
    costuma ser transcrita à mão a partir da tela */
