@@ -9,7 +9,10 @@
   <link rel="icon" href="{{ url_for('static', filename='img/logo.svg') }}?v=4" type="image/svg+xml">
   <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}?v=4" sizes="16x16 32x32 48x48">
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/logo-256.png') }}?v=4">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  {#- ?v também aqui: o CSS é servido com cache longo, e sem o parâmetro uma
+      correção de estilo só chega a quem tem o arquivo em cache depois que ele
+      expira. Incremente a cada mudança em style.css. -#}
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=1">
 </head>
 <body>
 <header>
