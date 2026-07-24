@@ -20,6 +20,7 @@ from app.services.atas import (
     alterar_convidados,
     cancelar_reuniao,
     excluir_reuniao,
+    finalizar_ata,
 )
 from app.services.rbac import role_required
 
@@ -386,14 +387,36 @@ def criar_ata_grupo():
             "criacao_ata_grupo" if ata.tipo == "grupo" else "criacao_ata",
             "ata",
             ata.id,
-            {"orientacoes": [o.id for o in selecionadas]},
+            {"orientacoes": [o.id for o in selecionadas],
+             "finalizada": bool(form.finalizar_agora.data)},
         )
+        if form.finalizar_agora.data:
+            # reunião ocorrida: quem foi convidado à ata rápida é tido por
+            # presente. A finalização exige pauta e deliberações, ambas já
+            # obrigatórias no formulário, e congela o registro (imutável).
+            for participacao in ata.participacoes:
+                participacao.presenca = "presente"
+            try:
+                finalizar_ata(ata)
+            except (AtaImutavel, OperacaoInvalida) as exc:
+                db.session.rollback()
+                flash(str(exc), "danger")
+                return render_template(
+                    "reunioes/ata_form.html", form=form, vinculos=vinculos
+                )
         db.session.commit()
-        flash(
-            f"Ata de reunião registrada como rascunho "
-            f"({len(selecionadas)} vínculo(s)).",
-            "success",
-        )
+        if form.finalizar_agora.data:
+            flash(
+                f"Ata registrada e finalizada ({len(selecionadas)} vínculo(s)). "
+                "O registro é imutável e pode ser exportado em PDF.",
+                "success",
+            )
+        else:
+            flash(
+                f"Ata de reunião registrada como rascunho "
+                f"({len(selecionadas)} vínculo(s)).",
+                "success",
+            )
         return redirect(url_for("reunioes.index"))
     return render_template("reunioes/ata_form.html", form=form, vinculos=vinculos)
 

@@ -1,5 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms import (
+    BooleanField,
     DateField,
     SelectMultipleField,
     SubmitField,
@@ -11,6 +12,7 @@ from wtforms.validators import DataRequired, Optional, ValidationError
 
 from app.blueprints.atas.forms import campo_link_reuniao
 from app.blueprints.cronogramas.forms import CamposMarco
+from app.services.tempo import agora
 
 
 class MultiCheckboxField(SelectMultipleField):
@@ -71,7 +73,17 @@ class AtaGrupoForm(FlaskForm):
     orientacoes = MultiCheckboxField(
         "Orientandos presentes (um ou mais)", coerce=int, validators=[_minimo_um]
     )
-    submit = SubmitField("Salvar rascunho")
+    finalizar_agora = BooleanField(
+        "Finalizar a ata agora (torna-se imutável e exportável em PDF)"
+    )
+    submit = SubmitField("Salvar")
+
+    def validate_data_reuniao(self, field):
+        # a ata rápida é retroativa: reunião a realizar entra por "agendar"
+        if field.data and field.data > agora().date():
+            raise ValidationError(
+                "A data não pode ser futura: para reunião a realizar, use Agendar."
+            )
 
 
 class MarcoGrupoForm(CamposMarco, FlaskForm):
