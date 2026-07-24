@@ -24,6 +24,57 @@ from app.models import (
     VersaoDocumento,
 )
 from app.services.rbac import orientacoes_do_usuario
+from app.services.tempo import agora
+
+
+def relogio(orientacao) -> dict:
+    """Situação do vínculo no tempo do programa: quanto do prazo já decorreu e um
+    sinal de risco, para o orientador ver de relance quem se aproxima do fim sem
+    ter cumprido os marcos que importam.
+
+    O risco combina tempo e marco: **alto** (vermelho) quando um marco de
+    qualificação ou defesa está vencido e não concluído, ou quando passou de 90%
+    do prazo; **médio** (amarelo) acima de 75%; **baixo** no restante. Sem
+    `data_fim_prevista` não há fração de prazo, e o risco fica só a cargo dos
+    marcos críticos — o rótulo então diz "prazo não definido"."""
+    hoje = agora().date()
+    inicio = orientacao.data_inicio
+    fim = orientacao.data_fim_prevista
+    dias_decorridos = max((hoje - inicio).days, 0)
+    meses_decorridos = dias_decorridos // 30
+
+    fracao = meses_total = dias_restantes = None
+    if fim and fim > inicio:
+        fracao = dias_decorridos / (fim - inicio).days
+        meses_total = max(round((fim - inicio).days / 30), 1)
+        dias_restantes = (fim - hoje).days
+
+    # reaproveita Marco.atrasado (status != concluído e data prevista já passou)
+    marco_critico_vencido = any(
+        m.atrasado for m in orientacao.marcos if m.tipo in ("qualificacao", "defesa")
+    )
+
+    if marco_critico_vencido or (fracao is not None and fracao > 0.90):
+        risco = "alto"
+    elif fracao is not None and fracao > 0.75:
+        risco = "medio"
+    else:
+        risco = "baixo"
+
+    if meses_total:
+        rotulo = f"mês {min(meses_decorridos, meses_total)} de {meses_total}"
+    else:
+        rotulo = f"{meses_decorridos} mês(es) · prazo não definido"
+
+    return {
+        "meses_decorridos": meses_decorridos,
+        "meses_total": meses_total,
+        "dias_restantes": dias_restantes,
+        "risco": risco,
+        "marco_critico_vencido": marco_critico_vencido,
+        "rotulo": rotulo,
+        "sem_prazo": fim is None,
+    }
 
 
 def _ids_visiveis() -> list[int]:

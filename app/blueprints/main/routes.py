@@ -42,6 +42,7 @@ def dashboard():
     return render_template(
         "main/dashboard.html",
         orientacoes=orientacoes,
+        relogios={o.id: painel.relogio(o) for o in orientacoes},
         pendencias=painel.pendencias(),
     )
 
@@ -59,6 +60,7 @@ def orientacao_detalhe(orientacao_id: int):
     return render_template(
         "main/orientacao_detalhe.html",
         orientacao=orientacao,
+        relogio=painel.relogio(orientacao),
         pode_alterar_titulo=_pode_alterar_titulo(orientacao),
         eventos=eventos,
         tipos=linha_tempo.TIPOS,
