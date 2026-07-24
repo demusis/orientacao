@@ -20,6 +20,13 @@
      <strong>Orientando:</strong> {{ orientacao.orientando.nome }}</p>
   <p><strong>Início:</strong> {{ orientacao.data_inicio }} |
      <strong>Fim previsto:</strong> {{ orientacao.data_fim_prevista or 'não definido' }}</p>
+  <p><strong>Prazo do programa:</strong>
+     <span class="badge badge-risco-{{ relogio.risco }}">{{ relogio.rotulo }}</span>
+     {%- if relogio.dias_restantes is not none %}
+       {% if relogio.dias_restantes >= 0 %} · {{ relogio.dias_restantes }} dia(s) até o fim previsto
+       {% else %} · prazo previsto vencido há {{ -relogio.dias_restantes }} dia(s){% endif %}
+     {%- endif %}
+     {%- if relogio.marco_critico_vencido %} · <strong>marco de qualificação/defesa vencido</strong>{% endif %}</p>
 </div>
 
 <section class="card" id="linha-do-tempo">

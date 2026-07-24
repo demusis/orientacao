@@ -121,6 +121,11 @@ nav details.menu > .submenu button.link:hover { background: #eef2f6; }
 .badge { display: inline-block; padding: .1rem .5rem; border-radius: 8px; font-size: .78rem; background: #e2e6ea; }
 .badge-atrasado { background: #f8d7da; }
 .badge-concluido { background: #d8f0d8; }
+/* Sinal de risco do relógio do programa (P-5): tempo + marco crítico. Mesma
+   paleta suave dos avisos — verde no prazo, amarelo apertando, vermelho em risco. */
+.badge-risco-baixo { background: #d8f0d8; color: #1e4620; }
+.badge-risco-medio { background: #fff3cd; color: #664d03; }
+.badge-risco-alto { background: #f8d7da; color: #842029; }
 .acoes form { display: inline; }
 .paginacao { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; margin: 1rem 0 2rem; }
 .paginacao a, .paginacao strong, .paginacao span { padding: .3rem .6rem; border: 1px solid var(--borda); border-radius: 4px; background: #fff; font-size: .9rem; line-height: 1; }
