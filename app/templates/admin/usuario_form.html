@@ -13,4 +13,15 @@
   tela seguinte, para que você a entregue por outro meio.</small></p>
   {{ render_form(form) }}
 </div>
+{% if usuario %}
+<div class="card">
+  <h2>Eliminação de dados (LGPD)</h2>
+  <p><small>Direito à eliminação (LGPD, art. 18). Apaga
+  <strong>irreversivelmente</strong> os dados pessoais e privados deste usuário;
+  o que precisa sobreviver (trilha de auditoria, atas e pareceres que envolvem
+  terceiros) é preservado de forma anônima. Para apenas suspender o acesso,
+  prefira a <em>desativação</em> no formulário acima.</small></p>
+  <p><a href="{{ url_for('admin.eliminar_usuario', usuario_id=usuario.id) }}">Eliminar dados do usuário (LGPD)…</a></p>
+</div>
+{% endif %}
 {% endblock %}

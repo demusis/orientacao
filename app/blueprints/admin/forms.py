@@ -119,6 +119,18 @@ class ExcluirForm(FlaskForm):
     submit = SubmitField("Excluir")
 
 
+class EliminarUsuarioForm(FlaskForm):
+    """Eliminação LGPD dos dados de um usuário — irreversível. A confirmação é o
+    próprio e-mail do titular (não uma palavra fixa): força o administrador a
+    identificar exatamente quem está sendo eliminado, e o e-mail certo é validado
+    na rota, contra o alvo."""
+
+    confirmacao = StringField(
+        "Digite o e-mail do titular para confirmar", validators=[DataRequired()]
+    )
+    submit = SubmitField("Eliminar dados do usuário")
+
+
 class GerarBackupForm(FlaskForm):
     submit = SubmitField("Gerar e baixar backup")
 

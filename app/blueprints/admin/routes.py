@@ -1,4 +1,5 @@
 import json
+import os
 
 from flask import (
     Response,
@@ -17,6 +18,7 @@ from app.blueprints.admin.forms import (
     AjusteDatasForm,
     ConfiguracaoEmailForm,
     CoorientadorForm,
+    EliminarUsuarioForm,
     EncerrarOrientacaoForm,
     ExcluirForm,
     ExpurgarBaseForm,
@@ -40,6 +42,7 @@ from app.models import (
     Usuario,
 )
 from app.services import auditoria, avisos, credenciais, cripto
+from app.services import eliminacao as eliminacao_service
 from app.services import email as email_service
 from app.services import modelos as modelos_service
 from app.services import usuarios as usuarios_service
@@ -168,6 +171,47 @@ def excluir_usuario(usuario_id: int):
     return redirect(url_for("admin.listar_usuarios"))
 
 
+@bp.route("/usuarios/<int:usuario_id>/eliminar", methods=["GET", "POST"])
+@role_required("admin")
+def eliminar_usuario(usuario_id: int):
+    """Eliminação LGPD (art. 18): apaga os dados privados do titular e anonimiza o
+    que deve sobreviver (trilha, registros de terceiros). Irreversível; confirmada
+    digitando o e-mail exato do titular."""
+    usuario = db.session.get(Usuario, usuario_id) or abort(404)
+    form = EliminarUsuarioForm()
+    if form.validate_on_submit():
+        if form.confirmacao.data.strip().lower() != (usuario.email or "").lower():
+            flash("Confirmação incorreta: digite o e-mail exato do titular.", "danger")
+            return render_template(
+                "admin/usuario_eliminar.html", form=form, usuario=usuario
+            )
+        try:
+            resumo = eliminacao_service.eliminar_usuario(usuario, current_user)
+            db.session.commit()
+            # arquivos só saem do disco depois do commit: falha no commit não
+            # deixa arquivo órfão de um registro que voltaria
+            pasta = current_app.config["UPLOAD_FOLDER"]
+            for nome in resumo["arquivos"]:
+                try:
+                    os.remove(os.path.join(pasta, nome))
+                except OSError:
+                    current_app.logger.warning(
+                        "Arquivo de usuário eliminado não removido: %s", nome
+                    )
+            flash(
+                f"Dados do usuário eliminados: {resumo['vinculos_apagados']} "
+                f"vínculo(s) apagado(s) e {resumo['registros_reatribuidos']} "
+                "registro(s) anonimizado(s).",
+                "success",
+            )
+            return redirect(url_for("admin.listar_usuarios"))
+        except GestaoUsuarioInvalida as exc:
+            db.session.commit()  # persiste o log da recusa
+            flash(str(exc), "danger")
+            return redirect(url_for("admin.listar_usuarios"))
+    return render_template("admin/usuario_eliminar.html", form=form, usuario=usuario)
+
+
 @bp.route("/usuarios/<int:usuario_id>/editar", methods=["GET", "POST"])
 @role_required("admin")
 def editar_usuario(usuario_id: int):
@@ -206,7 +250,9 @@ def editar_usuario(usuario_id: int):
         db.session.commit()
         flash("Usuário atualizado.", "success")
         return redirect(url_for("admin.listar_usuarios"))
-    return render_template("admin/usuario_form.html", form=form, titulo="Editar usuário")
+    return render_template(
+        "admin/usuario_form.html", form=form, titulo="Editar usuário", usuario=usuario
+    )
 
 
 @bp.route("/orientacoes")

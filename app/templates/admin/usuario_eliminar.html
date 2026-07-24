@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_form %}
+{% block title %}Eliminar dados do usuário · ARIADNE{% endblock %}
+{% block voltar %}<a class="voltar" href="{{ url_for('admin.editar_usuario', usuario_id=usuario.id) }}">Editar usuário</a>{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Eliminar dados do usuário (LGPD)</h1>
+  <p class="flash flash-danger"><strong>Ação irreversível.</strong> Atende ao
+  direito à eliminação (LGPD, art. 18) e não pode ser desfeita. Confira o titular
+  antes de prosseguir.</p>
+  <p><strong>Titular:</strong> {{ usuario.nome }} — {{ usuario.email }}
+  (<span class="badge">{{ usuario.papel }}</span>)</p>
+
+  <h2>O que acontece</h2>
+  <ul>
+    <li><strong>Apagados:</strong> a conta e os dados privados do titular — o(s)
+    vínculo(s) em que ele é orientando, com marcos, documentos e arquivos, atas
+    individuais e pareceres.</li>
+    <li><strong>Preservados de forma anônima:</strong> a trilha de auditoria (o
+    autor deixa de ser identificado e o e-mail é raspado) e os registros que
+    envolvem terceiros — atas de grupo, pareceres e presenças —, onde o nome do
+    titular passa a "[removido]".</li>
+  </ul>
+  <p class="flash flash-warning"><small><strong>Sobre documentos já assinados:</strong>
+  raspar o nome de uma ata ou parecer imutável altera o hash de integridade
+  daquele registro. Um PDF assinado <em>antes</em> da eliminação passará a
+  divergir na verificação — consequência inevitável de eliminar dado pessoal de
+  um documento imutável.</small></p>
+  <p><small>Se um vínculo <strong>ativo</strong> for orientado por esta conta, a
+  eliminação é recusada: encerre ou reatribua o vínculo antes, para não deixar
+  orientando ativo sem orientador.</small></p>
+
+  {{ render_form(form) }}
+</div>
+{% endblock %}
