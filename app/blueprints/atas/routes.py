@@ -107,11 +107,17 @@ def detalhe_ata(orientacao_id: int, ata_id: int):
     form = AtaEdicaoForm(obj=ata)
     finalizar_form = FinalizarAtaForm()
 
-    # marcos elegíveis: dos vínculos participantes (ata individual ou de grupo)
+    # marcos elegíveis: dos vínculos participantes (ata individual ou de grupo).
+    # O nome do orientando vai no rótulo: numa reunião de grupo, marcos de nomes
+    # iguais (ex.: "Envio da última versão do Projeto") apareceriam indistinguíveis
+    # sem ele.
     marcos_disponiveis = [
         m for o in ata.orientacoes for m in o.marcos
     ]
-    form.marcos.choices = [(m.id, m.titulo) for m in marcos_disponiveis]
+    form.marcos.choices = [
+        (m.id, f"{m.titulo} — {m.orientacao.orientando.nome}")
+        for m in marcos_disponiveis
+    ]
     if request.method == "GET":
         form.marcos.data = [m.id for m in ata.marcos]
 
