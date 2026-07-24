@@ -7,6 +7,13 @@
 <h1>Cronograma do projeto {{ orientacao.titulo_projeto }}</h1>
 {% if current_user.id == orientacao.orientador_id or current_user.papel == 'admin' %}
 <p><a href="{{ url_for('cronogramas.criar', orientacao_id=orientacao.id) }}">+ Novo marco</a></p>
+{% if not marcos %}
+<form method="post" action="{{ url_for('cronogramas.semear_padrao', orientacao_id=orientacao.id) }}" class="semear-padrao">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button type="submit">Usar cronograma-padrão de {{ MODALIDADE_LABEL[orientacao.modalidade] }}</button>
+  <br><small class="ajuda-campo">Cria os marcos típicos da modalidade, com datas sugeridas a partir do início do vínculo — todas ajustáveis marco a marco depois.</small>
+</form>
+{% endif %}
 {% endif %}
 <table>
   <tr><th>Etapa</th><th>Marco</th><th>Prevista</th><th>Conclusão</th><th>Status</th><th>Ações</th></tr>

@@ -13,6 +13,7 @@ from app.blueprints.cronogramas.forms import (
 from app.extensions import db
 from app.models import Documento, Marco
 from app.services import auditoria
+from app.services import cronogramas as servico_cronograma
 from app.services.rbac import orientacao_autorizada
 from app.services.uploads import UploadInvalido, salvar_versao
 
@@ -60,6 +61,41 @@ def criar(orientacao_id: int):
         flash("Marco criado.", "success")
         return redirect(url_for("cronogramas.listar", orientacao_id=orientacao.id))
     return render_template("cronogramas/form.html", form=form, orientacao=orientacao)
+
+
+@bp.route("/padrao", methods=["POST"])
+@login_required
+def semear_padrao(orientacao_id: int):
+    """Semeia o cronograma-padrão da modalidade do vínculo. Só age sobre
+    cronograma vazio, para nunca duplicar marcos; as datas semeadas são sugestões
+    e ficam editáveis marco a marco."""
+    orientacao = orientacao_autorizada(orientacao_id)
+    if current_user.id != orientacao.orientador_id and current_user.papel != "admin":
+        abort(403)
+    form = ConfirmacaoForm()
+    if form.validate_on_submit():
+        if orientacao.marcos.count() > 0:
+            flash(
+                "O cronograma já tem marcos; o modelo-padrão só é aplicado a um "
+                "cronograma vazio.",
+                "warning",
+            )
+        else:
+            criados = servico_cronograma.semear_cronograma(orientacao)
+            if criados:
+                auditoria.registrar(
+                    "criacao_cronograma_padrao", "orientacao", orientacao.id,
+                    {"marcos": len(criados)},
+                )
+                db.session.commit()
+                flash(
+                    f"Cronograma-padrão criado com {len(criados)} marco(s). "
+                    "Ajuste as datas conforme o caso.",
+                    "success",
+                )
+            else:
+                flash("Não há modelo-padrão para esta modalidade.", "warning")
+    return redirect(url_for("cronogramas.listar", orientacao_id=orientacao.id))
 
 
 @bp.route("/<int:marco_id>")
