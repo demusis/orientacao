@@ -21,6 +21,7 @@ from app.blueprints.atas.forms import (
 from app.extensions import db
 from app.models import Ata, AtaParticipacao, Documento, Parecer, VersaoDocumento
 from app.services import auditoria, convites, exportacao
+from app.services import cronogramas as servico_cronograma
 from app.services.atas import (
     AtaImutavel,
     OperacaoInvalida,
@@ -311,8 +312,15 @@ def emitir_parecer(orientacao_id: int):
         .order_by(VersaoDocumento.enviado_em.desc())
         .all()
     )
+    def _rotulo_versao(v):
+        rotulo = f"{v.documento.titulo} (v{v.numero_versao})"
+        marco = v.documento.marco
+        if marco is not None and marco.status != "concluido":
+            rotulo += f" — fecha o marco: {marco.titulo}"
+        return rotulo
+
     form.versao_documento_id.choices = [(0, "(nenhuma)")] + [
-        (v.id, f"{v.documento.titulo} (v{v.numero_versao})") for v in versoes
+        (v.id, _rotulo_versao(v)) for v in versoes
     ]
 
     # Chegada pelo Painel: a versão vem no endereço já escolhida. O parâmetro é
@@ -346,8 +354,27 @@ def emitir_parecer(orientacao_id: int):
             parecer.id,
             {"tipo": parecer.tipo, "resultado": parecer.resultado},
         )
+        # No mesmo passo, fecha o marco que a versão apreciada cumpre — mas só com
+        # resultado favorável e sobre marco desta orientação ainda não concluído.
+        marco_concluido = None
+        if form.concluir_marco.data and parecer.resultado in (
+            "aprovado",
+            "aprovado_com_ressalvas",
+        ):
+            avaliada_id = form.versao_documento_id.data
+            versao = next((v for v in versoes if v.id == avaliada_id), None)
+            marco = versao.documento.marco if versao else None
+            if (
+                marco is not None
+                and marco.orientacao_id == orientacao.id
+                and servico_cronograma.confirmar_conclusao(marco)
+            ):
+                marco_concluido = marco
         db.session.commit()
-        flash("Parecer emitido. O registro é imutável.", "success")
+        mensagem = "Parecer emitido. O registro é imutável."
+        if marco_concluido:
+            mensagem += f' O marco "{marco_concluido.titulo}" foi concluído.'
+        flash(mensagem, "success")
         return redirect(url_for("atas.listar_pareceres", orientacao_id=orientacao.id))
 
     return render_template(
