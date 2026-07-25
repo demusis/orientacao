@@ -199,21 +199,31 @@ def criar_orientando_com_vinculo(
     return orientacao, senha
 
 
-def excluir_usuario(
-    usuario: Usuario, executor: Usuario, descartaveis: list[int] | None = None
+def validar_remocao(
+    usuario: Usuario, executor: Usuario, ato: str, verbo: str
 ) -> None:
+    """Guardas comuns a qualquer remoção de conta (exclusão comum e eliminação
+    LGPD): nem a própria conta do executor, nem o último administrador ativo.
+    `ato`/`verbo` parametrizam a trilha e a mensagem ("exclusao"/"excluir",
+    "eliminacao"/"eliminar")."""
     if usuario.id == executor.id:
-        auditoria.registrar("autoexclusao_recusada", "usuario", usuario.id)
-        raise GestaoUsuarioInvalida("Não é possível excluir a própria conta.")
+        auditoria.registrar(f"auto{ato}_recusada", "usuario", usuario.id)
+        raise GestaoUsuarioInvalida(f"Não é possível {verbo} a própria conta.")
     if (
         usuario.papel == "admin"
         and usuario.ativo
         and Usuario.query.filter_by(papel="admin", ativo=True).count() <= 1
     ):
-        auditoria.registrar("exclusao_ultimo_admin_recusada", "usuario", usuario.id)
+        auditoria.registrar(f"{ato}_ultimo_admin_recusada", "usuario", usuario.id)
         raise GestaoUsuarioInvalida(
             "O sistema deve manter ao menos um administrador ativo."
         )
+
+
+def excluir_usuario(
+    usuario: Usuario, executor: Usuario, descartaveis: list[int] | None = None
+) -> None:
+    validar_remocao(usuario, executor, ato="exclusao", verbo="excluir")
     # revalida no serviço: só vínculos efetivamente vazios podem ser descartados
     descartaveis = [
         oid
