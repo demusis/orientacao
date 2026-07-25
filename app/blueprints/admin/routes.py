@@ -54,7 +54,10 @@ from app.services.usuarios import GestaoUsuarioInvalida
 @bp.route("/usuarios")
 @role_required("admin")
 def listar_usuarios():
-    paginacao = Usuario.query.order_by(Usuario.nome).paginate(
+    # a conta-sentinela LGPD é infraestrutura, não um usuário: fica fora da lista
+    paginacao = Usuario.query.filter(
+        Usuario.email != eliminacao_service._SENTINELA_EMAIL
+    ).order_by(Usuario.nome).paginate(
         page=request.args.get("pagina", 1, type=int),
         per_page=current_app.config["ITENS_POR_PAGINA"],
         error_out=False,
@@ -107,6 +110,20 @@ def criar_usuario():
     return render_template("admin/usuario_form.html", form=form, titulo="Novo usuário")
 
 
+def _sentinela_intocavel(usuario) -> bool:
+    """A conta-sentinela LGPD é infraestrutura, não um usuário: nenhuma rota de
+    gestão a toca. Reativá-la ou repor sua senha daria acesso anônimo aos
+    registros históricos re-apontados a ela; apagá-la os deixaria órfãos."""
+    if eliminacao_service.eh_sentinela(usuario):
+        flash(
+            "A conta-sentinela de remoção (LGPD) é infraestrutura do sistema "
+            "e não pode ser editada, reativada nem removida.",
+            "danger",
+        )
+        return True
+    return False
+
+
 def _tela_da_senha(usuario, senha: str):
     """Exibe a senha gerada quando o e-mail não saiu.
 
@@ -132,6 +149,8 @@ def senha_temporaria(usuario_id: int):
     `Usuario.get_id`, as sessões abertas naquela conta se encerram. É o que
     torna a reposição útil também quando se suspeita de acesso indevido."""
     usuario = db.session.get(Usuario, usuario_id) or abort(404)
+    if _sentinela_intocavel(usuario):
+        return redirect(url_for("admin.listar_usuarios"))
     form = SenhaTemporariaForm()
     if form.validate_on_submit():
         try:
@@ -152,6 +171,8 @@ def senha_temporaria(usuario_id: int):
 @role_required("admin")
 def excluir_usuario(usuario_id: int):
     usuario = db.session.get(Usuario, usuario_id) or abort(404)
+    if _sentinela_intocavel(usuario):
+        return redirect(url_for("admin.listar_usuarios"))
     form = ExcluirForm()
     if form.validate_on_submit():
         try:
@@ -178,6 +199,8 @@ def eliminar_usuario(usuario_id: int):
     que deve sobreviver (trilha, registros de terceiros). Irreversível; confirmada
     digitando o e-mail exato do titular."""
     usuario = db.session.get(Usuario, usuario_id) or abort(404)
+    if _sentinela_intocavel(usuario):
+        return redirect(url_for("admin.listar_usuarios"))
     form = EliminarUsuarioForm()
     if form.validate_on_submit():
         if form.confirmacao.data.strip().lower() != (usuario.email or "").lower():
@@ -216,6 +239,8 @@ def eliminar_usuario(usuario_id: int):
 @role_required("admin")
 def editar_usuario(usuario_id: int):
     usuario = db.session.get(Usuario, usuario_id) or abort(404)
+    if _sentinela_intocavel(usuario):
+        return redirect(url_for("admin.listar_usuarios"))
     form = UsuarioForm(obj=usuario)
     if form.validate_on_submit():
         despromocao = (

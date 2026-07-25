@@ -8,9 +8,11 @@ import pytest
 from app.extensions import db
 from app.models import (
     Ata,
+    ConfiguracaoEmail,
     Documento,
     LogAuditoria,
     Marco,
+    ModeloDocumento,
     Orientacao,
     OrientacaoOrientador,
     Parecer,
@@ -197,3 +199,154 @@ def test_rota_confirmacao_por_email(client, orientacao, orientando, admin):
     r = client.post(url, data={"confirmacao": email}, follow_redirects=True)
     assert r.status_code == 200
     assert db.session.get(Usuario, b_id) is None
+
+
+# ---------------------------------------------------------------------------
+# A conta-sentinela é infraestrutura: nem eliminável, nem gerível
+
+
+def test_sentinela_nao_eliminavel(app, orientacao, orientando, admin):
+    db.session.commit()
+    eliminacao.eliminar_usuario(orientando, admin)  # faz a sentinela nascer
+    db.session.commit()
+    sentinela = Usuario.query.filter_by(email=eliminacao._SENTINELA_EMAIL).one()
+    with pytest.raises(GestaoUsuarioInvalida):
+        eliminacao.eliminar_usuario(sentinela, admin)
+    db.session.rollback()
+    assert db.session.get(Usuario, sentinela.id) is not None
+
+
+def test_sentinela_fora_da_gestao(client, orientacao, orientando, admin):
+    db.session.commit()
+    login(client, "admin@teste.br")
+    client.post(
+        f"/admin/usuarios/{orientando.id}/eliminar",
+        data={"confirmacao": orientando.email},
+    )
+    sentinela = Usuario.query.filter_by(email=eliminacao._SENTINELA_EMAIL).one()
+    s_id = sentinela.id
+
+    # fora da lista de usuários
+    r = client.get("/admin/usuarios")
+    assert "lgpd.invalid" not in r.get_data(as_text=True)
+    # rotas de gestão desviam sem tocar na conta
+    assert client.get(f"/admin/usuarios/{s_id}/editar").status_code == 302
+    assert client.get(f"/admin/usuarios/{s_id}/eliminar").status_code == 302
+    client.post(
+        f"/admin/usuarios/{s_id}/eliminar",
+        data={"confirmacao": eliminacao._SENTINELA_EMAIL},
+    )
+    client.post(
+        f"/admin/usuarios/{s_id}/editar",
+        data={
+            "nome": "X",
+            "email": eliminacao._SENTINELA_EMAIL,
+            "papel": "orientador",
+            "ativo": "y",
+        },
+    )
+    client.post(f"/admin/usuarios/{s_id}/senha-temporaria", data={})
+    sentinela = db.session.get(Usuario, s_id)
+    assert sentinela is not None
+    assert sentinela.ativo is False
+
+
+# ---------------------------------------------------------------------------
+# FKs anuláveis fora do circuito de orientação
+
+
+def test_fk_modelo_e_configuracao_anulados(app, orientador, admin):
+    modelo = ModeloDocumento(
+        titulo="Modelo", nome_original="m.pdf", nome_fisico="f" * 32 + ".pdf",
+        tamanho_bytes=1, mimetype="application/pdf", enviado_por=orientador.id,
+    )
+    db.session.add(modelo)
+    config = ConfiguracaoEmail.vigente()
+    config.registrar_alteracao(orientador.id)
+    db.session.commit()
+
+    eliminacao.eliminar_usuario(orientador, admin)
+    db.session.commit()
+
+    assert modelo.enviado_por is None
+    assert config.atualizado_por is None
+
+
+# ---------------------------------------------------------------------------
+# Ata de grupo que só envolve vínculos do próprio titular não é "de terceiros"
+
+
+def test_ata_grupo_so_do_titular_some(app, orientacao, orientador, orientando, admin):
+    segundo = Orientacao(
+        orientador_id=orientador.id, orientando_id=orientando.id,
+        modalidade="doutorado", titulo_projeto="Segundo Projeto do Titular",
+        data_inicio=date(2026, 2, 2), status="concluida",
+    )
+    db.session.add(segundo)
+    db.session.flush()
+    ata = _ata(orientador, [orientacao, segundo], "grupo")
+    db.session.commit()
+    ata_id = ata.id
+
+    eliminacao.eliminar_usuario(orientando, admin)
+    db.session.commit()
+
+    # nenhum terceiro participava: a ata some inteira, sem sobrar pauta órfã
+    assert db.session.get(Ata, ata_id) is None
+
+
+# ---------------------------------------------------------------------------
+# Raspagem guiada por papel/id: alcança nome congelado antes de renomeação
+
+
+def test_raspagem_alcanca_nome_antigo(app, orientacao, orientador, admin):
+    orientacao.status = "concluida"
+    ata = _ata(orientador, [orientacao], "individual")  # congela o nome atual
+    db.session.commit()
+    nome_congelado = orientador.nome
+    orientador.nome = "Nome Novo Depois do Congelamento"
+    db.session.commit()
+    ata_id = ata.id
+
+    eliminacao.eliminar_usuario(orientador, admin)
+    db.session.commit()
+
+    congelado = json.loads(db.session.get(Ata, ata_id).conteudo_congelado)
+    assert congelado["orientador"] == eliminacao.REMOVIDO
+    assert congelado["redator"] == eliminacao.REMOVIDO
+    assert nome_congelado not in db.session.get(Ata, ata_id).conteudo_congelado
+
+
+# ---------------------------------------------------------------------------
+# Trilha: igualdade de valor (não substring) e sem diferenciar caixa
+
+
+def test_trilha_preserva_terceiro_e_alcanca_caixa(app, orientacao, orientando, admin):
+    email_terceiro = "mari" + orientando.email  # contém o do titular por dentro
+    db.session.add(LogAuditoria(
+        usuario_id=None, acao="login_falho", entidade="usuario",
+        dados_json=json.dumps({"email": email_terceiro}),
+    ))
+    db.session.add(LogAuditoria(
+        usuario_id=None, acao="login_falho", entidade="usuario",
+        dados_json=json.dumps({"email": orientando.email.upper()}),  # caixa alta
+    ))
+    # lançamento de gestão SOBRE a conta: dados descartados por inteiro
+    db.session.add(LogAuditoria(
+        usuario_id=admin.id, acao="edicao_usuario", entidade="usuario",
+        entidade_id=orientando.id,
+        dados_json=json.dumps({"email": "antigo@teste.br"}),
+    ))
+    db.session.commit()
+
+    eliminacao.eliminar_usuario(orientando, admin)
+    db.session.commit()
+
+    falhos = LogAuditoria.query.filter_by(acao="login_falho").all()
+    dados = [json.loads(log.dados_json) for log in falhos]
+    # o e-mail do terceiro fica intacto (nada de "mari[removido]")
+    assert {"email": email_terceiro} in dados
+    # a variante em caixa alta do titular foi raspada
+    assert {"email": eliminacao.REMOVIDO} in dados
+    edicao = LogAuditoria.query.filter_by(acao="edicao_usuario").one()
+    assert edicao.dados_json is None
