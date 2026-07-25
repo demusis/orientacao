@@ -17,6 +17,7 @@ from app.extensions import db
 from app.models import (
     Ata,
     AtaParticipacao,
+    ConfiguracaoRisco,
     Documento,
     Marco,
     Orientacao,
@@ -32,11 +33,14 @@ def relogio(orientacao) -> dict:
     sinal de risco, para o orientador ver de relance quem se aproxima do fim sem
     ter cumprido os marcos que importam.
 
-    O risco combina tempo e marco: **alto** (vermelho) quando um marco de
-    qualificação ou defesa está vencido e não concluído, ou quando passou de 90%
-    do prazo; **médio** (amarelo) acima de 75%; **baixo** no restante. Sem
+    O risco combina tempo e marco: **alto** (vermelho) quando um marco crítico
+    está vencido e não concluído, ou quando o prazo decorrido passou do limiar
+    alto; **médio** (amarelo) acima do limiar médio; **baixo** no restante.
+    Limiar (padrão 90%/75%) e tipos críticos (padrão qualificação e defesa) são
+    os de `ConfiguracaoRisco`, editáveis pelo administrador. Sem
     `data_fim_prevista` não há fração de prazo, e o risco fica só a cargo dos
     marcos críticos — o rótulo então diz "prazo não definido"."""
+    config = ConfiguracaoRisco.vigente()
     hoje = agora().date()
     inicio = orientacao.data_inicio
     fim = orientacao.data_fim_prevista
@@ -51,12 +55,12 @@ def relogio(orientacao) -> dict:
 
     # reaproveita Marco.atrasado (status != concluído e data prevista já passou)
     marco_critico_vencido = any(
-        m.atrasado for m in orientacao.marcos if m.tipo in ("qualificacao", "defesa")
+        m.atrasado for m in orientacao.marcos if m.tipo in config.criticos
     )
 
-    if marco_critico_vencido or (fracao is not None and fracao > 0.90):
+    if marco_critico_vencido or (fracao is not None and fracao > config.limiar_alto / 100):
         risco = "alto"
-    elif fracao is not None and fracao > 0.75:
+    elif fracao is not None and fracao > config.limiar_medio / 100:
         risco = "medio"
     else:
         risco = "baixo"

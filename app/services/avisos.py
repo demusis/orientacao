@@ -159,6 +159,19 @@ SECOES = {
             "antecedência; ele pode ajustar a data prevista.",
         ],
     },
+    "reunioes_hoje": {
+        "titulo": "Reunião de orientação hoje",
+        "explicacao": (
+            "Lembrete do dia: estas reuniões de orientação estão agendadas "
+            "para hoje."
+        ),
+        "passos": [
+            "Confirme a hora e, havendo, o link da reunião na página da "
+            "orientação, em Atas.",
+            "Não podendo comparecer, avise a outra parte e use Reagendar "
+            "enquanto a ata está em rascunho.",
+        ],
+    },
     "reunioes_proximas": {
         "titulo": "Reuniões nas próximas 48 horas",
         "explicacao": (
@@ -285,6 +298,8 @@ def marcos_atrasados_dos_orientandos(destino: dict) -> None:
 
 def reunioes_proximas(destino: dict) -> None:
     """Ao orientador e a cada orientando participante: reunião nas próximas 48 h.
+    A reunião agendada **para hoje** vai à seção própria `reunioes_hoje` — é o
+    lembrete do dia, destacado das que apenas se aproximam.
 
     A ata em rascunho é o registro da reunião agendada; finalizada, a reunião já
     ocorreu e não é lembrete.
@@ -333,10 +348,14 @@ def reunioes_proximas(destino: dict) -> None:
         rotulo_hora = (
             f" às {a.hora_reuniao.strftime('%H:%M')}" if a.hora_reuniao else ""
         )
-        detalhe = f"{a.data_reuniao.strftime('%d/%m/%Y')}{rotulo_hora}"
+        if a.data_reuniao == agora.date():
+            secao = "reunioes_hoje"
+            detalhe = f"Hoje ({a.data_reuniao.strftime('%d/%m/%Y')}){rotulo_hora}"
+        else:
+            secao = "reunioes_proximas"
+            detalhe = f"{a.data_reuniao.strftime('%d/%m/%Y')}{rotulo_hora}"
         for pessoa in [a.orientador, *participantes]:
-            _acumular(destino, pessoa, "reunioes_proximas", "Reunião de orientação",
-                     detalhe)
+            _acumular(destino, pessoa, secao, "Reunião de orientação", detalhe)
 
 
 def marcos_a_confirmar(destino: dict) -> None:

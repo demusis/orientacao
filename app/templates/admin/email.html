@@ -50,7 +50,8 @@
     <tr><td>entregas aguardando confirmação</td></tr>
     <tr><td>entregas aguardando parecer</td></tr>
     <tr><td>atas em rascunho há mais de 15 dias</td></tr>
-    <tr><td>Ambos</td><td>reuniões agendadas nas próximas 48 horas</td></tr>
+    <tr><td rowspan="2">Ambos</td><td>lembrete das reuniões agendadas para o próprio dia</td></tr>
+    <tr><td>reuniões agendadas nas próximas 48 horas</td></tr>
   </table>
   {% if pendentes.destinatarios %}
     <p>Pendências neste momento: <strong>{{ pendentes.itens }}</strong> item(ns),

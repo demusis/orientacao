@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_form %}
+{% block title %}Prazo e risco · ARIADNE{% endblock %}
+{% block voltar %}<a class="voltar" href="{{ url_for('main.dashboard') }}">Painel</a>{% endblock %}
+{% block content %}
+<h1>Prazo e risco</h1>
+
+<div class="card">
+  <h2>Como a cor da coluna Prazo é calculada</h2>
+  <p>Cada vínculo exibe um selo com a posição no prazo do programa
+  (<em>mês X de Y</em>), colorido pelo risco. A regra vigente:</p>
+  <ul>
+    <li><span class="badge badge-risco-alto">vermelho (alto)</span> — um marco de
+    tipo crítico está vencido e não concluído, <strong>ou</strong> já decorreu mais
+    de <strong>{{ config.limiar_alto }}%</strong> do prazo do vínculo.</li>
+    <li><span class="badge badge-risco-medio">amarelo (médio)</span> — decorreu mais
+    de <strong>{{ config.limiar_medio }}%</strong> do prazo.</li>
+    <li><span class="badge badge-risco-baixo">verde (baixo)</span> — todo o resto.</li>
+  </ul>
+  <p>Tipos de marco críticos neste momento:
+  {% if config.criticos %}
+    {% for t in config.criticos %}<span class="badge">{{ tipo_label[t] }}</span> {% endfor %}
+  {% else %}
+    <em>nenhum</em> — o risco depende só do tempo decorrido.
+  {% endif %}
+  </p>
+  <p><small>O percentual decorrido é contado entre a data de início e o fim previsto
+  do vínculo. Vínculo sem fim previsto não tem percentual: nele a cor depende apenas
+  dos marcos críticos, e o selo diz "prazo não definido". A cor é recalculada a cada
+  exibição — alterar os parâmetros vale imediatamente para todos os vínculos.</small></p>
+  {% if config.atualizado_em %}
+  <p><small>Última alteração em {{ config.atualizado_em.strftime('%Y-%m-%d %H:%M') }} (UTC)
+  {% if config.autor %}por {{ config.autor.nome }}{% endif %}.</small></p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Parâmetros</h2>
+  {{ render_form(form) }}
+</div>
+{% endblock %}

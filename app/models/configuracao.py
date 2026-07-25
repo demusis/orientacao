@@ -1,13 +1,20 @@
-"""Configuração de envio de e-mail, editável pelo administrador.
+"""Configurações editáveis pelo administrador, em linha única (`id=1`).
 
-Linha única (`id=1`). Fica no banco, e não em variável de ambiente, para que a
-alteração não dependa de acesso ao console do servidor. A senha é guardada
+Ficam no banco, e não em variável de ambiente, para que a alteração não
+dependa de acesso ao console do servidor. A senha de e-mail é guardada
 cifrada (`services/cripto.py`) e **nunca** é devolvida à tela: o formulário a
 recebe em branco e só a substitui quando algo é digitado.
 """
+import json
 from datetime import UTC, datetime
 
 from app.extensions import db
+
+# padrões do sinal de risco do prazo; valem enquanto o administrador não gravar
+# a linha de configuração — ausência de linha significa exatamente estes valores
+LIMIAR_MEDIO_PADRAO = 75
+LIMIAR_ALTO_PADRAO = 90
+TIPOS_CRITICOS_PADRAO = ("qualificacao", "defesa")
 
 
 class ConfiguracaoEmail(db.Model):
@@ -65,3 +72,62 @@ class ConfiguracaoEmail(db.Model):
 
     def __repr__(self) -> str:
         return f"<ConfiguracaoEmail {self.usuario!r} ativo={self.ativo}>"
+
+
+class ConfiguracaoRisco(db.Model):
+    """Parâmetros do sinal de risco do prazo (`painel.relogio`): os limiares
+    percentuais que mudam a cor do selo e os tipos de marco cujo atraso acende
+    o vermelho independentemente do tempo decorrido."""
+
+    __tablename__ = "configuracao_risco"
+
+    id = db.Column(db.Integer, primary_key=True)
+    # percentuais do prazo decorrido: acima do médio o selo fica amarelo,
+    # acima do alto, vermelho
+    limiar_medio = db.Column(db.Integer, nullable=False, default=LIMIAR_MEDIO_PADRAO)
+    limiar_alto = db.Column(db.Integer, nullable=False, default=LIMIAR_ALTO_PADRAO)
+    # lista JSON de tipos de marco (TIPOS_MARCO) considerados críticos
+    tipos_criticos = db.Column(
+        db.Text,
+        nullable=False,
+        default=lambda: json.dumps(list(TIPOS_CRITICOS_PADRAO)),
+    )
+    atualizado_em = db.Column(db.DateTime, nullable=True)
+    atualizado_por = db.Column(db.Integer, db.ForeignKey("usuario.id"), nullable=True)
+
+    autor = db.relationship("Usuario", foreign_keys=[atualizado_por])
+
+    @classmethod
+    def vigente(cls) -> "ConfiguracaoRisco":
+        """Devolve a linha única ou, se nunca gravada, um objeto com os padrões
+        **fora da sessão**: o caminho de leitura (o relógio do painel, a cada
+        vínculo listado) não deve gravar nada. Quem grava é a tela do
+        administrador, que faz `db.session.add` e comita."""
+        return db.session.get(cls, 1) or cls(
+            id=1,
+            limiar_medio=LIMIAR_MEDIO_PADRAO,
+            limiar_alto=LIMIAR_ALTO_PADRAO,
+            tipos_criticos=json.dumps(list(TIPOS_CRITICOS_PADRAO)),
+        )
+
+    @property
+    def criticos(self) -> tuple[str, ...]:
+        return tuple(json.loads(self.tipos_criticos))
+
+    def definir_criticos(self, tipos) -> None:
+        """Grava na ordem canônica de TIPOS_MARCO, ignorando valor desconhecido:
+        a tela só oferece os tipos válidos, mas o POST é texto livre."""
+        from app.models.cronograma import TIPOS_MARCO
+
+        recebidos = set(tipos)
+        self.tipos_criticos = json.dumps([t for t in TIPOS_MARCO if t in recebidos])
+
+    def registrar_alteracao(self, usuario_id: int) -> None:
+        self.atualizado_em = datetime.now(UTC)
+        self.atualizado_por = usuario_id
+
+    def __repr__(self) -> str:
+        return (
+            f"<ConfiguracaoRisco {self.limiar_medio}/{self.limiar_alto} "
+            f"{self.criticos!r}>"
+        )
