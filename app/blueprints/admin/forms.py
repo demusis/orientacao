@@ -7,9 +7,11 @@ from wtforms import (
     IntegerField,
     PasswordField,
     SelectField,
+    SelectMultipleField,
     StringField,
     SubmitField,
     TextAreaField,
+    widgets,
 )
 from wtforms.validators import (
     DataRequired,
@@ -20,8 +22,14 @@ from wtforms.validators import (
     ValidationError,
 )
 
+from app.models.cronograma import TIPO_MARCO_LABEL, TIPOS_MARCO
 from app.models.orientacao import MODALIDADE_LABEL, MODALIDADES
 from app.models.user import PAPEIS
+
+
+class MultiCheckboxField(SelectMultipleField):
+    widget = widgets.ListWidget(prefix_label=False)
+    option_widget = widgets.CheckboxInput()
 
 
 class UsuarioForm(FlaskForm):
@@ -199,6 +207,40 @@ class ConfiguracaoEmailForm(FlaskForm):
         "Nome do remetente", validators=[DataRequired(), Length(max=120)]
     )
     submit = SubmitField("Salvar configuração")
+
+
+class ConfiguracaoRiscoForm(FlaskForm):
+    """Parâmetros do selo de risco da coluna Prazo. Os limiares são percentuais
+    do prazo decorrido do vínculo; os tipos marcados tornam o atraso do marco
+    um alerta vermelho por si só."""
+
+    limiar_medio = IntegerField(
+        "Limiar do risco médio (%)",
+        validators=[DataRequired(), NumberRange(min=1, max=100)],
+        description="Decorrido mais que este percentual do prazo do vínculo, o "
+                    "selo fica amarelo.",
+    )
+    limiar_alto = IntegerField(
+        "Limiar do risco alto (%)",
+        validators=[DataRequired(), NumberRange(min=1, max=100)],
+        description="Decorrido mais que este percentual, vermelho. Deve ser "
+                    "maior que o limiar do risco médio.",
+    )
+    tipos_criticos = MultiCheckboxField(
+        "Tipos de marco críticos",
+        choices=[(t, TIPO_MARCO_LABEL[t]) for t in TIPOS_MARCO],
+        validators=[Optional()],
+        description="Marco de tipo crítico vencido e não concluído põe o vínculo "
+                    "em risco alto (vermelho), qualquer que seja o percentual do "
+                    "prazo. Desmarcar todos deixa o risco a cargo apenas do tempo.",
+    )
+    submit = SubmitField("Salvar parâmetros")
+
+    def validate_limiar_alto(self, field):
+        if self.limiar_medio.data and field.data and field.data <= self.limiar_medio.data:
+            raise ValidationError(
+                "O limiar do risco alto deve ser maior que o do risco médio."
+            )
 
 
 class TesteEmailForm(FlaskForm):

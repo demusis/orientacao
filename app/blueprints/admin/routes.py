@@ -17,6 +17,7 @@ from app.blueprints.admin import bp
 from app.blueprints.admin.forms import (
     AjusteDatasForm,
     ConfiguracaoEmailForm,
+    ConfiguracaoRiscoForm,
     CoorientadorForm,
     EliminarUsuarioForm,
     EncerrarOrientacaoForm,
@@ -35,12 +36,14 @@ from app.blueprints.admin.forms import (
 from app.extensions import db
 from app.models import (
     ConfiguracaoEmail,
+    ConfiguracaoRisco,
     LogAuditoria,
     ModeloDocumento,
     Orientacao,
     OrientacaoOrientador,
     Usuario,
 )
+from app.models.cronograma import TIPO_MARCO_LABEL
 from app.services import auditoria, avisos, credenciais, cripto
 from app.services import eliminacao as eliminacao_service
 from app.services import email as email_service
@@ -535,6 +538,44 @@ def configurar_email():
             "destinatarios": len(pendentes),
             "itens": sum(len(i) for s in pendentes.values() for i in s.values()),
         },
+    )
+
+
+@bp.route("/risco", methods=["GET", "POST"])
+@role_required("admin")
+def configurar_risco():
+    """Parâmetros do selo de risco da coluna Prazo: limiares percentuais das
+    cores e tipos de marco críticos. A cor é recalculada a cada leitura
+    (`painel.relogio`), de modo que a mudança vale imediatamente para todos os
+    vínculos, sem nada a reprocessar."""
+    config = ConfiguracaoRisco.vigente()
+    form = ConfiguracaoRiscoForm(obj=config)
+    if request.method == "GET":
+        # obj= entregaria o JSON cru ao campo múltiplo; a lista vem do accessor
+        form.tipos_criticos.data = list(config.criticos)
+
+    if form.validate_on_submit():
+        config.limiar_medio = form.limiar_medio.data
+        config.limiar_alto = form.limiar_alto.data
+        config.definir_criticos(form.tipos_criticos.data)
+        config.registrar_alteracao(current_user.id)
+        db.session.add(config)  # 1ª gravação: vigente() devolve objeto fora da sessão
+        auditoria.registrar(
+            "configuracao_risco",
+            "configuracao_risco",
+            config.id,
+            {
+                "limiar_medio": config.limiar_medio,
+                "limiar_alto": config.limiar_alto,
+                "tipos_criticos": list(config.criticos),
+            },
+        )
+        db.session.commit()
+        flash("Parâmetros do sinal de risco salvos.", "success")
+        return redirect(url_for("admin.configurar_risco"))
+
+    return render_template(
+        "admin/risco.html", form=form, config=config, tipo_label=TIPO_MARCO_LABEL
     )
 
 

@@ -569,9 +569,13 @@ def test_reuniao_sem_hora_amanha_avisa_as_duas_partes(
 
 def test_reuniao_sem_hora_hoje_ainda_avisa(client, orientacao, orientador):
     """Reunião de hoje, sem hora, não pode desaparecer: a hora é desconhecida,
-    não zero. Este é o caso que o 00:00 fictício quebrava."""
+    não zero. Este é o caso que o 00:00 fictício quebrava. Ela chega como
+    lembrete do dia, na seção própria."""
     _reuniao_em(orientacao, orientador, _hoje_utc())
-    assert "reunioes_proximas" in avisos.coletar()[orientador]
+    secoes = avisos.coletar()[orientador]
+    assert "reunioes_hoje" in secoes
+    assert "reunioes_proximas" not in secoes
+    assert secoes["reunioes_hoje"][0]["detalhe"].startswith("Hoje")
 
 
 def test_reuniao_distante_nao_avisa(client, orientacao, orientador, orientando):
@@ -600,6 +604,6 @@ def test_reuniao_com_hora_ja_passada_nao_avisa(client, orientacao, orientador):
     )
     reunioes = [
         s for secoes in avisos.coletar().values()
-        for s in secoes if s == "reunioes_proximas"
+        for s in secoes if s in ("reunioes_proximas", "reunioes_hoje")
     ]
     assert reunioes == []
