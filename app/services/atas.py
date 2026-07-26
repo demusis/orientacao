@@ -16,7 +16,7 @@ from datetime import UTC, datetime
 from app.extensions import db
 from app.models import Ata, AtaParticipacao, Reagendamento
 from app.services import auditoria
-from app.services.tempo import agora_local
+from app.services.tempo import hoje_local
 
 
 class AtaImutavel(Exception):
@@ -210,7 +210,7 @@ def finalizar_ata(ata: Ata):
     # fica no serviço — único ponto por onde toda finalização passa — e não só
     # no formulário da ata rápida, que cobria apenas um dos caminhos.
     # data local: a digitada é a do dia da instituição, não a do dia UTC
-    if ata.data_reuniao > agora_local().date():
+    if ata.data_reuniao > hoje_local():
         raise OperacaoInvalida(
             "Não é possível finalizar a ata de uma reunião com data futura. "
             "Reagende ou cancele a reunião, se ela não vai ocorrer."

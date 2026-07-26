@@ -1,4 +1,3 @@
-from datetime import date
 
 from app.extensions import db
 
@@ -86,8 +85,12 @@ class Marco(db.Model):
 
     @property
     def atrasado(self) -> bool:
-        """Computado na leitura; não depende de scheduler (risco R7)."""
-        return self.status != "concluido" and self.data_prevista < date.today()
+        """Computado na leitura; não depende de scheduler (risco R7). O dia é o
+        LOCAL (`hoje_local`): a data prevista é digitada no fuso da instituição,
+        e compará-la com o dia UTC dava o marco de hoje por vencido às 20:00."""
+        from app.services.tempo import hoje_local
+
+        return self.status != "concluido" and self.data_prevista < hoje_local()
 
     @property
     def tem_historico(self) -> bool:

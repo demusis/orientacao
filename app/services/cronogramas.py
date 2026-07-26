@@ -10,6 +10,7 @@ from datetime import date, timedelta
 from app.extensions import db
 from app.models import Marco
 from app.services import auditoria
+from app.services.tempo import hoje_local
 
 # Modelo por modalidade: (título, tipo, etapa, mês a partir de data_inicio). É o
 # único ponto a editar para mudar o que se semeia. Tipos válidos: TIPOS_MARCO em
@@ -77,6 +78,7 @@ def confirmar_conclusao(marco: Marco) -> bool:
     if marco.status == "concluido":
         return False
     marco.status = "concluido"
-    marco.data_conclusao = date.today()
+    # data de parede local, como toda data exibida ao lado das digitadas
+    marco.data_conclusao = hoje_local()
     auditoria.registrar("conclusao_marco", "marco", marco.id)
     return True

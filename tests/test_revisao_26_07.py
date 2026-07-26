@@ -275,6 +275,102 @@ def test_edicao_nao_rebaixa_orientador_com_vinculo_ativo(
     assert LogAuditoria.query.filter_by(acao="edicao_papel_recusada").count() == 1
 
 
+# ============================== VOLTA 2 ====================================
+
+
+def test_fuso_invalido_degrada_para_utc_sem_derrubar(app):
+    """FUSO_LOCAL com typo não pode virar erro 500 no módulo inteiro de
+    reuniões: degrada para UTC com aviso no log."""
+    from app.services.tempo import agora, agora_local
+
+    app.config["FUSO_LOCAL"] = "America/Nao Existe"
+    resultado = agora_local()  # antes: ZoneInfoNotFoundError
+    assert abs((resultado - agora()).total_seconds()) < 5
+
+
+def test_recuperacao_solicitada_nao_tranca_o_login(client, app, orientador):
+    """Pedidos legítimos de recuperação atrás de um NAT compartilhado não podem
+    bloquear o login de quem sabe a própria senha: o limite do login conta só
+    falhas; o da recuperação conta também os pedidos bem-sucedidos."""
+    teto = app.config["LOGIN_MAX_TENTATIVAS"]
+    for _ in range(teto):
+        db.session.add(
+            LogAuditoria(
+                acao="recuperacao_solicitada", entidade="usuario",
+                ip="127.0.0.1", dados_json=None,
+            )
+        )
+    db.session.commit()
+
+    resposta = client.post(
+        "/auth/esqueci", data={"email": "x@y.br"}, follow_redirects=True
+    )
+    assert resposta.status_code == 429  # a tela de recuperação, sim, limita
+
+    resposta = login(client, "orientador@teste.br")
+    assert resposta.status_code == 200  # não é 429: o login segue aberto
+    assert "Painel" in resposta.data.decode()
+
+
+def test_expurgo_tolera_arquivo_preso(app, admin, orientacao, monkeypatch):
+    """os.remove falhando depois do commit (arquivo em download concorrente)
+    não pode virar 500 de um expurgo cujo banco já foi confirmado."""
+    import app.services.backup as backup_module
+
+    pasta = app.config["UPLOAD_FOLDER"]
+    with open(os.path.join(pasta, "c" * 32 + ".pdf"), "wb") as f:
+        f.write(b"%PDF-1.4 preso")
+
+    def recusa(caminho):
+        raise PermissionError(caminho)
+
+    monkeypatch.setattr(backup_module.os, "remove", recusa)
+    contagens = backup_service.expurgar(admin)  # antes: PermissionError
+    assert contagens["orientacao"] == 1
+    assert Orientacao.query.count() == 0
+
+
+def test_desativar_orientador_com_vinculo_ativo_recusado(
+    client, admin, orientacao, orientador
+):
+    """Mesmo estado ingerível da mudança de papel, a um checkbox do caminho
+    bloqueado: desativação recusada enquanto houver vínculo ativo."""
+    login(client, "admin@teste.br")
+    resposta = client.post(
+        f"/admin/usuarios/{orientador.id}/editar",
+        data={
+            "nome": orientador.nome, "email": orientador.email,
+            "papel": "orientador",  # sem "ativo": desmarca o checkbox
+        },
+        follow_redirects=True,
+    )
+    assert "Desativação recusada" in resposta.data.decode()
+    db.session.expire(orientador)
+    assert orientador.ativo is True
+    assert (
+        LogAuditoria.query.filter_by(acao="desativacao_orientador_recusada").count()
+        == 1
+    )
+
+
+def test_marco_atrasado_usa_o_dia_local(app, orientacao):
+    from app.models import Marco
+    from app.services.tempo import hoje_local
+
+    em_dia = Marco(
+        orientacao_id=orientacao.id, titulo="Hoje", data_prevista=hoje_local()
+    )
+    vencido = Marco(
+        orientacao_id=orientacao.id,
+        titulo="Ontem",
+        data_prevista=hoje_local() - timedelta(days=1),
+    )
+    db.session.add_all([em_dia, vencido])
+    db.session.commit()
+    assert em_dia.atrasado is False
+    assert vencido.atrasado is True
+
+
 def test_edicao_com_email_duplicado_nao_estoura(client, admin, orientador, orientando):
     login(client, "admin@teste.br")
     resposta = client.post(

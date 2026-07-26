@@ -17,7 +17,8 @@ from app.models import Usuario
 from app.services import auditoria, recuperacao
 from app.services import email as email_service
 from app.services.avisos import endereco_do_sistema
-from app.services.seguranca import excedeu_tentativas
+from app.services.seguranca import ACOES_RECUPERACAO, excedeu_tentativas
+from app.services.usuarios import normalizar_email
 
 _EXCESSO = (
     "Muitas tentativas a partir deste endereço. Aguarde alguns minutos e "
@@ -66,7 +67,9 @@ def login():
             db.session.commit()
             flash(_EXCESSO, "danger")
             return render_template("auth/login.html", form=form), 429
-        usuario = Usuario.query.filter_by(email=form.email.data.lower().strip()).first()
+        usuario = Usuario.query.filter_by(
+            email=normalizar_email(form.email.data)
+        ).first()
         # roda um hash mesmo quando o e-mail não existe, para que o tempo de
         # resposta não denuncie quais e-mails têm conta (ver _HASH_FALSO)
         senha_confere = (
@@ -126,11 +129,12 @@ def esqueci_senha():
         return redirect(url_for("main.dashboard"))
     form = EsqueciSenhaForm()
     if form.validate_on_submit():
-        if excedeu_tentativas():
+        # aqui contam também os pedidos bem-sucedidos: cada um envia e-mail real
+        if excedeu_tentativas(ACOES_RECUPERACAO):
             flash(_EXCESSO, "danger")
             return render_template("auth/esqueci.html", form=form), 429
 
-        email = form.email.data.lower().strip()
+        email = normalizar_email(form.email.data)
         usuario = Usuario.query.filter_by(email=email).first()
         # a resposta é a mesma exista ou não a conta: a tela não pode virar
         # oráculo de quem tem cadastro

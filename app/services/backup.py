@@ -192,13 +192,19 @@ def _apagar_tudo():
 
 
 def _limpar_uploads():
+    """Roda DEPOIS do commit (ver restaurar/expurgar): um arquivo preso — em
+    download concorrente, ou sem permissão — não pode virar erro 500 de uma
+    operação cujo banco já foi confirmado. Fica no log e sobra no disco."""
     pasta = _pasta_uploads()
     if not os.path.isdir(pasta):
         return
     for arquivo in os.listdir(pasta):
         caminho = os.path.join(pasta, arquivo)
         if os.path.isfile(caminho):
-            os.remove(caminho)
+            try:
+                os.remove(caminho)
+            except OSError:
+                current_app.logger.warning("upload não removido: %s", caminho)
 
 
 def restaurar(arquivo, executor: Usuario) -> dict:

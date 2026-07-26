@@ -19,16 +19,20 @@ from app.extensions import db
 from app.models import LogAuditoria
 from app.services.tempo import agora
 
-# Ações de autenticação que contam para o limite por origem. As falhas, pela
-# força bruta; e também o pedido de recuperação BEM-SUCEDIDO: cada um envia um
-# e-mail real, e sem contá-lo um único IP podia inundar a caixa da vítima e
-# esgotar a cota diária de envio do sistema repetindo /auth/esqueci com um
-# e-mail válido — as falhas limitavam só quem errava o endereço.
-ACOES_LIMITADAS = ("login_falho", "recuperacao_falha", "recuperacao_solicitada")
+# Ações que contam para o limite, POR TELA. O login conta só falhas: contar
+# ali a recuperação bem-sucedida trancaria, atrás de um NAT de campus, o login
+# de quem sabe a própria senha só porque colegas pediram recuperação. Já a tela
+# de recuperação conta também o pedido BEM-SUCEDIDO: cada um envia um e-mail
+# real, e sem contá-lo um único IP podia inundar a caixa da vítima e esgotar a
+# cota diária de envio repetindo /auth/esqueci com um e-mail válido.
+ACOES_FALHA = ("login_falho", "recuperacao_falha")
+ACOES_RECUPERACAO = ACOES_FALHA + ("recuperacao_solicitada",)
 
 
-def excedeu_tentativas() -> bool:
-    """True se a origem atual estourou o teto na janela configurada.
+def excedeu_tentativas(acoes: tuple = ACOES_FALHA) -> bool:
+    """True se a origem atual estourou o teto na janela configurada, contando
+    as `acoes` da tela que pergunta (login: ACOES_FALHA; recuperação:
+    ACOES_RECUPERACAO).
 
     A origem é `request.remote_addr`, já ajustado por ProxyFix conforme
     `TRUSTED_PROXY_COUNT` — o mesmo endereço que a auditoria grava, de modo que
@@ -40,7 +44,7 @@ def excedeu_tentativas() -> bool:
     quantas = (
         db.session.query(func.count(LogAuditoria.id))
         .filter(
-            LogAuditoria.acao.in_(ACOES_LIMITADAS),
+            LogAuditoria.acao.in_(acoes),
             LogAuditoria.ip == request.remote_addr,
             LogAuditoria.timestamp >= desde,
         )

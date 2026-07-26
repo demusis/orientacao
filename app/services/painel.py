@@ -25,7 +25,7 @@ from app.models import (
     VersaoDocumento,
 )
 from app.services.rbac import orientacoes_do_usuario
-from app.services.tempo import agora
+from app.services.tempo import hoje_local
 
 
 def relogio(orientacao) -> dict:
@@ -41,7 +41,8 @@ def relogio(orientacao) -> dict:
     `data_fim_prevista` não há fração de prazo, e o risco fica só a cargo dos
     marcos críticos — o rótulo então diz "prazo não definido"."""
     config = ConfiguracaoRisco.vigente()
-    hoje = agora().date()
+    # dia local: data de início e fim previsto são datas de parede digitadas
+    hoje = hoje_local()
     inicio = orientacao.data_inicio
     fim = orientacao.data_fim_prevista
     dias_decorridos = max((hoje - inicio).days, 0)

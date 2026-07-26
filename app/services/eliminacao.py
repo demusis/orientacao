@@ -54,7 +54,11 @@ from app.models import (
 from app.models.ata import AtaParticipacao, ata_marco
 from app.services import auditoria, senhas
 from app.services.exportacao import _canonico
-from app.services.usuarios import GestaoUsuarioInvalida, validar_remocao
+from app.services.usuarios import (
+    GestaoUsuarioInvalida,
+    orienta_vinculo_ativo,
+    validar_remocao,
+)
 
 REMOVIDO = "[removido]"
 _SENTINELA_EMAIL = "sentinela+removido@lgpd.invalid"
@@ -266,23 +270,6 @@ def _anonimizar_trilha(usuario: Usuario) -> None:
 # Orquestração
 
 
-def _orienta_vinculo_ativo(usuario: Usuario) -> bool:
-    como_principal = Orientacao.query.filter_by(
-        orientador_id=usuario.id, status="ativa"
-    )
-    como_coorientador = (
-        OrientacaoOrientador.query.join(Orientacao)
-        .filter(
-            OrientacaoOrientador.usuario_id == usuario.id,
-            Orientacao.status == "ativa",
-        )
-    )
-    return bool(
-        db.session.query(como_principal.exists()).scalar()
-        or db.session.query(como_coorientador.exists()).scalar()
-    )
-
-
 def eliminar_usuario(usuario: Usuario, executor: Usuario) -> dict:
     """Elimina os dados do titular. Não faz commit; devolve um resumo, incluindo
     `arquivos` (nomes físicos a remover do disco pelo chamador, após o commit)."""
@@ -293,7 +280,7 @@ def eliminar_usuario(usuario: Usuario, executor: Usuario) -> dict:
             "pode ser eliminada: os registros já anonimizados apontam para ela."
         )
     validar_remocao(usuario, executor, ato="eliminacao", verbo="eliminar")
-    if _orienta_vinculo_ativo(usuario):
+    if orienta_vinculo_ativo(usuario):
         auditoria.registrar("eliminacao_recusada", "usuario", usuario.id,
                             {"motivo": "orienta vínculo ativo"})
         raise GestaoUsuarioInvalida(

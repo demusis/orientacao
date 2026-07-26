@@ -25,7 +25,7 @@ Cada pessoa recebe **uma** mensagem reunindo suas pendências, e não uma por
 categoria — quatro e-mails no mesmo minuto seriam ignorados como ruído.
 """
 import json
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 from flask import current_app, render_template
 from sqlalchemy import select
@@ -44,7 +44,7 @@ from app.models import (
 )
 from app.services import email as email_service
 from app.services.tempo import agora as tempo_agora
-from app.services.tempo import agora_local
+from app.services.tempo import agora_local, hoje_local
 
 # uma reunião registrada e não formalizada por mais de duas semanas
 DIAS_RASCUNHO_VELHO = 15
@@ -197,7 +197,7 @@ def _acumular(destino: dict, pessoa, secao: str, titulo: str, detalhe: str) -> N
 
 def marcos_atrasados(destino: dict) -> None:
     """Ao orientando: prazo vencido sem conclusão."""
-    hoje = date.today()
+    hoje = hoje_local()
     itens = (
         Marco.query.join(Orientacao, Orientacao.id == Marco.orientacao_id)
         .options(joinedload(Marco.orientacao).joinedload(Orientacao.orientando))
@@ -228,7 +228,7 @@ def marcos_a_vencer(destino: dict) -> None:
     Janela `[hoje, hoje + antecedência]`, aberta no passado: o `>= hoje` não se
     sobrepõe a `marcos_atrasados`, que cobre `< hoje`. Um marco de hoje entra
     aqui, não lá."""
-    hoje = date.today()
+    hoje = hoje_local()
     limite = hoje + timedelta(days=DIAS_ANTECEDENCIA)
     itens = (
         Marco.query.join(Orientacao, Orientacao.id == Marco.orientacao_id)
@@ -265,7 +265,7 @@ def marcos_atrasados_dos_orientandos(destino: dict) -> None:
     `versoes_sem_parecer`. Coorientadores não recebem — mesma convenção das
     demais categorias do orientador. O detalhe é liderado pelo nome do
     orientando, para o orientador escanear por aluno."""
-    hoje = date.today()
+    hoje = hoje_local()
     itens = (
         Marco.query.join(Orientacao, Orientacao.id == Marco.orientacao_id)
         .options(
@@ -440,7 +440,7 @@ def versoes_sem_parecer(destino: dict) -> None:
 
 def atas_em_rascunho(destino: dict) -> None:
     """Ao orientador: reunião registrada e nunca formalizada."""
-    limite = date.today() - timedelta(days=DIAS_RASCUNHO_VELHO)
+    limite = hoje_local() - timedelta(days=DIAS_RASCUNHO_VELHO)
     # O filtro de vínculo ativo, presente nas outras três categorias, faltava
     # aqui: ata em rascunho de vínculo encerrado gerava aviso diário perpétuo,
     # mandando finalizar algo cuja tela já não oferece caminho.
@@ -465,7 +465,7 @@ def atas_em_rascunho(destino: dict) -> None:
         .all()
     )
     for a in itens:
-        dias = (date.today() - a.data_reuniao).days
+        dias = (hoje_local() - a.data_reuniao).days
         participantes = ", ".join(
             sorted(p.orientacao.orientando.nome for p in a.participacoes)
         )
@@ -634,7 +634,7 @@ def reservar_tentativa() -> bool:
         ),
         {
             "agora": agora,
-            "hoje": date.today(),
+            "hoje": hoje_local(),
             "limite": agora - INTERVALO_ENTRE_TENTATIVAS,
         },
     )
@@ -650,7 +650,7 @@ def entregues_hoje() -> set:
         guardado = json.loads(bruto)
     except ValueError:
         return set()
-    if guardado.get("dia") != date.today().isoformat():
+    if guardado.get("dia") != hoje_local().isoformat():
         return set()
     return set(guardado.get("emails", []))
 
@@ -659,7 +659,7 @@ def registrar_entregues(enderecos: list) -> None:
     config = ConfiguracaoEmail.vigente()
     config.avisos_entregues = json.dumps(
         {
-            "dia": date.today().isoformat(),
+            "dia": hoje_local().isoformat(),
             "emails": sorted(entregues_hoje() | set(enderecos)),
         },
         ensure_ascii=False,
@@ -672,7 +672,7 @@ def marcar_dia_como_enviado() -> None:
         db.text(
             "UPDATE configuracao_email SET avisos_enviados_em = :hoje WHERE id = 1"
         ),
-        {"hoje": date.today()},
+        {"hoje": hoje_local()},
     )
 
 
