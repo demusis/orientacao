@@ -23,6 +23,32 @@ class GestaoUsuarioInvalida(Exception):
     pass
 
 
+def normalizar_email(email: str) -> str:
+    """Forma canônica sob a qual todo e-mail é gravado E consultado
+    (minúsculas, sem espaços). Ponto único: cada cópia inline desta regra é um
+    lugar onde ela pode faltar — e quando falta, nasce conta que nunca
+    autentica, porque login e recuperação consultam sempre a forma canônica."""
+    return (email or "").strip().lower()
+
+
+def orienta_vinculo_ativo(usuario: Usuario) -> bool:
+    """A conta orienta algum vínculo ativo, como principal ou coorientador.
+    Guarda comum à eliminação LGPD e à edição de conta: enquanto for verdade,
+    a conta não muda de papel, não é desativada nem eliminada — orientando
+    ativo não fica sem gestor."""
+    como_principal = Orientacao.query.filter_by(
+        orientador_id=usuario.id, status="ativa"
+    )
+    como_coorientador = OrientacaoOrientador.query.join(Orientacao).filter(
+        OrientacaoOrientador.usuario_id == usuario.id,
+        Orientacao.status == "ativa",
+    )
+    return bool(
+        db.session.query(como_principal.exists()).scalar()
+        or db.session.query(como_coorientador.exists()).scalar()
+    )
+
+
 def vinculo_sem_registros(orientacao: Orientacao) -> bool:
     """Vínculo que nada acumulou: nenhum marco, documento, ata, parecer, evento
     ou coorientador. Só um vínculo assim pode ser descartado com a conta."""
@@ -217,6 +243,53 @@ def validar_remocao(
         auditoria.registrar(f"{ato}_ultimo_admin_recusada", "usuario", usuario.id)
         raise GestaoUsuarioInvalida(
             "O sistema deve manter ao menos um administrador ativo."
+        )
+
+
+def validar_edicao(usuario: Usuario, *, papel: str, ativo: bool, email: str) -> None:
+    """Guardas da edição de conta. As do último administrador ativo e da
+    própria conta ficam na rota, pois dependem de quem executa; aqui ficam as
+    que valem por qualquer caminho (rota, CLI ou API futura).
+
+    - E-mail é único (mesma regra e mensagem de `criar_usuario`).
+    - O papel não muda enquanto houver vínculo ativo pendurado no papel atual:
+      orientador rebaixado perde acesso às próprias orientações enquanto os
+      orientandos seguem apontando para ele.
+    - Orientador com vínculo ativo tampouco é desativado — é o mesmo estado
+      ingerível da mudança de papel, a um checkbox do caminho bloqueado."""
+    if email != usuario.email and Usuario.query.filter(
+        Usuario.email == email, Usuario.id != usuario.id
+    ).first():
+        raise GestaoUsuarioInvalida("E-mail já cadastrado.")
+    if papel != usuario.papel:
+        motivo = None
+        if usuario.papel == "orientador" and orienta_vinculo_ativo(usuario):
+            motivo = "orienta vínculo(s) ativo(s)"
+        elif usuario.papel == "orientando" and db.session.query(
+            Orientacao.query.filter_by(
+                orientando_id=usuario.id, status="ativa"
+            ).exists()
+        ).scalar():
+            motivo = "é orientando de vínculo ativo"
+        if motivo:
+            auditoria.registrar(
+                "edicao_papel_recusada", "usuario", usuario.id, {"motivo": motivo}
+            )
+            raise GestaoUsuarioInvalida(
+                f"Alteração de papel recusada: a conta {motivo}. Encerre ou "
+                "reatribua os vínculos antes de mudar o papel."
+            )
+    if (
+        usuario.papel == "orientador"
+        and usuario.ativo
+        and not ativo
+        and orienta_vinculo_ativo(usuario)
+    ):
+        auditoria.registrar("desativacao_orientador_recusada", "usuario", usuario.id)
+        raise GestaoUsuarioInvalida(
+            "Desativação recusada: a conta orienta vínculo(s) ativo(s), e "
+            "desativá-la deixaria os orientandos sem gestor. Encerre ou "
+            "reatribua os vínculos antes."
         )
 
 

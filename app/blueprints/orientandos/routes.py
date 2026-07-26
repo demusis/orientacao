@@ -10,6 +10,7 @@ from app.services.rbac import role_required
 from app.services.usuarios import (
     GestaoUsuarioInvalida,
     criar_orientando_com_vinculo,
+    normalizar_email,
 )
 
 
@@ -46,7 +47,7 @@ def criar():
         try:
             orientacao, senha = criar_orientando_com_vinculo(
                 nome=form.nome.data,
-                email=form.email.data.lower().strip(),
+                email=normalizar_email(form.email.data),
                 orientador=current_user,
                 modalidade=form.modalidade.data,
                 titulo_projeto=form.titulo_projeto.data,

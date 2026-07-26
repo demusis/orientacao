@@ -82,7 +82,7 @@ def criar_usuario():
         try:
             usuario, senha = usuarios_service.criar_usuario(
                 nome=form.nome.data,
-                email=form.email.data.lower().strip(),
+                email=usuarios_service.normalizar_email(form.email.data),
                 papel=form.papel.data,
                 autor=current_user,
                 ativo=form.ativo.data,
@@ -206,7 +206,9 @@ def eliminar_usuario(usuario_id: int):
         return redirect(url_for("admin.listar_usuarios"))
     form = EliminarUsuarioForm()
     if form.validate_on_submit():
-        if form.confirmacao.data.strip().lower() != (usuario.email or "").lower():
+        if usuarios_service.normalizar_email(
+            form.confirmacao.data
+        ) != usuarios_service.normalizar_email(usuario.email):
             flash("Confirmação incorreta: digite o e-mail exato do titular.", "danger")
             return render_template(
                 "admin/usuario_eliminar.html", form=form, usuario=usuario
@@ -267,40 +269,19 @@ def editar_usuario(usuario_id: int):
                 "danger",
             )
             return redirect(url_for("admin.editar_usuario", usuario_id=usuario.id))
-        # Papel não muda com vínculo ativo pendurado no papel atual: orientador
-        # rebaixado perderia acesso às próprias orientações (403 em /reunioes,
-        # painel vazio) enquanto os orientandos seguem apontando para ele — o
-        # vínculo ficaria ingerível. Encerrar/reatribuir vem antes.
-        if form.papel.data != usuario.papel:
-            motivo = None
-            if usuario.papel == "orientador" and eliminacao_service._orienta_vinculo_ativo(
-                usuario
-            ):
-                motivo = "orienta vínculo(s) ativo(s)"
-            elif usuario.papel == "orientando" and db.session.query(
-                Orientacao.query.filter_by(
-                    orientando_id=usuario.id, status="ativa"
-                ).exists()
-            ).scalar():
-                motivo = "é orientando de vínculo ativo"
-            if motivo:
-                auditoria.registrar(
-                    "edicao_papel_recusada", "usuario", usuario.id, {"motivo": motivo}
-                )
-                db.session.commit()
-                flash(
-                    f"Alteração de papel recusada: a conta {motivo}. Encerre ou "
-                    "reatribua os vínculos antes de mudar o papel.",
-                    "danger",
-                )
-                return redirect(url_for("admin.editar_usuario", usuario_id=usuario.id))
-        email_novo = form.email.data.lower().strip()
-        # e-mail é único; sem esta checagem a colisão estourava IntegrityError
-        # (erro 500) em vez de mensagem
-        if Usuario.query.filter(
-            Usuario.email == email_novo, Usuario.id != usuario.id
-        ).first():
-            flash("E-mail já cadastrado em outra conta.", "danger")
+        email_novo = usuarios_service.normalizar_email(form.email.data)
+        # as regras que valem por qualquer caminho (unicidade de e-mail, papel
+        # e desativação presos a vínculo ativo) moram no serviço
+        try:
+            usuarios_service.validar_edicao(
+                usuario,
+                papel=form.papel.data,
+                ativo=form.ativo.data,
+                email=email_novo,
+            )
+        except GestaoUsuarioInvalida as exc:
+            db.session.commit()  # persiste a recusa auditada
+            flash(str(exc), "danger")
             return redirect(url_for("admin.editar_usuario", usuario_id=usuario.id))
         usuario.nome = form.nome.data
         usuario.email = email_novo
@@ -710,8 +691,9 @@ def expurgar_base():
 
     form = ExpurgarBaseForm()
     if form.validate_on_submit():
+        # o serviço confirma a própria transação (banco antes do disco);
+        # nada resta a comitar aqui
         removidos = servico.expurgar(current_user)
-        db.session.commit()
         flash(
             f"Base apagada: {sum(removidos.values())} registro(s) removido(s). "
             "Apenas a sua conta foi preservada.",

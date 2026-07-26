@@ -168,9 +168,9 @@ class Ata(db.Model):
         quando a meia-noite UTC cruza."""
         if self.status != "rascunho":
             return False
-        from app.services.tempo import agora_local
+        from app.services.tempo import hoje_local
 
-        return self.data_reuniao < agora_local().date()
+        return self.data_reuniao < hoje_local()
 
     @property
     def ata_redigida(self) -> bool:
