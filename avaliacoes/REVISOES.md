@@ -96,3 +96,23 @@ corrigidos:
 
 Verificação: `ruff check .` limpo; testes da corrida + backup verdes; suíte
 completa verde (ver commit).
+
+### Volta 4
+
+Varredura integral com atenção aos patches da volta 3. Também caiu no limite
+de sessão na primeira execução (10 verificações pendentes, retomadas do
+cache); os achados já confirmados — todos sobre os patches de `restaurar()`,
+a migração e o registro de entregas — foram corrigidos: **10 confirmados, 6
+distintos**.
+
+| # | Achado (arquivo:linha) | Correção |
+|---|---|---|
+| 1 | `backup.py:365` — a guarda da regravação só capturava OSError; membro de ZIP com CRC podre levanta `BadZipFile`/`zlib.error` — 500 pós-commit de novo, uma classe de exceção ao lado | guarda ampliada para `(OSError, BadZipFile, zlib.error)`; falha vira pendência no relatório |
+| 2 | `backup.py:330` — o reforço do executor não zerava `senha_provisoria` vinda do pacote: o restaurador ficava preso na tela de troca obrigatória | `senha_provisoria=False` no mesmo UPDATE |
+| 3 | `backup.py:311` — no PostgreSQL, a inserção do executor (sem id) rodava ANTES de `_ajustar_sequencias`: sequência defasada colidia com id explícito do pacote | sequências ajustadas antes da inserção |
+| 4 | `backup.py:378` — preso na limpeza mas regravado com sucesso entrava em `arquivos_pendentes`: alerta falso mandava o admin "corrigir" arquivo correto | pendência = (presos − regravados) ∪ não-gravados |
+| 5 | migração `e7a1c94d20b8` — `>` deixava vivo o marcador igual a hoje (gravado ontem à noite pelo relógio antigo), calando um dia de avisos; e anular sem realinhar o dia de `avisos_entregues` reenviaria o lote inteiro | migração usa `>=` E realinha o dia do registro de entregues ao dia local, preservando a lista que evita duplicatas |
+| 6 | `eliminacao.py`/expurgo — e-mail do titular sobrevivia em `ConfiguracaoEmail.avisos_entregues` (campo fora do expurgo pela credencial SMTP): retenção silenciosa após eliminação certificada | eliminação raspa o e-mail do titular do registro; expurgo anula o registro inteiro (a credencial fica) |
+
+Verificação: `ruff check .` limpo; testes da corrida + backup + eliminação
+verdes; suíte completa verde (ver commit).
