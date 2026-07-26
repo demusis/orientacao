@@ -10,3 +10,6 @@ PyMySQL==1.1.1
 reportlab==4.2.5
 mistune==3.0.2
 cryptography==49.0.0
+# base de fusos IANA para zoneinfo (FUSO_LOCAL); no Linux existe base nativa,
+# mas Windows (dev) e ambientes mínimos não a têm
+tzdata==2025.2

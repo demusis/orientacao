@@ -156,22 +156,21 @@ class Ata(db.Model):
         """A data da reunião já passou.
 
         **Compara apenas a data, e de propósito.** `hora_reuniao` é hora de
-        parede digitada pelo orientador, no fuso dele; o servidor roda em UTC e
-        o sistema não guarda o fuso de ninguém. Confrontar as duas grandezas
-        daria a reunião de hoje às 16:00 como realizada às 13:00 de Brasília,
-        três horas antes de começar, e a tela anunciaria "a data já passou"
-        para quem ainda vai à reunião.
-
-        O preço é o oposto, e é o erro que se prefere: a reunião de hoje pela
+        parede digitada pelo orientador; confrontá-la com o relógio daria a
+        reunião da tarde como realizada de manhã em qualquer descompasso de
+        referência. O preço é o erro que se prefere: a reunião de hoje pela
         manhã só migra para "aguardando ata" na virada do dia. Nunca se declara
-        passado o que ainda está por vir. Declarar o fuso da instituição em
-        configuração resolveria de vez, e é o caminho quando houver usuários
-        fora de um mesmo fuso."""
+        passado o que ainda está por vir.
+
+        A data comparada é a **local** (`agora_local`, fuso da instituição em
+        `FUSO_LOCAL`): a data digitada é a do dia local, e compará-la com a
+        data UTC fazia toda reunião "de hoje" virar passada às 20:00 locais,
+        quando a meia-noite UTC cruza."""
         if self.status != "rascunho":
             return False
-        from app.services.tempo import agora
+        from app.services.tempo import agora_local
 
-        return self.data_reuniao < agora().date()
+        return self.data_reuniao < agora_local().date()
 
     @property
     def ata_redigida(self) -> bool:

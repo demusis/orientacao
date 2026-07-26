@@ -19,8 +19,12 @@ from app.extensions import db
 from app.models import LogAuditoria
 from app.services.tempo import agora
 
-# ações de autenticação que, falhando, contam para o limite
-ACOES_FALHA = ("login_falho", "recuperacao_falha")
+# Ações de autenticação que contam para o limite por origem. As falhas, pela
+# força bruta; e também o pedido de recuperação BEM-SUCEDIDO: cada um envia um
+# e-mail real, e sem contá-lo um único IP podia inundar a caixa da vítima e
+# esgotar a cota diária de envio do sistema repetindo /auth/esqueci com um
+# e-mail válido — as falhas limitavam só quem errava o endereço.
+ACOES_LIMITADAS = ("login_falho", "recuperacao_falha", "recuperacao_solicitada")
 
 
 def excedeu_tentativas() -> bool:
@@ -36,7 +40,7 @@ def excedeu_tentativas() -> bool:
     quantas = (
         db.session.query(func.count(LogAuditoria.id))
         .filter(
-            LogAuditoria.acao.in_(ACOES_FALHA),
+            LogAuditoria.acao.in_(ACOES_LIMITADAS),
             LogAuditoria.ip == request.remote_addr,
             LogAuditoria.timestamp >= desde,
         )

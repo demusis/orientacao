@@ -39,6 +39,7 @@ from app.extensions import db
 from app.models import (
     Ata,
     ConfiguracaoEmail,
+    ConfiguracaoRisco,
     Documento,
     EventoVinculo,
     LogAuditoria,
@@ -215,6 +216,7 @@ def _reatribuir_autorias(usuario: Usuario, sentinela: Usuario) -> int:
         (Usuario, Usuario.criado_por),
         (ModeloDocumento, ModeloDocumento.enviado_por),
         (ConfiguracaoEmail, ConfiguracaoEmail.atualizado_por),
+        (ConfiguracaoRisco, ConfiguracaoRisco.atualizado_por),
     ):
         db.session.execute(
             update(modelo).where(coluna == usuario.id).values({coluna: None})

@@ -41,13 +41,15 @@ def salvar_modelo(storage, *, titulo: str, descricao: str | None, autor) -> Mode
     return modelo
 
 
-def excluir_modelo(modelo: ModeloDocumento) -> None:
-    """Remove o registro e o arquivo físico. Modelos não são referenciados por
-    outros registros, logo a exclusão física é segura (sem regra de histórico).
-    O commit fica a cargo da rota."""
+def excluir_modelo(modelo: ModeloDocumento) -> str:
+    """Remove o registro e devolve o caminho do arquivo físico, que o chamador
+    apaga **depois** do commit. Modelos não são referenciados por outros
+    registros, logo a exclusão física é segura (sem regra de histórico).
+
+    A ordem importa: apagar o arquivo antes do commit deixaria, numa falha do
+    commit (`database is locked`), o registro restaurado pelo rollback apontando
+    para um arquivo já perdido — modelo listado para todos, download quebrado
+    para sempre. Banco primeiro, disco depois, como na eliminação LGPD."""
     caminho = os.path.join(current_app.config["UPLOAD_FOLDER"], modelo.nome_fisico)
-    try:
-        os.remove(caminho)
-    except FileNotFoundError:
-        pass  # arquivo já ausente: o registro ainda deve sair
     db.session.delete(modelo)
+    return caminho

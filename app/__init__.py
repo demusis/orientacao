@@ -260,6 +260,10 @@ def register_cli(app: Flask) -> None:
 
         from app.models import Usuario
 
+        # Normaliza como o login normaliza (lower/strip): semear "Fulano@X" com
+        # maiúsculas criaria um administrador que nunca autentica, pois o login
+        # e a recuperação de senha consultam sempre em minúsculas.
+        email = email.strip().lower()
         # mesma validação do formulário de login; evita semear e-mail inutilizável
         try:
             validate_email(email, check_deliverability=False)

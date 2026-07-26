@@ -26,6 +26,10 @@ class Config:
     LOGIN_MAX_TENTATIVAS = 10
     # Itens por página nas listagens administrativas
     ITENS_POR_PAGINA = 25
+    # Fuso da instituição. Data e hora de reunião são hora de parede digitada
+    # pelo usuário; compará-las com o relógio exige saber que parede é essa
+    # (o servidor roda em UTC). Ver services/tempo.py:agora_local.
+    FUSO_LOCAL = os.environ.get("FUSO_LOCAL", "America/Cuiaba")
 
 
 class DevelopmentConfig(Config):

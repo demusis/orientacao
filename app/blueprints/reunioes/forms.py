@@ -12,7 +12,7 @@ from wtforms.validators import DataRequired, Optional, ValidationError
 
 from app.blueprints.atas.forms import campo_link_reuniao
 from app.blueprints.cronogramas.forms import CamposMarco
-from app.services.tempo import agora
+from app.services.tempo import agora_local
 
 
 class MultiCheckboxField(SelectMultipleField):
@@ -83,7 +83,11 @@ class AtaGrupoForm(FlaskForm):
         # registro de uma reunião que ainda não ocorreu. Sem finalizar, a ata de
         # grupo pode ser marcada para o futuro (é o mesmo ponto de criação usado
         # pelos fluxos de presença e reagendamento).
-        if self.finalizar_agora.data and field.data and field.data > agora().date():
+        if (
+            self.finalizar_agora.data
+            and field.data
+            and field.data > agora_local().date()
+        ):
             raise ValidationError(
                 "Não é possível finalizar agora uma reunião com data futura."
             )

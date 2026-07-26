@@ -16,6 +16,7 @@ from datetime import UTC, datetime
 from app.extensions import db
 from app.models import Ata, AtaParticipacao, Reagendamento
 from app.services import auditoria
+from app.services.tempo import agora_local
 
 
 class AtaImutavel(Exception):
@@ -203,6 +204,17 @@ def finalizar_ata(ata: Ata):
         raise AtaImutavel("Reunião cancelada não tem ata a finalizar.")
     if ata.imutavel:
         raise AtaImutavel("Ata já finalizada.")
+    # Não se finaliza o registro de uma reunião que ainda não ocorreu: o
+    # congelado viraria PDF assinável de um encontro inexistente, e a reunião
+    # real ficaria sem reagendamento nem cancelamento (imutável). A checagem
+    # fica no serviço — único ponto por onde toda finalização passa — e não só
+    # no formulário da ata rápida, que cobria apenas um dos caminhos.
+    # data local: a digitada é a do dia da instituição, não a do dia UTC
+    if ata.data_reuniao > agora_local().date():
+        raise OperacaoInvalida(
+            "Não é possível finalizar a ata de uma reunião com data futura. "
+            "Reagende ou cancele a reunião, se ela não vai ocorrer."
+        )
     # a reunião agendada nasce sem deliberações; congelar assim produziria um
     # PDF assinável com o campo em branco, que é o oposto de um registro
     if not (ata.pauta or "").strip() or not ata.ata_redigida:
