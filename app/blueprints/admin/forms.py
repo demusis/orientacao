@@ -82,6 +82,12 @@ class OrientacaoForm(FlaskForm):
     data_fim_prevista = DateField("Fim previsto", validators=[Optional()])
     submit = SubmitField("Salvar")
 
+    def validate_data_fim_prevista(self, field):
+        # mesma regra do AjusteDatasForm: fim antes do início passava aqui e o
+        # relógio de risco do painel ficava mudo justamente para esse vínculo
+        if field.data and self.data_inicio.data and field.data <= self.data_inicio.data:
+            raise ValidationError("O fim previsto deve ser posterior ao início.")
+
 
 class AjusteDatasForm(FlaskForm):
     """Alteração das datas do vínculo, privativa do administrador — inclusive a

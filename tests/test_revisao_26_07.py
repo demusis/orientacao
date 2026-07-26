@@ -325,9 +325,11 @@ def test_expurgo_tolera_arquivo_preso(app, admin, orientacao, monkeypatch):
         raise PermissionError(caminho)
 
     monkeypatch.setattr(backup_module.os, "remove", recusa)
-    contagens = backup_service.expurgar(admin)  # antes: PermissionError
-    assert contagens["orientacao"] == 1
+    resultado = backup_service.expurgar(admin)  # antes: PermissionError
+    assert resultado["removidos"]["orientacao"] == 1
     assert Orientacao.query.count() == 0
+    # e o arquivo que ficou é REPORTADO, não engolido no log (volta 3)
+    assert resultado["arquivos_presos"] == ["c" * 32 + ".pdf"]
 
 
 def test_desativar_orientador_com_vinculo_ativo_recusado(
@@ -369,6 +371,114 @@ def test_marco_atrasado_usa_o_dia_local(app, orientacao):
     db.session.commit()
     assert em_dia.atrasado is False
     assert vencido.atrasado is True
+
+
+# ============================== VOLTA 3 ====================================
+
+
+def test_fuso_vazio_tambem_degrada_para_utc(app):
+    """ZoneInfo('') levanta ValueError, não ZoneInfoNotFoundError: um
+    `FUSO_LOCAL=` em branco no .env não pode derrubar o sistema."""
+    from app.services.tempo import agora, agora_local
+
+    app.config["FUSO_LOCAL"] = ""
+    resultado = agora_local()  # antes: ValueError
+    assert abs((resultado - agora()).total_seconds()) < 5
+
+
+def test_indicadores_contam_atraso_no_dia_local(app, orientacao):
+    """O indicador usa o MESMO relógio de Marco.atrasado: com o dia UTC, o
+    relatório de avaliação contava atraso que nenhuma tela mostrava."""
+    from app.models import Marco
+    from app.services import indicadores
+    from app.services.tempo import hoje_local
+
+    db.session.add(
+        Marco(orientacao_id=orientacao.id, titulo="Hoje", data_prevista=hoje_local())
+    )
+    db.session.commit()
+    assert indicadores.fluxo_de_marcos()["atrasados"] == 0
+
+    db.session.add(
+        Marco(
+            orientacao_id=orientacao.id,
+            titulo="Ontem",
+            data_prevista=hoje_local() - timedelta(days=1),
+        )
+    )
+    db.session.commit()
+    assert indicadores.fluxo_de_marcos()["atrasados"] == 1
+
+
+def test_vinculo_nao_aceita_fim_antes_do_inicio(client, admin, orientador, orientando):
+    login(client, "admin@teste.br")
+    resposta = client.post(
+        "/admin/orientacoes/nova",
+        data={
+            "orientador_id": orientador.id,
+            "orientando_id": orientando.id,
+            "modalidade": "mestrado",
+            "titulo_projeto": "Ano trocado",
+            "data_inicio": "2026-03-01",
+            "data_fim_prevista": "2025-03-01",
+        },
+        follow_redirects=True,
+    )
+    assert "posterior ao início" in resposta.data.decode()
+    assert Orientacao.query.count() == 0
+
+
+def test_restauracao_reativa_o_executor_vindo_desativado(app, admin, orientacao):
+    """Backup tirado com a conta do executor desativada (ou sem papel de
+    admin): restaurá-lo não pode trancar quem restaura para fora do sistema."""
+    admin.ativo = False
+    admin.papel = "orientando"
+    db.session.commit()
+    _, conteudo = backup_service.gerar()  # pacote com o executor inutilizável
+
+    admin.ativo = True
+    admin.papel = "admin"
+    db.session.commit()
+    hash_corrente = admin.senha_hash
+
+    backup_service.restaurar(io.BytesIO(conteudo), admin)
+    restaurado = Usuario.query.filter_by(email="admin@teste.br").one()
+    assert restaurado.ativo is True
+    assert restaurado.papel == "admin"
+    assert restaurado.senha_hash == hash_corrente  # a senha da sessão corrente
+
+
+def test_restauracao_reporta_arquivo_que_nao_pode_regravar(
+    app, admin, orientacao, monkeypatch
+):
+    """O arquivo que resistiu à limpeza resistiria também à regravação; a
+    falha vira item de `arquivos_pendentes` no resumo, não erro 500 depois de
+    o banco já ter sido substituído."""
+    import builtins
+
+    import app.services.backup as backup_module
+
+    pasta = app.config["UPLOAD_FOLDER"]
+    nome = "d" * 32 + ".pdf"
+    caminho = os.path.join(pasta, nome)
+    with open(caminho, "wb") as f:
+        f.write(b"%PDF-1.4 preso")
+    _, conteudo = backup_service.gerar()  # o pacote inclui o arquivo
+
+    def remove_recusa(alvo):
+        raise PermissionError(alvo)
+
+    abrir_real = builtins.open
+
+    def open_recusa(arquivo, modo="r", *args, **kwargs):
+        if "w" in modo and str(arquivo).endswith(nome):
+            raise PermissionError(arquivo)
+        return abrir_real(arquivo, modo, *args, **kwargs)
+
+    monkeypatch.setattr(backup_module.os, "remove", remove_recusa)
+    monkeypatch.setattr(builtins, "open", open_recusa)
+    resumo = backup_service.restaurar(io.BytesIO(conteudo), admin)  # sem 500
+    assert nome in resumo["arquivos_pendentes"]
 
 
 def test_edicao_com_email_duplicado_nao_estoura(client, admin, orientador, orientando):

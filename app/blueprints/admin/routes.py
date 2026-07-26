@@ -48,6 +48,7 @@ from app.services import auditoria, avisos, credenciais, cripto
 from app.services import eliminacao as eliminacao_service
 from app.services import email as email_service
 from app.services import modelos as modelos_service
+from app.services import uploads as uploads_service
 from app.services import usuarios as usuarios_service
 from app.services.rbac import role_required
 from app.services.uploads import UploadInvalido
@@ -219,19 +220,24 @@ def eliminar_usuario(usuario_id: int):
             # arquivos só saem do disco depois do commit: falha no commit não
             # deixa arquivo órfão de um registro que voltaria
             pasta = current_app.config["UPLOAD_FOLDER"]
-            for nome in resumo["arquivos"]:
-                try:
-                    os.remove(os.path.join(pasta, nome))
-                except OSError:
-                    current_app.logger.warning(
-                        "Arquivo de usuário eliminado não removido: %s", nome
-                    )
+            presos = uploads_service.remover_do_disco(
+                os.path.join(pasta, nome) for nome in resumo["arquivos"]
+            )
             flash(
                 f"Dados do usuário eliminados: {resumo['vinculos_apagados']} "
                 f"vínculo(s) apagado(s) e {resumo['registros_reatribuidos']} "
                 "registro(s) anonimizado(s).",
                 "success",
             )
+            if presos:
+                # eliminação LGPD com arquivo remanescente não pode ficar só
+                # no log: é retenção silenciosa de dado pessoal
+                flash(
+                    f"Atenção: {len(presos)} arquivo(s) do titular não puderam "
+                    f"ser removidos e permanecem no disco: {', '.join(presos)}. "
+                    "Remova-os manualmente para concluir a eliminação.",
+                    "danger",
+                )
             return redirect(url_for("admin.listar_usuarios"))
         except GestaoUsuarioInvalida as exc:
             db.session.commit()  # persiste o log da recusa
@@ -674,6 +680,13 @@ def restaurar_backup():
                 f"{resumo['arquivos']} arquivo(s).{aviso}",
                 "success",
             )
+            if resumo["arquivos_pendentes"]:
+                flash(
+                    f"Atenção: {len(resumo['arquivos_pendentes'])} arquivo(s) de "
+                    "upload não puderam ser regravados e podem estar ausentes ou "
+                    f"desatualizados: {', '.join(resumo['arquivos_pendentes'])}.",
+                    "danger",
+                )
         except servico.BackupInvalido as exc:
             db.session.rollback()
             flash(f"Restauração recusada: {exc}", "danger")
@@ -693,12 +706,22 @@ def expurgar_base():
     if form.validate_on_submit():
         # o serviço confirma a própria transação (banco antes do disco);
         # nada resta a comitar aqui
-        removidos = servico.expurgar(current_user)
+        resultado = servico.expurgar(current_user)
         flash(
-            f"Base apagada: {sum(removidos.values())} registro(s) removido(s). "
-            "Apenas a sua conta foi preservada.",
+            f"Base apagada: {sum(resultado['removidos'].values())} registro(s) "
+            "removido(s). Apenas a sua conta foi preservada.",
             "success",
         )
+        # arquivo preso não pode ficar só no log: expurgo certificado como
+        # completo com dado pessoal remanescente é retenção silenciosa
+        if resultado["arquivos_presos"]:
+            flash(
+                f"Atenção: {len(resultado['arquivos_presos'])} arquivo(s) de "
+                "upload não puderam ser removidos e permanecem no disco: "
+                f"{', '.join(resultado['arquivos_presos'])}. Remova-os "
+                "manualmente para concluir o expurgo.",
+                "danger",
+            )
         return redirect(url_for("admin.backup"))
     for erros in form.errors.values():
         for erro in erros:
@@ -805,11 +828,12 @@ def excluir_modelo(modelo_id: int):
     )
     db.session.commit()
     # arquivo só depois do banco confirmado (ver docstring de excluir_modelo)
-    try:
-        os.remove(caminho)
-    except FileNotFoundError:
-        pass
-    except OSError:
-        current_app.logger.warning("arquivo de modelo não removido: %s", caminho)
+    presos = uploads_service.remover_do_disco([caminho])
     flash("Modelo excluído.", "success")
+    if presos:
+        flash(
+            f"Atenção: o arquivo do modelo ({presos[0]}) não pôde ser removido "
+            "e permanece no disco. Remova-o manualmente.",
+            "danger",
+        )
     return redirect(url_for("admin.gerir_modelos"))

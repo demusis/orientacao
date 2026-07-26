@@ -134,6 +134,10 @@ def criar_usuario(
 
     A senha é devolvida, e não guardada: quem chama a envia ao titular e, se o
     e-mail falhar, a exibe uma vez na tela. Depois disto só existe o hash."""
+    # normaliza AQUI, no ponto único por onde toda criação passa: exigir isso
+    # de cada chamador é exatamente a deriva que já criou conta incapaz de
+    # autenticar (idempotente para quem já normalizou)
+    email = normalizar_email(email)
     if Usuario.query.filter_by(email=email).first():
         raise GestaoUsuarioInvalida("E-mail já cadastrado.")
     senha = senhas.gerar()
@@ -257,13 +261,17 @@ def validar_edicao(usuario: Usuario, *, papel: str, ativo: bool, email: str) -> 
       orientandos seguem apontando para ele.
     - Orientador com vínculo ativo tampouco é desativado — é o mesmo estado
       ingerível da mudança de papel, a um checkbox do caminho bloqueado."""
+    email = normalizar_email(email)  # como em criar_usuario: no ponto único
     if email != usuario.email and Usuario.query.filter(
         Usuario.email == email, Usuario.id != usuario.id
     ).first():
         raise GestaoUsuarioInvalida("E-mail já cadastrado.")
+    # calculada uma vez: papel e desativação consultam o mesmo fato, e duas
+    # leituras poderiam até ver instantes diferentes
+    vinculo_ativo = usuario.papel == "orientador" and orienta_vinculo_ativo(usuario)
     if papel != usuario.papel:
         motivo = None
-        if usuario.papel == "orientador" and orienta_vinculo_ativo(usuario):
+        if vinculo_ativo:
             motivo = "orienta vínculo(s) ativo(s)"
         elif usuario.papel == "orientando" and db.session.query(
             Orientacao.query.filter_by(
@@ -279,12 +287,7 @@ def validar_edicao(usuario: Usuario, *, papel: str, ativo: bool, email: str) -> 
                 f"Alteração de papel recusada: a conta {motivo}. Encerre ou "
                 "reatribua os vínculos antes de mudar o papel."
             )
-    if (
-        usuario.papel == "orientador"
-        and usuario.ativo
-        and not ativo
-        and orienta_vinculo_ativo(usuario)
-    ):
+    if vinculo_ativo and usuario.ativo and not ativo:
         auditoria.registrar("desativacao_orientador_recusada", "usuario", usuario.id)
         raise GestaoUsuarioInvalida(
             "Desativação recusada: a conta orienta vínculo(s) ativo(s), e "

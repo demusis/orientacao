@@ -24,6 +24,27 @@ class UploadInvalido(Exception):
     pass
 
 
+def remover_do_disco(caminhos) -> list[str]:
+    """Remove arquivos DEPOIS de o banco confirmar a exclusão dos registros, e
+    devolve os nomes dos que resistiram (presos em download, sem permissão).
+
+    Política única do pós-commit, num só lugar: a falha não levanta (o banco
+    já foi confirmado — um 500 aqui mentiria que nada aconteceu), não fica só
+    no log (o chamador EXIBE os que sobraram: arquivo com dado pessoal
+    remanescente depois de remoção certificada é retenção silenciosa), e o já
+    ausente conta como removido."""
+    presos: list[str] = []
+    for caminho in caminhos:
+        try:
+            os.remove(caminho)
+        except FileNotFoundError:
+            continue
+        except OSError:
+            current_app.logger.warning("arquivo não removido: %s", caminho)
+            presos.append(os.path.basename(caminho))
+    return presos
+
+
 def _extensao(nome: str) -> str:
     return nome.rsplit(".", 1)[-1].lower() if "." in nome else ""
 
@@ -102,8 +123,6 @@ def _uploads_confirmados(session):
 # requisição), o arquivo gravado não tem linha que o referencie: remove-o.
 @event.listens_for(db.session, "after_rollback")
 def _uploads_descartados(session):
-    for caminho in session.info.pop("uploads_novos", []):
-        try:
-            os.remove(caminho)
-        except OSError:
-            current_app.logger.warning("Upload órfão não removido: %s", caminho)
+    # aqui não há tela a avisar (é o desfazer de uma falha); o retorno do
+    # helper é dispensado e a sobra fica registrada no log por ele mesmo
+    remover_do_disco(session.info.pop("uploads_novos", []))

@@ -23,6 +23,7 @@ from sqlalchemy import Date, DateTime, Time, delete, func, insert, select, text,
 from app.extensions import db
 from app.models import Usuario
 from app.services import auditoria
+from app.services.uploads import remover_do_disco
 
 VERSAO_FORMATO = 1
 
@@ -191,20 +192,21 @@ def _apagar_tudo():
         db.session.execute(delete(_tabela(nome)))
 
 
-def _limpar_uploads():
-    """Roda DEPOIS do commit (ver restaurar/expurgar): um arquivo preso — em
-    download concorrente, ou sem permissão — não pode virar erro 500 de uma
-    operação cujo banco já foi confirmado. Fica no log e sobra no disco."""
+def _limpar_uploads() -> list[str]:
+    """Roda DEPOIS do commit (ver restaurar/expurgar). Devolve os nomes que
+    ficaram para trás, e o chamador os REPORTA na tela: engolir a falha só no
+    log faria o administrador certificar um expurgo como completo enquanto um
+    PDF com dado pessoal segue no disco (e voltaria a entrar em todo backup
+    futuro, que empacota a pasta inteira). A política de tolerância é a de
+    `uploads.remover_do_disco`, comum a todo pós-commit."""
     pasta = _pasta_uploads()
     if not os.path.isdir(pasta):
-        return
-    for arquivo in os.listdir(pasta):
-        caminho = os.path.join(pasta, arquivo)
-        if os.path.isfile(caminho):
-            try:
-                os.remove(caminho)
-            except OSError:
-                current_app.logger.warning("upload não removido: %s", caminho)
+        return []
+    return remover_do_disco(
+        caminho
+        for arquivo in os.listdir(pasta)
+        if os.path.isfile(caminho := os.path.join(pasta, arquivo))
+    )
 
 
 def restaurar(arquivo, executor: Usuario) -> dict:
@@ -319,6 +321,21 @@ def restaurar(arquivo, executor: Usuario) -> dict:
                     }
                 ],
             )
+        else:
+            # A linha vinda do pacote pode estar desativada, sem papel de
+            # administrador ou com uma senha que o operador já não conhece (o
+            # backup pode ser antigo). Quem restaura não pode sair trancado:
+            # a conta volta ativa, admin e com a senha da sessão corrente —
+            # o mesmo espírito da inserção acima, quando ela nem existe.
+            db.session.execute(
+                update(usuario)
+                .where(usuario.c.email == credencial["email"])
+                .values(
+                    ativo=True,
+                    papel="admin",
+                    senha_hash=credencial["senha_hash"],
+                )
+            )
 
         _ajustar_sequencias()
 
@@ -327,20 +344,28 @@ def restaurar(arquivo, executor: Usuario) -> dict:
         # ainda intactos (ver docstring).
         db.session.commit()
 
-        _limpar_uploads()
+        presos = _limpar_uploads()
         pasta = _pasta_uploads()
         os.makedirs(pasta, exist_ok=True)
         arquivos_restaurados = 0
+        nao_gravados: list[str] = []
         for item in pacote.namelist():
             if not item.startswith("uploads/"):
                 continue
             nome_arquivo = os.path.basename(item)
             if not NOME_FISICO.match(nome_arquivo):
                 continue  # nome fora do padrão: descartado por segurança
-            with pacote.open(item) as origem, open(
-                os.path.join(pasta, nome_arquivo), "wb"
-            ) as destino:
-                destino.write(origem.read())
+            # o mesmo arquivo que resistiu à limpeza resistiria à regravação:
+            # sem esta guarda, o 500 pós-commit voltava um passo adiante
+            try:
+                with pacote.open(item) as origem, open(
+                    os.path.join(pasta, nome_arquivo), "wb"
+                ) as destino:
+                    destino.write(origem.read())
+            except OSError:
+                current_app.logger.warning("upload não gravado: %s", nome_arquivo)
+                nao_gravados.append(nome_arquivo)
+                continue
             arquivos_restaurados += 1
 
     # a auditoria fica a cargo do chamador: a linha do executor foi apagada e
@@ -349,6 +374,8 @@ def restaurar(arquivo, executor: Usuario) -> dict:
     return {
         "contagens": {nome: len(dados[nome]) for nome in ORDEM_TABELAS},
         "arquivos": arquivos_restaurados,
+        # o que ficou fora do lugar no disco — a rota exibe, não só o log
+        "arquivos_pendentes": sorted(set(presos) | set(nao_gravados)),
         "executor_preservado": executor_preservado,
         "email_executor": credencial["email"],
         "gerado_em": manifesto.get("gerado_em"),
@@ -395,5 +422,5 @@ def expurgar(executor: Usuario) -> dict:
     )
     # fronteira deliberada: banco confirmado antes do disco (ver docstring)
     db.session.commit()
-    _limpar_uploads()
-    return contagens
+    presos = _limpar_uploads()
+    return {"removidos": contagens, "arquivos_presos": presos}

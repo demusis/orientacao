@@ -24,11 +24,22 @@ def agora() -> datetime:
 
 @lru_cache(maxsize=4)
 def _fuso(nome: str) -> ZoneInfo | None:
-    """None para nome fora da base IANA — o chamador decide o fallback. Cacheado
-    porque a resolução lê arquivo, e isto roda a cada comparação de data."""
+    """None para nome inválido — o chamador decide o fallback. Cacheado porque
+    a resolução lê arquivo, e isto roda a cada comparação de data.
+
+    ValueError também: ZoneInfo("") e nomes com barra sobrando levantam
+    ValueError, não ZoneInfoNotFoundError — um `FUSO_LOCAL=` vazio no .env
+    derrubaria tudo do mesmo jeito que o typo que este fallback existe para
+    tolerar."""
     try:
         return ZoneInfo(nome)
-    except ZoneInfoNotFoundError:
+    except (ZoneInfoNotFoundError, ValueError):
+        # o aviso mora aqui, sob o lru_cache: sai UMA vez por nome inválido.
+        # No chamador, saía a cada comparação de data — uma lista com 50
+        # marcos gravava 50 linhas idênticas por requisição.
+        current_app.logger.warning(
+            "FUSO_LOCAL inválido (%r): não está na base IANA. Usando UTC.", nome
+        )
         return None
 
 
@@ -46,9 +57,6 @@ def agora_local() -> datetime:
         return agora()
     fuso = _fuso(nome)
     if fuso is None:
-        current_app.logger.warning(
-            "FUSO_LOCAL inválido (%r): não está na base IANA. Usando UTC.", nome
-        )
         return agora()
     return datetime.now(fuso).replace(tzinfo=None)
 
