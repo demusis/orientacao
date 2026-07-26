@@ -305,6 +305,15 @@ indicadores — é o que permite ao ciclo seguinte afirmar se algo melhorou. As 
 tomadas sobre cada achado ficam em `avaliacoes/DECISOES.md`, o que impede que um item já
 recusado seja reproposto indefinidamente.
 
+Ao lado do `/avaliar` existem outros dois ciclos, cada um com alçada própria:
+
+- **`/revisar`** (`.claude/commands/revisar.md`): loop de revisão e correção de
+  **defeitos** — lógica, segurança, LGPD, concorrência, desempenho e testes frágeis —
+  sobre o aplicativo inteiro, em voltas sucessivas até uma volta sem achado confirmado.
+  Cada volta fica registrada em `avaliacoes/REVISOES.md`.
+- **Loop de engenharia** (`avaliacoes/ENGENHARIA.md`): melhorias de fundação
+  (refatoração, tooling, documentação) que preservam comportamento.
+
 ## Segurança e operação
 
 - Trilha de auditoria *append-only*: a aplicação não expõe alteração nem exclusão de registros.
