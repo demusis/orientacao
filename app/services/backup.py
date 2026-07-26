@@ -15,6 +15,7 @@ import json
 import os
 import re
 import zipfile
+import zlib
 from datetime import UTC, date, datetime, time
 
 from flask import current_app
@@ -307,6 +308,11 @@ def restaurar(arquivo, executor: Usuario) -> dict:
 
         emails = {linha["email"] for linha in dados["usuario"]}
         executor_preservado = credencial["email"] not in emails
+        # sequências ANTES da inserção sem id explícito logo abaixo: no
+        # PostgreSQL, a sequência defasada entregaria ao executor um id que já
+        # entrou explicitamente com o pacote — IntegrityError no único caso que
+        # este trecho existe para garantir
+        _ajustar_sequencias()
         if executor_preservado:
             db.session.execute(
                 insert(usuario),
@@ -323,10 +329,11 @@ def restaurar(arquivo, executor: Usuario) -> dict:
             )
         else:
             # A linha vinda do pacote pode estar desativada, sem papel de
-            # administrador ou com uma senha que o operador já não conhece (o
-            # backup pode ser antigo). Quem restaura não pode sair trancado:
-            # a conta volta ativa, admin e com a senha da sessão corrente —
-            # o mesmo espírito da inserção acima, quando ela nem existe.
+            # administrador, com senha que o operador já não conhece ou ainda
+            # marcada como provisória (o backup pode ser antigo). Quem restaura
+            # não pode sair trancado — nem para fora do login, nem preso na
+            # tela de troca obrigatória: a conta volta ativa, admin, com a
+            # senha da sessão corrente e sem a marca de provisória.
             db.session.execute(
                 update(usuario)
                 .where(usuario.c.email == credencial["email"])
@@ -334,10 +341,9 @@ def restaurar(arquivo, executor: Usuario) -> dict:
                     ativo=True,
                     papel="admin",
                     senha_hash=credencial["senha_hash"],
+                    senha_provisoria=False,
                 )
             )
-
-        _ajustar_sequencias()
 
         # Fronteira deliberada: confirma o banco antes das operações de disco
         # irreversíveis abaixo. Uma falha aqui reverte o banco com os uploads
@@ -347,7 +353,7 @@ def restaurar(arquivo, executor: Usuario) -> dict:
         presos = _limpar_uploads()
         pasta = _pasta_uploads()
         os.makedirs(pasta, exist_ok=True)
-        arquivos_restaurados = 0
+        gravados: set[str] = set()
         nao_gravados: list[str] = []
         for item in pacote.namelist():
             if not item.startswith("uploads/"):
@@ -355,27 +361,31 @@ def restaurar(arquivo, executor: Usuario) -> dict:
             nome_arquivo = os.path.basename(item)
             if not NOME_FISICO.match(nome_arquivo):
                 continue  # nome fora do padrão: descartado por segurança
-            # o mesmo arquivo que resistiu à limpeza resistiria à regravação:
-            # sem esta guarda, o 500 pós-commit voltava um passo adiante
+            # O mesmo arquivo que resistiu à limpeza resistiria à regravação —
+            # e um membro corrompido do ZIP (CRC podre) estoura BadZipFile no
+            # read(), que NÃO é OSError: qualquer falha aqui é pós-commit e
+            # vira item do relatório, nunca erro 500 de um banco já trocado.
             try:
                 with pacote.open(item) as origem, open(
                     os.path.join(pasta, nome_arquivo), "wb"
                 ) as destino:
                     destino.write(origem.read())
-            except OSError:
+            except (OSError, zipfile.BadZipFile, zlib.error):
                 current_app.logger.warning("upload não gravado: %s", nome_arquivo)
                 nao_gravados.append(nome_arquivo)
                 continue
-            arquivos_restaurados += 1
+            gravados.add(nome_arquivo)
 
     # a auditoria fica a cargo do chamador: a linha do executor foi apagada e
     # reinserida, de modo que `current_user` só volta a ser utilizável depois de
     # reautenticado com o novo identificador
     return {
         "contagens": {nome: len(dados[nome]) for nome in ORDEM_TABELAS},
-        "arquivos": arquivos_restaurados,
-        # o que ficou fora do lugar no disco — a rota exibe, não só o log
-        "arquivos_pendentes": sorted(set(presos) | set(nao_gravados)),
+        "arquivos": len(gravados),
+        # O que ficou fora do lugar no disco — a rota exibe, não só o log.
+        # Preso na limpeza mas regravado com sucesso logo em seguida NÃO é
+        # pendência: alertá-lo mandaria o admin "corrigir" um arquivo correto.
+        "arquivos_pendentes": sorted((set(presos) - gravados) | set(nao_gravados)),
         "executor_preservado": executor_preservado,
         "email_executor": credencial["email"],
         "gerado_em": manifesto.get("gerado_em"),
@@ -410,6 +420,12 @@ def expurgar(executor: Usuario) -> dict:
     # o criador da conta preservada pode ter sido removido
     db.session.execute(
         update(usuario).where(usuario.c.id == executor.id).values(criado_por=None)
+    )
+    # configuracao_email fica fora do expurgo pela credencial SMTP — mas o
+    # registro diário de entregas guarda e-mails em claro dos usuários que
+    # acabam de ser apagados, e esse dado pessoal não fica
+    db.session.execute(
+        text("UPDATE configuracao_email SET avisos_entregues = NULL")
     )
 
     _ajustar_sequencias()

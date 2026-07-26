@@ -266,6 +266,27 @@ def _anonimizar_trilha(usuario: Usuario) -> None:
                 log.dados_json = json.dumps(raspado, ensure_ascii=False)
 
 
+def _raspar_registro_de_avisos(usuario: Usuario) -> None:
+    """O registro diário de entregas (ConfiguracaoEmail.avisos_entregues)
+    guarda e-mails em claro para evitar mensagem duplicada no dia. O do titular
+    sai dele: a tabela fica fora do expurgo e do backup por causa da credencial
+    SMTP, e sem esta raspagem o e-mail sobreviveria indefinidamente a uma
+    eliminação certificada — retenção silenciosa em campo que tela nenhuma
+    mostra."""
+    config = db.session.get(ConfiguracaoEmail, 1)
+    if config is None or not config.avisos_entregues:
+        return
+    try:
+        guardado = json.loads(config.avisos_entregues)
+    except ValueError:
+        return
+    alvo = (usuario.email or "").lower()
+    emails = [e for e in guardado.get("emails", []) if e.lower() != alvo]
+    if len(emails) != len(guardado.get("emails", [])):
+        guardado["emails"] = emails
+        config.avisos_entregues = json.dumps(guardado, ensure_ascii=False)
+
+
 # ---------------------------------------------------------------------------
 # Orquestração
 
@@ -302,8 +323,9 @@ def eliminar_usuario(usuario: Usuario, executor: Usuario) -> dict:
     # 2. preserva anonimizando o que ele autorou em dados de terceiros
     reatribuidos = _reatribuir_autorias(usuario, sentinela)
 
-    # 3. anonimiza a trilha de auditoria
+    # 3. anonimiza a trilha de auditoria e o registro diário de entregas
     _anonimizar_trilha(usuario)
+    _raspar_registro_de_avisos(usuario)
 
     # 4. registra o ato (sem dado pessoal) e apaga a conta
     auditoria.registrar(

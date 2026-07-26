@@ -481,6 +481,106 @@ def test_restauracao_reporta_arquivo_que_nao_pode_regravar(
     assert nome in resumo["arquivos_pendentes"]
 
 
+# ============================== VOLTA 4 ====================================
+
+
+def test_restauracao_zera_senha_provisoria_do_executor(app, admin, orientacao):
+    """Backup tirado quando a conta do executor ainda tinha senha provisória:
+    restaurá-lo não pode prender quem restaura na tela de troca obrigatória."""
+    admin.senha_provisoria = True
+    db.session.commit()
+    _, conteudo = backup_service.gerar()
+
+    admin.senha_provisoria = False
+    db.session.commit()
+
+    backup_service.restaurar(io.BytesIO(conteudo), admin)
+    restaurado = Usuario.query.filter_by(email="admin@teste.br").one()
+    assert restaurado.senha_provisoria is False
+
+
+def test_restauracao_tolera_membro_de_zip_corrompido(app, admin, orientacao):
+    """Membro de uploads com CRC podre levanta BadZipFile/zlib.error, que NÃO
+    é OSError: precisa virar pendência no relatório, nunca 500 depois de o
+    banco já ter sido substituído."""
+    import struct
+
+    pasta = app.config["UPLOAD_FOLDER"]
+    nome = "e" * 32 + ".pdf"
+    with open(os.path.join(pasta, nome), "wb") as f:
+        f.write(b"%PDF-1.4 " + os.urandom(300))
+    _, conteudo = backup_service.gerar()
+
+    dados = bytearray(conteudo)
+    with zipfile.ZipFile(io.BytesIO(conteudo)) as z:
+        info = z.getinfo(f"uploads/{nome}")
+    nlen, elen = struct.unpack_from("<HH", dados, info.header_offset + 26)
+    inicio = info.header_offset + 30 + nlen + elen
+    dados[inicio + max(info.compress_size // 2, 1)] ^= 0xFF  # corrompe o meio
+
+    resumo = backup_service.restaurar(io.BytesIO(bytes(dados)), admin)  # sem 500
+    assert nome in resumo["arquivos_pendentes"]
+
+
+def test_preso_na_limpeza_mas_regravado_nao_e_pendencia(
+    app, admin, orientacao, monkeypatch
+):
+    """Arquivo que resistiu ao os.remove mas foi sobrescrito com sucesso pelo
+    pacote está correto no disco — alertá-lo mandaria o admin 'consertar' (e
+    talvez apagar) um upload válido."""
+    import app.services.uploads as uploads_module
+
+    pasta = app.config["UPLOAD_FOLDER"]
+    nome = "f" * 32 + ".pdf"
+    with open(os.path.join(pasta, nome), "wb") as f:
+        f.write(b"%PDF-1.4 conteudo")
+    _, conteudo = backup_service.gerar()
+
+    def recusa(caminho):
+        raise PermissionError(caminho)
+
+    monkeypatch.setattr(uploads_module.os, "remove", recusa)
+    resumo = backup_service.restaurar(io.BytesIO(conteudo), admin)
+    assert resumo["arquivos_pendentes"] == []
+    assert resumo["arquivos"] == 1
+
+
+def test_eliminacao_raspa_o_registro_diario_de_entregas(app, admin, orientando):
+    """O e-mail do titular sai de ConfiguracaoEmail.avisos_entregues; o de
+    terceiros fica — sem isso, a eliminação certificada deixava dado pessoal
+    num campo que tela nenhuma mostra."""
+    from app.models import ConfiguracaoEmail
+
+    config = ConfiguracaoEmail.vigente()
+    config.avisos_entregues = json.dumps(
+        {"dia": "2026-07-26", "emails": ["orientando@teste.br", "mari@teste.br"]}
+    )
+    db.session.commit()
+
+    eliminacao.eliminar_usuario(orientando, admin)
+    db.session.commit()
+    guardado = json.loads(ConfiguracaoEmail.vigente().avisos_entregues)
+    assert guardado["emails"] == ["mari@teste.br"]
+
+
+def test_expurgo_limpa_o_registro_diario_de_entregas(app, admin, orientacao):
+    """O expurgo preserva a credencial SMTP, mas não os e-mails em claro do
+    registro de entregas — eles são dos usuários que acabaram de ser apagados."""
+    from app.models import ConfiguracaoEmail
+
+    config = ConfiguracaoEmail.vigente()
+    config.usuario = "sistema@x.br"
+    config.avisos_entregues = json.dumps(
+        {"dia": "2026-07-26", "emails": ["orientando@teste.br"]}
+    )
+    db.session.commit()
+
+    backup_service.expurgar(admin)
+    config = ConfiguracaoEmail.vigente()
+    assert config.avisos_entregues is None
+    assert config.usuario == "sistema@x.br"  # a credencial fica, como sempre
+
+
 def test_edicao_com_email_duplicado_nao_estoura(client, admin, orientador, orientando):
     login(client, "admin@teste.br")
     resposta = client.post(
