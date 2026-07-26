@@ -816,14 +816,17 @@ def test_deliberacoes_escritas_nao_somem_ao_salvar_em_branco(
 
 
 def test_reuniao_de_hoje_nao_e_dada_por_realizada(app, orientacao, orientador):
-    """A hora é digitada no fuso do usuário e o servidor roda em UTC. Comparar
-    as duas grandezas dava a reunião de hoje às 16:00 como realizada às 13:00 de
-    Brasília. Só a virada do dia decide."""
+    """A hora é digitada no fuso do usuário. Comparar hora de parede com o
+    relógio dava a reunião de hoje às 16:00 como realizada de manhã. Só a
+    virada do dia (LOCAL — o mesmo relógio que `Ata.realizada` usa; ancorar em
+    date.today() da máquina flakava perto da meia-noite) decide."""
     from datetime import time
+
+    from app.services.tempo import agora_local
 
     ata = Ata(
         orientador_id=orientador.id,
-        data_reuniao=date.today(),
+        data_reuniao=agora_local().date(),
         hora_reuniao=time(0, 1),
         pauta="Pauta",
         deliberacoes="",

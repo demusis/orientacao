@@ -49,9 +49,11 @@ ORDEM_TABELAS = [
 # Tabelas acrescentadas à lista depois que pacotes de backup já circulavam. Um
 # pacote gerado antes não traz o JSON correspondente; recusá-lo por isso seria
 # perder a compatibilidade com backups legítimos já baixados. Na restauração,
-# tabela opcional ausente entra vazia. (ata_marco — os marcos discutidos em cada
-# reunião — passou a ser incluída em 23/07/2026; antes disso, backup e migração
-# a deixavam de fora, perdendo essa ligação em silêncio.)
+# tabela opcional ausente entra vazia — mas SÓ quando o próprio manifesto do
+# pacote não a lista em `contagens`: pacote que a declara e não traz o JSON está
+# truncado, e aceitá-lo apagaria a tabela em silêncio. (ata_marco — os marcos
+# discutidos em cada reunião — passou a ser incluída em 23/07/2026; antes disso,
+# backup e migração a deixavam de fora, perdendo essa ligação em silêncio.)
 TABELAS_OPCIONAIS_NA_RESTAURACAO = {"ata_marco"}
 
 # `configuracao_email` está deliberadamente FORA da lista acima, por dois
@@ -250,7 +252,12 @@ def restaurar(arquivo, executor: Usuario) -> dict:
             nome
             for nome in ORDEM_TABELAS
             if f"dados/{nome}.json" not in pacote.namelist()
-            and nome not in TABELAS_OPCIONAIS_NA_RESTAURACAO
+            and not (
+                nome in TABELAS_OPCIONAIS_NA_RESTAURACAO
+                # opcional só para pacote anterior à adoção da tabela: o gerado
+                # depois a declara no manifesto, e a ausência do JSON é truncamento
+                and nome not in manifesto.get("contagens", {})
+            )
         ]
         if faltando:
             raise BackupInvalido(
@@ -350,7 +357,14 @@ def expurgar(executor: Usuario) -> dict:
     """Apaga todo o conteúdo, preservando apenas a conta de quem executa.
 
     A trilha de auditoria é apagada junto — é parte da base — e um único
-    registro novo documenta o ato, para que o expurgo não seja invisível."""
+    registro novo documenta o ato, para que o expurgo não seja invisível.
+
+    **Confirma o banco antes de tocar nos arquivos**, pela mesma fronteira de
+    `restaurar()`: a remoção dos uploads é irreversível e não participa da
+    transação. Apagando-os antes, uma falha do commit (`database is locked`)
+    reverteria as linhas — inclusive `versao_documento` — mas os arquivos já
+    teriam sumido, e todo download voltaria quebrado num sistema aparentemente
+    intacto. Por isso esta função confirma a própria transação."""
     contagens = _contagens()
 
     for nome in reversed(ORDEM_TABELAS):
@@ -365,7 +379,6 @@ def expurgar(executor: Usuario) -> dict:
         update(usuario).where(usuario.c.id == executor.id).values(criado_por=None)
     )
 
-    _limpar_uploads()
     _ajustar_sequencias()
 
     auditoria.registrar(
@@ -374,4 +387,7 @@ def expurgar(executor: Usuario) -> dict:
         None,
         {"removidos": contagens, "conta_preservada": executor.email},
     )
+    # fronteira deliberada: banco confirmado antes do disco (ver docstring)
+    db.session.commit()
+    _limpar_uploads()
     return contagens

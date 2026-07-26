@@ -267,8 +267,43 @@ def editar_usuario(usuario_id: int):
                 "danger",
             )
             return redirect(url_for("admin.editar_usuario", usuario_id=usuario.id))
+        # Papel não muda com vínculo ativo pendurado no papel atual: orientador
+        # rebaixado perderia acesso às próprias orientações (403 em /reunioes,
+        # painel vazio) enquanto os orientandos seguem apontando para ele — o
+        # vínculo ficaria ingerível. Encerrar/reatribuir vem antes.
+        if form.papel.data != usuario.papel:
+            motivo = None
+            if usuario.papel == "orientador" and eliminacao_service._orienta_vinculo_ativo(
+                usuario
+            ):
+                motivo = "orienta vínculo(s) ativo(s)"
+            elif usuario.papel == "orientando" and db.session.query(
+                Orientacao.query.filter_by(
+                    orientando_id=usuario.id, status="ativa"
+                ).exists()
+            ).scalar():
+                motivo = "é orientando de vínculo ativo"
+            if motivo:
+                auditoria.registrar(
+                    "edicao_papel_recusada", "usuario", usuario.id, {"motivo": motivo}
+                )
+                db.session.commit()
+                flash(
+                    f"Alteração de papel recusada: a conta {motivo}. Encerre ou "
+                    "reatribua os vínculos antes de mudar o papel.",
+                    "danger",
+                )
+                return redirect(url_for("admin.editar_usuario", usuario_id=usuario.id))
+        email_novo = form.email.data.lower().strip()
+        # e-mail é único; sem esta checagem a colisão estourava IntegrityError
+        # (erro 500) em vez de mensagem
+        if Usuario.query.filter(
+            Usuario.email == email_novo, Usuario.id != usuario.id
+        ).first():
+            flash("E-mail já cadastrado em outra conta.", "danger")
+            return redirect(url_for("admin.editar_usuario", usuario_id=usuario.id))
         usuario.nome = form.nome.data
-        usuario.email = form.email.data.lower().strip()
+        usuario.email = email_novo
         usuario.telefone = form.telefone.data or None
         usuario.papel = form.papel.data
         usuario.ativo = form.ativo.data
@@ -782,10 +817,17 @@ def gerir_modelos():
 def excluir_modelo(modelo_id: int):
     modelo = db.session.get(ModeloDocumento, modelo_id) or abort(404)
     titulo = modelo.titulo
-    modelos_service.excluir_modelo(modelo)
+    caminho = modelos_service.excluir_modelo(modelo)
     auditoria.registrar(
         "exclusao_modelo", "modelo_documento", modelo_id, {"titulo": titulo}
     )
     db.session.commit()
+    # arquivo só depois do banco confirmado (ver docstring de excluir_modelo)
+    try:
+        os.remove(caminho)
+    except FileNotFoundError:
+        pass
+    except OSError:
+        current_app.logger.warning("arquivo de modelo não removido: %s", caminho)
     flash("Modelo excluído.", "success")
     return redirect(url_for("admin.gerir_modelos"))

@@ -44,6 +44,7 @@ from app.models import (
 )
 from app.services import email as email_service
 from app.services.tempo import agora as tempo_agora
+from app.services.tempo import agora_local
 
 # uma reunião registrada e não formalizada por mais de duas semanas
 DIAS_RASCUNHO_VELHO = 15
@@ -306,9 +307,14 @@ def reunioes_proximas(destino: dict) -> None:
 
     Reunião **com hora** é comparada por data e hora, para não lembrar de uma
     cuja hora já passou hoje. **Sem hora**, vale pela data: tratá-la como 00:00
-    faria toda reunião de hoje (e, na virada da meia-noite UTC, a de amanhã)
-    cair no passado e desaparecer — a hora é desconhecida, não zero."""
-    agora = tempo_agora()
+    faria toda reunião de hoje cair no passado e desaparecer — a hora é
+    desconhecida, não zero.
+
+    O relógio é o **local** (`agora_local`, fuso de `FUSO_LOCAL`): data e hora
+    da reunião são hora de parede digitada pelo usuário, e compará-las com UTC
+    dava a reunião de hoje às 08:00 como passada às 04:00 locais, suprimindo o
+    lembrete de um encontro ainda por vir."""
+    agora = agora_local()
     limite = agora + timedelta(hours=HORAS_ANTECEDENCIA_REUNIAO)
     atas = (
         Ata.query.options(

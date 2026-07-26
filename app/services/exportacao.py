@@ -29,9 +29,9 @@ from app.models import Ata, Parecer
 from app.models.ata import RESULTADO_LABEL
 from app.services import marcacao
 
-# Formato dos campos longos gravado no snapshot dos documentos novos. Registro
-# anterior à adoção do markdown não traz a chave e é lido como "texto".
-FORMATO_CORRENTE = "markdown"
+# O formato gravado no snapshot vem da coluna `formato` do próprio registro
+# (backfill fixou "texto" nos anteriores à adoção do markdown). Snapshot antigo
+# sem a chave é lido como "texto".
 
 
 def _texto(valor: str) -> str:
@@ -65,7 +65,9 @@ def dados_ata(ata: Ata) -> dict:
         # Formato dos campos longos, congelado junto do conteúdo: um documento
         # assinado declara como deve ser lido, de modo que mudança futura no
         # repertório de marcação não altere a aparência do que já foi assinado.
-        "formato": FORMATO_CORRENTE,
+        # Vem da coluna do registro — rascunho anterior ao markdown congela
+        # "texto", não o formato corrente do sistema.
+        "formato": ata.formato,
         "tipo": ata.tipo,
         "data_reuniao": str(ata.data_reuniao),
         "hora_reuniao": ata.hora_reuniao.strftime("%H:%M") if ata.hora_reuniao else "",
@@ -102,7 +104,7 @@ def dados_parecer(parecer: Parecer) -> dict:
     return {
         "registro": "parecer",
         "id": parecer.id,
-        "formato": FORMATO_CORRENTE,
+        "formato": parecer.formato,
         "tipo": parecer.tipo,
         "resultado": parecer.resultado,
         "orientacao_id": parecer.orientacao_id,
