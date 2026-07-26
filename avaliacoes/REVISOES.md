@@ -68,6 +68,31 @@ hipóteses, sem correção.
 
 ### Volta 3
 
-Pendente: nova varredura integral (escopo decidido: aplicativo inteiro a cada
-volta), com atenção especial aos patches da volta 2, a caminho do critério de
-parada (volta sem achado confirmado).
+Varredura integral com atenção aos patches da volta 2. A primeira execução
+também caiu no limite de sessão (21 verificadores pendentes); os **9 achados
+já confirmados** (6 distintos após fusão de duplicatas) foram corrigidos
+enquanto a retomada completa as verificações restantes — se elas confirmarem
+algo novo, entra em volta complementar.
+
+| # | Achado (arquivo:linha) | Correção |
+|---|---|---|
+| 1 | `indicadores.py:118` — `fluxo_de_marcos` contava atraso pelo dia UTC: o relatório de avaliação divergia de todas as telas entre 20h e 24h locais | `hoje_local()` também no indicador (único ponto do módulo que compara data digitada) |
+| 2 | `admin/routes.py:664` — restaurar backup em que a conta do executor vem desativada/sem papel de admin trancava o operador para fora (login_user silenciosamente falha em conta inativa) | `restaurar()` garante a linha do executor ativa, admin e com a senha da sessão corrente — mesmo espírito da inserção quando ela nem consta do pacote |
+| 3 | `admin/forms.py:82` — criação de vínculo aceitava fim previsto anterior ao início; o relógio de risco ficava mudo exatamente para o vínculo com data errada | mesmo validador do `AjusteDatasForm` no `OrientacaoForm` |
+| 4 | `tempo.py:31` — `ZoneInfo("")` levanta `ValueError`, não `ZoneInfoNotFoundError`: `FUSO_LOCAL=` em branco ainda derrubava tudo | `_fuso` captura também `ValueError` |
+| 5 | `backup.py:206/340` — arquivo preso engolido só no log: expurgo anunciado como completo com dado pessoal remanescente; e na restauração o mesmo arquivo estourava 500 na regravação, pós-commit | `_limpar_uploads` devolve os presos; expurgo e restauração os REPORTAM na tela (`arquivos_presos`/`arquivos_pendentes`); a regravação é guardada por arquivo |
+| 6 | `avisos.py:637` — trocar o portão diário para `hoje_local` sem migração: marcador gravado na janela 20h–24h (dia UTC seguinte) calaria os avisos de um dia local inteiro | migração `e7a1c94d20b8` anula o marcador apenas quando está no futuro do dia local (`avisos_entregues` fica, evitando duplicatas) |
+
+**Complemento (retomada das 21 verificações pendentes):** os 5 achados graves
+coincidiram com os já corrigidos acima; 3 refutados; sobraram e foram
+corrigidos:
+
+| # | Achado | Correção |
+|---|---|---|
+| 7 | `tempo.py:54` — aviso de fuso inválido a cada chamada (50 marcos = 50 linhas por requisição) | aviso movido para dentro do `_fuso` cacheado: uma linha por nome inválido |
+| 8 | quatro cópias divergentes do os.remove tolerante pós-commit (modelo, eliminação LGPD, backup, rollback de upload) | `uploads.remover_do_disco` único, devolvendo os presos; TODAS as telas passam a exibi-los (eliminação LGPD e modelo inclusive — antes só o log sabia) |
+| 9 | (plausível) normalização de e-mail exigida de cada chamador de `criar_usuario`/`validar_edicao` | normalização dentro dos dois serviços (idempotente) |
+| 10 | `validar_edicao` consultava `orienta_vinculo_ativo` duas vezes no mesmo submit | fato calculado uma vez |
+
+Verificação: `ruff check .` limpo; testes da corrida + backup verdes; suíte
+completa verde (ver commit).

@@ -24,6 +24,7 @@ from app.models import (
     Usuario,
     VersaoDocumento,
 )
+from app.services.tempo import hoje_local
 
 # Limiares em dias. Reunidos aqui para que o relatório possa citá-los.
 OCIOSO_CURTO = 30
@@ -115,7 +116,9 @@ def vinculos() -> dict:
 def fluxo_de_marcos() -> dict:
     """Onde os marcos emperram. O intervalo entre sinalizar e confirmar revela
     orientador que não fecha o ciclo."""
-    hoje = _naive(_agora()).date()
+    # dia LOCAL, o mesmo relógio de Marco.atrasado: com o dia UTC o indicador
+    # contava "atrasado" às 20h locais um marco que toda tela dava como em dia
+    hoje = hoje_local()
     por_status = {
         status: total
         for status, total in db.session.execute(
