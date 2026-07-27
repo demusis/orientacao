@@ -195,9 +195,9 @@ def _acumular(destino: dict, pessoa, secao: str, titulo: str, detalhe: str) -> N
     )
 
 
-def marcos_atrasados(destino: dict) -> None:
+def marcos_atrasados(destino: dict, hoje=None) -> None:
     """Ao orientando: prazo vencido sem conclusão."""
-    hoje = hoje_local()
+    hoje = hoje or hoje_local()
     itens = (
         Marco.query.join(Orientacao, Orientacao.id == Marco.orientacao_id)
         .options(joinedload(Marco.orientacao).joinedload(Orientacao.orientando))
@@ -222,13 +222,14 @@ def marcos_atrasados(destino: dict) -> None:
         )
 
 
-def marcos_a_vencer(destino: dict) -> None:
+def marcos_a_vencer(destino: dict, hoje=None) -> None:
     """Ao orientando: prazo nos próximos DIAS_ANTECEDENCIA dias, sem conclusão.
 
     Janela `[hoje, hoje + antecedência]`, aberta no passado: o `>= hoje` não se
-    sobrepõe a `marcos_atrasados`, que cobre `< hoje`. Um marco de hoje entra
-    aqui, não lá."""
-    hoje = hoje_local()
+    sobrepõe a `marcos_atrasados`, que cobre `< hoje` — desde que ambos vejam o
+    MESMO `hoje`, por isso `coletar` o calcula uma vez e o passa. Um marco de
+    hoje entra aqui, não lá."""
+    hoje = hoje or hoje_local()
     limite = hoje + timedelta(days=DIAS_ANTECEDENCIA)
     itens = (
         Marco.query.join(Orientacao, Orientacao.id == Marco.orientacao_id)
@@ -257,7 +258,7 @@ def marcos_a_vencer(destino: dict) -> None:
         )
 
 
-def marcos_atrasados_dos_orientandos(destino: dict) -> None:
+def marcos_atrasados_dos_orientandos(destino: dict, hoje=None) -> None:
     """Ao orientador principal: marcos vencidos dos seus orientandos.
 
     Espelha `marcos_atrasados`, que avisa o orientando; aqui o destinatário é o
@@ -265,7 +266,7 @@ def marcos_atrasados_dos_orientandos(destino: dict) -> None:
     `versoes_sem_parecer`. Coorientadores não recebem — mesma convenção das
     demais categorias do orientador. O detalhe é liderado pelo nome do
     orientando, para o orientador escanear por aluno."""
-    hoje = hoje_local()
+    hoje = hoje or hoje_local()
     itens = (
         Marco.query.join(Orientacao, Orientacao.id == Marco.orientacao_id)
         .options(
@@ -297,7 +298,7 @@ def marcos_atrasados_dos_orientandos(destino: dict) -> None:
         )
 
 
-def reunioes_proximas(destino: dict) -> None:
+def reunioes_proximas(destino: dict, hoje=None) -> None:
     """Ao orientador e a cada orientando participante: reunião nas próximas 48 h.
     A reunião agendada **para hoje** vai à seção própria `reunioes_hoje` — é o
     lembrete do dia, destacado das que apenas se aproximam.
@@ -364,7 +365,7 @@ def reunioes_proximas(destino: dict) -> None:
             _acumular(destino, pessoa, secao, "Reunião de orientação", detalhe)
 
 
-def marcos_a_confirmar(destino: dict) -> None:
+def marcos_a_confirmar(destino: dict, hoje=None) -> None:
     """Ao orientador: o orientando sinalizou conclusão e ninguém confirmou."""
     itens = (
         Marco.query.join(Orientacao, Orientacao.id == Marco.orientacao_id)
@@ -391,7 +392,7 @@ def marcos_a_confirmar(destino: dict) -> None:
         )
 
 
-def versoes_sem_parecer(destino: dict) -> None:
+def versoes_sem_parecer(destino: dict, hoje=None) -> None:
     """Ao orientador: versão corrente entregue e ainda sem parecer.
 
     Só a versão corrente conta — versão superada por outra deixou de ser
@@ -438,9 +439,10 @@ def versoes_sem_parecer(destino: dict) -> None:
         )
 
 
-def atas_em_rascunho(destino: dict) -> None:
+def atas_em_rascunho(destino: dict, hoje=None) -> None:
     """Ao orientador: reunião registrada e nunca formalizada."""
-    limite = hoje_local() - timedelta(days=DIAS_RASCUNHO_VELHO)
+    hoje = hoje or hoje_local()
+    limite = hoje - timedelta(days=DIAS_RASCUNHO_VELHO)
     # O filtro de vínculo ativo, presente nas outras três categorias, faltava
     # aqui: ata em rascunho de vínculo encerrado gerava aviso diário perpétuo,
     # mandando finalizar algo cuja tela já não oferece caminho.
@@ -465,7 +467,7 @@ def atas_em_rascunho(destino: dict) -> None:
         .all()
     )
     for a in itens:
-        dias = (hoje_local() - a.data_reuniao).days
+        dias = (hoje - a.data_reuniao).days
         participantes = ", ".join(
             sorted(p.orientacao.orientando.nome for p in a.participacoes)
         )
@@ -501,8 +503,13 @@ def coletar() -> dict:
     orientandos, títulos de projeto e datas de reunião — é dado pessoal
     trafegando para fora, e sem meio de o titular fazer parar."""
     destino: dict = {}
+    # 'hoje' calculado UMA vez e passado a todas as categorias: se a coleta
+    # cruzasse a meia-noite local entre duas consultas, um marco do dia que
+    # virou não cairia nem em 'vencidos' (< hoje) nem 'a vencer' (>= hoje) e o
+    # aviso daquele dia sumiria — a virada de dia que este módulo evita.
+    hoje = hoje_local()
     for categoria in CATEGORIAS:
-        categoria(destino)
+        categoria(destino, hoje)
     return {
         pessoa: secoes for pessoa, secoes in destino.items() if pessoa.ativo
     }

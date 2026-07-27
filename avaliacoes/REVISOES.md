@@ -116,3 +116,54 @@ distintos**.
 
 Verificação: `ruff check .` limpo; testes da corrida + backup + eliminação
 verdes; suíte completa verde (ver commit).
+
+### Volta 5
+
+Retomada das 10 verificações pendentes da volta 4 (o restante caiu no limite
+de sessão e o modelo passou a Opus 4.8). **7 confirmados, 2 refutados** (a
+migração `>=` que a própria volta 4 já corrigira); os confirmados eram 2
+defeitos substantivos + cleanups sobre os patches recentes.
+
+| # | Achado (arquivo:linha) | Correção |
+|---|---|---|
+| 1 | `backup.py` (restaurar) — a restauração troca toda a base mas deixa `ConfiguracaoEmail.avisos_entregues` (fora do pacote) com e-mails em claro de contas que deixaram de existir: mesma retenção silenciosa que expurgo/eliminação já tratam | `restaurar()` anula `avisos_entregues` antes do commit |
+| 2 | `auth/routes.py:86` — login em conta desativada com a senha CERTA confirmava um par de credenciais válido sem deixar trilha nem contar para o limite por origem | registra `login_falho` (motivo `conta_desativada`) e passa a ser limitado |
+| 3 | `avisos.py` — cada categoria recalculava `hoje_local()`; se a coleta cruzasse a meia-noite local, um marco do dia que virou não caía nem em "vencidos" (`< hoje`) nem "a vencer" (`>= hoje`) — a virada de dia que o módulo evita | `coletar()` calcula `hoje` uma vez e o passa a todas as categorias (fecha o buraco e o recálculo por iteração em `atas_em_rascunho`) |
+| 4 | `admin/routes.py` — quatro blocos de flash divergentes para arquivo preso pós-commit | helper único `_avisar_arquivos_presos(nomes, acao)`; o caso da restauração (semântica de "regravado", não "removido") fica à parte |
+| 5 | `admin/routes.py:86`, `orientandos/routes.py:49` — `normalizar_email` repetido na rota, já que `criar_usuario` normaliza no ponto único | chamadas redundantes removidas (a de `editar` fica: o valor também alimenta a gravação) |
+
+**Refutados:** os dois achados sobre o `>` da migração — a volta 4 já a mudara
+para `>=` e realinhara `avisos_entregues`; a revisão leu o diff antes desse
+commit.
+
+**Hipóteses (PLAUSIBLE, sem correção):**
+
+- Migração `e7a1c94d20b8` para fuso **a leste de UTC**: o realinhamento de
+  `avisos_entregues` só dispara para dia futuro; num fuso onde o dia UTC antigo
+  cai no passado local, poderia reenviar o lote no dia do deploy. ARIADNE roda
+  em Cuiabá (UTC−4, a oeste), onde o caso não ocorre; anotado para quem mudar
+  `FUSO_LOCAL` para leste.
+- Regra "não finalizar reunião futura" existe no validador do formulário de ata
+  rápida (UX, momento da criação) e em `finalizar_ata` (momento da
+  finalização): pontos de ciclo de vida distintos, mensagens contextuais. Sem
+  ponto único comum aos dois; mantida a duplicação deliberada.
+
+Verificação: `ruff check .` limpo; testes das áreas tocadas verdes; suíte
+completa verde (ver commit).
+
+**Correção de processo (descoberta na volta 5).** Ao rodar a suíte completa
+capturando o código de saída real, veio à luz que
+`tests/test_backup_ata_marco.py::test_restauracao_tolera_pacote_sem_ata_marco`
+estava **vermelho desde a volta 1** e passou despercebido: os comandos
+`pytest ... | tail` faziam o código de saída ser o do `tail` (sempre 0), e as
+notificações de tarefa reportavam "exit code 0" enganosamente. O teste é
+pré-existente e sua premissa foi (corretamente) invalidada pela volta 1: ele
+simulava um "pacote antigo" tirando só o `ata_marco.json` mas deixando a tabela
+no manifesto — que é justamente o **pacote moderno truncado** que a volta 1
+passou a recusar para não apagar em silêncio as ligações reunião↔marco. Um
+pacote antigo de verdade também não traz a tabela no manifesto. O teste foi
+corrigido para simular o pacote antigo fielmente (as duas facetas — aceitar
+antigo, recusar truncado — já estão cobertas em `test_revisao_26_07.py`).
+Daqui em diante a suíte é executada sem `| tail`, para o código de saída do
+`pytest` não ser mascarado. As afirmações "suíte completa verde" das voltas 1
+a 4 valem para todo o resto da suíte, exceto este único teste.

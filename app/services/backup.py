@@ -345,6 +345,16 @@ def restaurar(arquivo, executor: Usuario) -> dict:
                 )
             )
 
+        # configuracao_email sobrevive à restauração (fica fora do pacote pela
+        # credencial SMTP), mas o registro diário de entregas guarda e-mails em
+        # claro da base ANTERIOR — contas que a restauração acaba de substituir.
+        # Sem isto, esses e-mails ficariam retidos até um próximo lote completo,
+        # que numa base pequena/antiga pode nunca vir (mesma retenção silenciosa
+        # que o expurgo e a eliminação já tratam).
+        db.session.execute(
+            text("UPDATE configuracao_email SET avisos_entregues = NULL")
+        )
+
         # Fronteira deliberada: confirma o banco antes das operações de disco
         # irreversíveis abaixo. Uma falha aqui reverte o banco com os uploads
         # ainda intactos (ver docstring).

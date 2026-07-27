@@ -63,15 +63,23 @@ def test_backup_inclui_e_restaura_ata_marco(app, orientacao):
 
 
 def test_restauracao_tolera_pacote_sem_ata_marco(app, orientacao):
-    """Pacote gerado antes da adoção da tabela não traz dados/ata_marco.json;
-    restaurar não deve recusá-lo, apenas tratar a tabela como vazia."""
+    """Pacote gerado antes da adoção da tabela não traz dados/ata_marco.json
+    NEM a declara no manifesto; restaurar não deve recusá-lo, apenas tratar a
+    tabela como vazia.
+
+    Um pacote MODERNO sem o JSON mas com a tabela ainda no manifesto está
+    truncado e É recusado — ver test_restauracao_recusa_pacote_atual_sem_ata_marco
+    em test_revisao_26_07.py. A distinção (revisão de 26/07) evita apagar em
+    silêncio as ligações reunião↔marco de um download corrompido."""
     from app.services import backup
 
     admin = _admin_executor()
     _montar_reuniao_com_marco(orientacao)
     _, conteudo = backup.gerar()
 
-    # reescreve o pacote sem o JSON da tabela nova, simulando um backup antigo
+    # reescreve o pacote como um backup antigo de verdade: sem o JSON da tabela
+    # nova E sem ela nas contagens do manifesto (que é como o gerar() de então
+    # o produzia, com a tabela fora de ORDEM_TABELAS)
     antigo = io.BytesIO()
     with zipfile.ZipFile(io.BytesIO(conteudo)) as origem, zipfile.ZipFile(
         antigo, "w", zipfile.ZIP_DEFLATED
@@ -79,7 +87,12 @@ def test_restauracao_tolera_pacote_sem_ata_marco(app, orientacao):
         for item in origem.namelist():
             if item == "dados/ata_marco.json":
                 continue
-            destino.writestr(item, origem.read(item))
+            dado = origem.read(item)
+            if item == "manifesto.json":
+                manifesto = json.loads(dado)
+                manifesto["contagens"].pop("ata_marco", None)
+                dado = json.dumps(manifesto).encode()
+            destino.writestr(item, dado)
     antigo.seek(0)
 
     resumo = backup.restaurar(antigo, admin)  # não deve levantar BackupInvalido
