@@ -698,3 +698,66 @@ def test_edicao_com_email_duplicado_nao_estoura(client, admin, orientador, orien
     assert "já cadastrado" in resposta.data.decode()
     db.session.expire(orientando)
     assert orientando.email == "orientando@teste.br"
+
+
+# ============================== VOLTA 6 ====================================
+
+
+def test_restauracao_tolera_membro_truncado(app, admin, orientacao, monkeypatch):
+    """Membro de uploads truncado (payload menor que o declarado) levanta
+    EOFError no read() — não é OSError nem BadZipFile: precisa virar pendência,
+    nunca 500 depois de o banco já ter sido trocado."""
+    pasta = app.config["UPLOAD_FOLDER"]
+    nome = "9" * 32 + ".pdf"  # hex válido: NOME_FISICO não o descarta na restauração
+    with open(os.path.join(pasta, nome), "wb") as f:
+        f.write(b"%PDF-1.4 conteudo")
+    _, conteudo = backup_service.gerar()
+
+    real_read = zipfile.ZipExtFile.read
+
+    def read_trunca(self, *a, **k):
+        # só os membros de uploads estouram; os JSON (dados/...) leem normal,
+        # senão a restauração falharia antes do commit
+        if self.name.startswith("uploads/"):
+            raise EOFError("truncated")
+        return real_read(self, *a, **k)
+
+    monkeypatch.setattr(zipfile.ZipExtFile, "read", read_trunca)
+    resumo = backup_service.restaurar(io.BytesIO(conteudo), admin)  # sem 500
+    assert nome in resumo["arquivos_pendentes"]
+
+
+def test_restauracao_reabre_o_portao_diario_de_avisos(app, admin, orientacao):
+    """A base restaurada é outra: os marcadores do disparo diário da base
+    anterior (enviados/tentados hoje) não podem calar os avisos dos usuários
+    recém-restaurados."""
+    from datetime import UTC, date, datetime
+
+    from app.models import ConfiguracaoEmail
+
+    config = ConfiguracaoEmail.vigente()
+    config.avisos_enviados_em = date.today()
+    config.avisos_tentados_em = datetime.now(UTC)
+    config.avisos_entregues = json.dumps({"dia": "2026-07-26", "emails": ["x@y.br"]})
+    db.session.commit()
+    _, conteudo = backup_service.gerar()
+
+    backup_service.restaurar(io.BytesIO(conteudo), admin)
+    config = ConfiguracaoEmail.vigente()
+    assert config.avisos_enviados_em is None
+    assert config.avisos_tentados_em is None
+    assert config.avisos_entregues is None
+
+
+def test_eliminacao_tolera_avisos_entregues_nao_objeto(app, admin, orientando):
+    """avisos_entregues com JSON válido mas não-objeto ('null', '[]') não pode
+    derrubar a eliminação LGPD com AttributeError."""
+    from app.models import ConfiguracaoEmail
+
+    config = ConfiguracaoEmail.vigente()
+    config.avisos_entregues = "null"
+    db.session.commit()
+
+    eliminacao.eliminar_usuario(orientando, admin)  # antes: AttributeError
+    db.session.commit()
+    assert db.session.get(Usuario, orientando.id) is None

@@ -280,6 +280,11 @@ def _raspar_registro_de_avisos(usuario: Usuario) -> None:
         guardado = json.loads(config.avisos_entregues)
     except ValueError:
         return
+    # JSON válido mas não-objeto ('null', '[]') faria o .get() abaixo levantar
+    # AttributeError — um 500 no meio de uma eliminação LGPD. A migração guarda
+    # o mesmo campo com isinstance; aqui igual.
+    if not isinstance(guardado, dict):
+        return
     alvo = (usuario.email or "").lower()
     emails = [e for e in guardado.get("emails", []) if e.lower() != alvo]
     if len(emails) != len(guardado.get("emails", [])):

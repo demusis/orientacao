@@ -167,3 +167,29 @@ antigo, recusar truncado — já estão cobertas em `test_revisao_26_07.py`).
 Daqui em diante a suíte é executada sem `| tail`, para o código de saída do
 `pytest` não ser mascarado. As afirmações "suíte completa verde" das voltas 1
 a 4 valem para todo o resto da suíte, exceto este único teste.
+
+### Volta 6
+
+Primeira volta a rodar **sem cair no limite de sessão**, e a mais enxuta: 6
+candidatos, **4 achados (2 confirmados, 2 plausíveis)**, 2 refutados. Os dois
+confirmados são, de novo, extensões triviais dos patches de `backup.py`
+(restaurar) — o poço fundo desta corrida —, agora mecânicas:
+
+| # | Achado (arquivo:linha) | Correção |
+|---|---|---|
+| 1 | `backup.py:383` — a guarda da regravação cobria `OSError/BadZipFile/zlib.error`, mas não `EOFError`, que o `zipfile` levanta para membro com payload truncado — 500 pós-commit outra vez, uma exceção ao lado | `EOFError` somado à tupla do `except` |
+| 2 | `backup.py:348` — a restauração anulava `avisos_entregues` (volta 5), mas não `avisos_enviados_em`/`avisos_tentados_em`: marcador de "hoje" da base anterior calaria os avisos do dia para os usuários recém-restaurados | os três marcadores do disparo diário zerados na restauração |
+| 3 (PLAUSIBLE) | `eliminacao.py:281` — `_raspar_registro_de_avisos` tratava `ValueError` do `json.loads` mas chamaria `.get()` sobre JSON válido não-objeto (`null`, `[]`) → `AttributeError` num caminho LGPD | guarda `isinstance(guardado, dict)`, como a migração já fazia |
+
+**Refutados (bom sinal de convergência):** o `hoje=` uniforme nas três
+categorias que o ignoram (uniformidade intencional, não código morto) e a
+suposta duplicação do validador de datas entre formulários (é a mesma regra
+simples, não defeito).
+
+**Hipótese (PLAUSIBLE, sem correção):** a regra "fim posterior ao início" vive
+só na camada de formulário; um chamador futuro não-formulário poderia gravar
+intervalo invertido. Todos os pontos de entrada atuais (formulários de admin e
+de orientandos) validam; sem chamador não-formulário, não há falha
+reproduzível. Anotada para quando surgir uma via programática (import, API).
+
+Verificação: `ruff check .` limpo; `pytest` sem `| tail`, exit 0 (ver commit).
