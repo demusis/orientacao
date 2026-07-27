@@ -346,13 +346,19 @@ def restaurar(arquivo, executor: Usuario) -> dict:
             )
 
         # configuracao_email sobrevive à restauração (fica fora do pacote pela
-        # credencial SMTP), mas o registro diário de entregas guarda e-mails em
-        # claro da base ANTERIOR — contas que a restauração acaba de substituir.
-        # Sem isto, esses e-mails ficariam retidos até um próximo lote completo,
-        # que numa base pequena/antiga pode nunca vir (mesma retenção silenciosa
-        # que o expurgo e a eliminação já tratam).
+        # credencial SMTP), mas o estado do disparo diário é da base ANTERIOR e
+        # precisa zerar por inteiro:
+        # - `avisos_entregues` guarda e-mails em claro de contas que a
+        #   restauração acaba de substituir (retenção silenciosa, como no
+        #   expurgo e na eliminação);
+        # - `avisos_enviados_em`/`avisos_tentados_em` marcados como "hoje"
+        #   fechariam o portão do dia, e os usuários recém-restaurados não
+        #   receberiam os avisos de pendência daquele dia.
         db.session.execute(
-            text("UPDATE configuracao_email SET avisos_entregues = NULL")
+            text(
+                "UPDATE configuracao_email SET avisos_entregues = NULL, "
+                "avisos_enviados_em = NULL, avisos_tentados_em = NULL"
+            )
         )
 
         # Fronteira deliberada: confirma o banco antes das operações de disco
@@ -371,16 +377,18 @@ def restaurar(arquivo, executor: Usuario) -> dict:
             nome_arquivo = os.path.basename(item)
             if not NOME_FISICO.match(nome_arquivo):
                 continue  # nome fora do padrão: descartado por segurança
-            # O mesmo arquivo que resistiu à limpeza resistiria à regravação —
-            # e um membro corrompido do ZIP (CRC podre) estoura BadZipFile no
-            # read(), que NÃO é OSError: qualquer falha aqui é pós-commit e
-            # vira item do relatório, nunca erro 500 de um banco já trocado.
+            # O mesmo arquivo que resistiu à limpeza resistiria à regravação, e
+            # um membro corrompido do ZIP estoura no read() sem ser OSError:
+            # BadZipFile/zlib.error (CRC podre) ou EOFError (payload truncado,
+            # menor que o declarado no diretório central). Qualquer falha aqui é
+            # pós-commit e vira item do relatório, nunca erro 500 de um banco já
+            # trocado.
             try:
                 with pacote.open(item) as origem, open(
                     os.path.join(pasta, nome_arquivo), "wb"
                 ) as destino:
                     destino.write(origem.read())
-            except (OSError, zipfile.BadZipFile, zlib.error):
+            except (OSError, zipfile.BadZipFile, zlib.error, EOFError):
                 current_app.logger.warning("upload não gravado: %s", nome_arquivo)
                 nao_gravados.append(nome_arquivo)
                 continue
