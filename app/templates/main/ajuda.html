@@ -87,18 +87,29 @@
   <p>O <strong>Painel</strong> é a primeira tela e a central de comando do sistema. No
   topo, um bloco de <strong>acesso rápido</strong> reúne, conforme o seu papel, as áreas
   de uso mais frequente: o administrador vê atalhos para Usuários, Orientações, Modelos,
-  E-mail, Backup e Auditoria; o orientador vê Reuniões, Orientandos e os atalhos de criar
-  (<em>+ Agendar reunião</em>, <em>+ Nova tarefa</em>).</p>
+  E-mail, Prazo e risco, Backup e Auditoria; o orientador vê Reuniões, Orientandos e os
+  atalhos de criar (<em>+ Agendar reunião</em>, <em>+ Nova tarefa</em>).</p>
   <p>Em seguida, o Painel mostra a agenda de <strong>próximas reuniões</strong> e o que
   está pendente nos seus vínculos ativos, e por fim lista os vínculos visíveis ao seu papel (o administrador vê todos;
   orientador e orientando veem apenas os próprios). O botão <em>Abrir</em> conduz à
   página do vínculo, que reúne os quatro módulos: Cronograma, Documentos, Atas e
   Pareceres.</p>
+  <p>Na lista de vínculos, a coluna <strong>Prazo</strong> traz um selo colorido que
+  situa cada orientação no tempo do programa (<em>mês X de Y</em>, ou "prazo não
+  definido" quando não há fim previsto) e sinaliza o <strong>risco</strong> de relance:
+  <span class="badge badge-risco-baixo">verde</span> no prazo,
+  <span class="badge badge-risco-medio">amarelo</span> quando o prazo aperta e
+  <span class="badge badge-risco-alto">vermelho</span> em risco. Fica vermelho quando um
+  <strong>marco crítico</strong> (por padrão, de tipo Qualificação ou Defesa) está
+  vencido e não concluído, ou quando já decorreu a maior parte do prazo do vínculo; e
+  amarelo a partir de um percentual menor. Os dois percentuais e quais tipos de marco
+  contam como críticos são ajustáveis pelo administrador (ver
+  <em>Prazo e risco</em>, na seção 4).</p>
   <p>No <strong>menu superior</strong>, o Painel fica em destaque à esquerda. Para o
   administrador, as funções são agrupadas em dois menus que abrem ao clique:
   <strong>Gestão</strong> (Usuários, Orientações) e <strong>Sistema</strong> (Modelos,
-  E-mail, Backup, Auditoria). À direita, o menu com o seu nome reúne <em>Senha</em> e
-  <em>Sair</em>.</p>
+  E-mail, Prazo e risco, Backup, Auditoria). À direita, o menu com o seu nome reúne
+  <em>Senha</em> e <em>Sair</em>.</p>
   <p>Dentro de um vínculo, uma <strong>barra de abas</strong> (Vínculo · Cronograma ·
   Documentos · Atas · Pareceres) acompanha todas as telas, destacando a atual e
   permitindo saltar de um módulo a outro sem voltar. O orientando, cujo acesso rápido
@@ -179,7 +190,32 @@
   histórico devem ser <em>desativadas</em>, o que preserva a integridade dos registros.</p>
   <p>Salvaguardas: um administrador <strong>não pode</strong> alterar o próprio papel,
   desativar ou excluir a própria conta, e o sistema recusa a despromoção ou exclusão do
-  último administrador ativo; todas as tentativas ficam registradas em auditoria.</p>
+  último administrador ativo; todas as tentativas ficam registradas em auditoria. Também
+  não é possível <strong>mudar o papel nem desativar</strong> um orientador que ainda
+  orienta vínculo ativo, para não deixar orientandos sem gestor: encerre ou reatribua os
+  vínculos antes.</p>
+  <h3>4.9 Eliminação de dados de um usuário (LGPD)</h3>
+  <p>Para atender ao direito à eliminação (LGPD, art. 18), a tela <em>Editar</em> de cada
+  usuário traz, em bloco separado, o botão <strong>Eliminar dados do usuário (LGPD)</strong>.
+  Diferentemente da exclusão comum — restrita a contas sem histórico —, a eliminação
+  alcança <strong>qualquer conta</strong>, mesmo em uso.</p>
+  <p>A operação é <strong>irreversível</strong> e, por isso, confirmada digitando-se o
+  <strong>e-mail exato</strong> do titular. Ela apaga os dados pessoais e privados da
+  pessoa (a conta, seus vínculos como orientando, documentos, marcos, atas individuais e
+  pareceres) e <strong>anonimiza o que precisa sobreviver</strong>: a trilha de auditoria
+  e os registros que envolvem terceiros (atas de grupo, pareceres sobre outros, presenças
+  que a pessoa registrou) são preservados sem identificá-la. Para apenas suspender o
+  acesso mantendo o histórico, prefira a <em>desativação</em>.</p>
+  <p>A eliminação é <strong>recusada</strong> quando a conta orienta vínculo ativo
+  (encerre ou reatribua antes), quando é a sua própria conta, quando é o último
+  administrador ativo, e para a conta-sentinela de remoção, que é infraestrutura do
+  sistema.</p>
+  <p class="flash flash-warning">Consequência a ter em conta: anonimizar o nome do titular
+  dentro de uma ata ou parecer já finalizados <strong>altera o <em>hash</em> de
+  integridade</strong> daquele registro. Um PDF assinado <em>antes</em> da eliminação
+  passará a divergir na página de verificação. É o preço inevitável de apagar um dado
+  pessoal de um registro imutável, e vale conferir se há documentos assinados da pessoa
+  antes de proceder.</p>
   <h3>4.3 Criação de orientandos pelo orientador</h3>
   <p>O orientador dispõe do menu <strong>Orientandos</strong> para criar contas de
   orientando (papel fixo). A criação é um ato único: além da conta, o sistema constitui
@@ -220,8 +256,9 @@
   pendências uma vez por dia. Cada pessoa recebe <strong>uma</strong> mensagem reunindo o
   que lhe cabe. Ao orientando: marcos com prazo vencido e marcos a vencer nos próximos 7
   dias. Ao orientador: marcos vencidos dos seus orientandos, entregas aguardando confirmação,
-  entregas aguardando parecer e atas em rascunho há mais de 15 dias. A ambos: reuniões
-  agendadas nas próximas 48 horas. Quem
+  entregas aguardando parecer e atas em rascunho há mais de 15 dias. A ambos: o
+  <strong>lembrete das reuniões agendadas para o próprio dia</strong>, numa seção
+  destacada, e as reuniões agendadas nas próximas 48 horas. Quem
   não tem pendência não recebe nada, e os avisos a vencer são preventivos, para dar tempo
   de agir antes do atraso.</p>
   <p>Fora desse lote, o sistema envia <strong>na hora</strong> as credenciais de acesso
@@ -257,6 +294,16 @@
   (<em>Orientações → Datas</em>) e o encerramento do vínculo. O ajuste de datas serve
   tanto à correção quanto à dilatação de prazo e exige fundamentação, que fica na trilha
   de auditoria ao lado das datas anterior e nova.</p>
+  <h3>4.8 Prazo e risco</h3>
+  <p>O menu <strong>Prazo e risco</strong> ajusta o sinal colorido da coluna
+  <em>Prazo</em> (ver seção 3). O administrador define dois <strong>percentuais do prazo
+  decorrido</strong> do vínculo — acima do primeiro o selo fica amarelo, acima do
+  segundo, vermelho — e marca, por caixas de seleção, quais <strong>tipos de marco são
+  críticos</strong>: um marco crítico vencido e não concluído acende o vermelho por si
+  só, qualquer que seja o percentual. Os padrões são 75% e 90%, com Qualificação e Defesa
+  como críticos. A tela explica a regra vigente com os valores atuais, a mudança vale
+  imediatamente (a cor é recalculada a cada exibição) e cada alteração fica na auditoria.
+  Desmarcar todos os tipos deixa o risco a cargo apenas do tempo decorrido.</p>
   <h3>4.2 Vínculos de orientação</h3>
   <ol>
     <li>Menu <strong>Orientações → + Novo vínculo</strong>: selecione orientador e
@@ -635,7 +682,22 @@
     <dd>A exclusão física é admitida apenas para contas sem qualquer registro no
     sistema. Se a conta participa de vínculo, criou conteúdo ou possui ações
     auditadas, a via correta é a desativação; o histórico institucional não pode
-    ser apagado.</dd>
+    ser apagado. Para atender a um pedido de <strong>eliminação de dados</strong> de
+    uma conta em uso, há caminho próprio: a <em>eliminação LGPD</em> (seção 4.9).</dd>
+
+    <dt>Como apagar de vez todos os dados de um usuário (LGPD)?</dt>
+    <dd>Na tela <em>Editar</em> do usuário, o administrador dispõe de <em>Eliminar dados
+    do usuário (LGPD)</em>: apaga os dados pessoais e privados e anonimiza o que precisa
+    sobreviver (trilha de auditoria e registros de terceiros). É irreversível, confirmada
+    digitando-se o e-mail do titular, e recusada se a conta ainda orienta vínculo ativo.
+    Detalhes e consequências na seção 4.9. Para só suspender o acesso, use a desativação.</dd>
+
+    <dt>O que significam as cores da coluna Prazo, no Painel?</dt>
+    <dd>O selo situa o vínculo no tempo do programa e sinaliza o risco de relance: verde
+    no prazo, amarelo quando o prazo aperta, vermelho em risco — este último quando um
+    marco crítico (por padrão, Qualificação ou Defesa) está vencido e não concluído, ou
+    quando já decorreu a maior parte do prazo do vínculo. O administrador ajusta os dois
+    percentuais e quais tipos de marco são críticos em <em>Prazo e risco</em> (seção 4.8).</dd>
 
     <dt>O que acontece quando o vínculo é encerrado?</dt>
     <dd>O conteúdo (cronograma, documentos, atas, pareceres) permanece consultável;
