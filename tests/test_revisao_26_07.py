@@ -20,8 +20,8 @@ from app.models import (
     Parecer,
     Usuario,
 )
+from app.services import avisos, eliminacao, exportacao
 from app.services import backup as backup_service
-from app.services import eliminacao, exportacao
 from app.services.atas import OperacaoInvalida, finalizar_ata
 from app.services.tempo import agora_local
 from tests.conftest import login
@@ -579,6 +579,109 @@ def test_expurgo_limpa_o_registro_diario_de_entregas(app, admin, orientacao):
     config = ConfiguracaoEmail.vigente()
     assert config.avisos_entregues is None
     assert config.usuario == "sistema@x.br"  # a credencial fica, como sempre
+
+
+# ============================== VOLTA 5 ====================================
+
+
+def test_restauracao_limpa_registro_de_entregas_da_base_anterior(app, admin, orientacao):
+    """A restauração troca toda a base de usuários, mas configuracao_email fica
+    fora do pacote: o registro diário de entregas guardaria e-mails em claro de
+    contas que deixaram de existir."""
+    from app.models import ConfiguracaoEmail
+
+    config = ConfiguracaoEmail.vigente()
+    config.avisos_entregues = json.dumps(
+        {"dia": "2026-07-26", "emails": ["orientando@teste.br"]}
+    )
+    db.session.commit()
+    _, conteudo = backup_service.gerar()
+
+    backup_service.restaurar(io.BytesIO(conteudo), admin)
+    assert ConfiguracaoEmail.vigente().avisos_entregues is None
+
+
+def test_login_em_conta_desativada_com_senha_certa_deixa_trilha(client, orientador):
+    """A senha confere mas a conta está inativa: a tentativa confirma um par de
+    credenciais válido e precisa deixar rastro (e contar para o limite), não
+    sumir em silêncio."""
+    orientador.ativo = False
+    db.session.commit()
+
+    resposta = client.post(
+        "/auth/login",
+        data={"email": "orientador@teste.br", "senha": "senha-teste-123"},
+    )
+    assert resposta.status_code == 403
+    log = LogAuditoria.query.filter_by(acao="login_falho").one()
+    assert "conta_desativada" in (log.dados_json or "")
+
+
+def test_login_desativado_conta_para_o_limite(client, app, orientador):
+    orientador.ativo = False
+    db.session.commit()
+    teto = app.config["LOGIN_MAX_TENTATIVAS"]
+    for _ in range(teto):
+        db.session.add(
+            LogAuditoria(
+                acao="login_falho", entidade="usuario", ip="127.0.0.1",
+                dados_json=None,
+            )
+        )
+    db.session.commit()
+    resposta = client.post(
+        "/auth/login",
+        data={"email": "orientador@teste.br", "senha": "senha-teste-123"},
+    )
+    assert resposta.status_code == 429  # a sondagem cai no mesmo limite
+
+
+def test_coletar_usa_um_unico_hoje_nas_categorias(app, orientacao, monkeypatch):
+    """marcos_atrasados (< hoje) e marcos_a_vencer (>= hoje) só não se
+    sobrepõem se virem o MESMO hoje; coletar() o calcula uma vez e o passa. Um
+    marco na fronteira (data = hoje) tem de cair em 'a vencer', nunca em ambos
+    nem em nenhum."""
+    from app.models import Marco
+    from app.services.tempo import hoje_local
+
+    hoje = hoje_local()
+    db.session.add(
+        Marco(orientacao_id=orientacao.id, titulo="Fronteira", data_prevista=hoje)
+    )
+    db.session.commit()
+
+    coletado = avisos.coletar()
+    orientando = orientacao.orientando
+    secoes = coletado.get(orientando, {})
+    assert "marcos_a_vencer" in secoes
+    assert "marcos_vencidos" not in secoes
+
+
+def test_categoria_honra_o_hoje_recebido(app, orientacao):
+    """A categoria usa o hoje que coletar passa, não um recalculado: é isso que
+    fecha o buraco de virada de dia."""
+    from datetime import date
+
+    from app.models import Marco
+
+    db.session.add(
+        Marco(
+            orientacao_id=orientacao.id,
+            titulo="Prevista 10/06",
+            data_prevista=date(2026, 6, 10),
+        )
+    )
+    db.session.commit()
+
+    destino = {}
+    # hoje fixado no futuro do marco: está atrasado sob ESTE hoje
+    avisos.marcos_atrasados(destino, hoje=date(2026, 6, 20))
+    assert "marcos_vencidos" in destino.get(orientacao.orientando, {})
+
+    destino = {}
+    # hoje fixado antes do marco: não está atrasado
+    avisos.marcos_atrasados(destino, hoje=date(2026, 6, 1))
+    assert destino == {}
 
 
 def test_edicao_com_email_duplicado_nao_estoura(client, admin, orientador, orientando):

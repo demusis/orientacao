@@ -82,8 +82,10 @@ def criar_usuario():
     if form.validate_on_submit():
         try:
             usuario, senha = usuarios_service.criar_usuario(
+                # criar_usuario normaliza o e-mail no ponto único; não repetir
+                # aqui é o que a extração para o serviço quis garantir
                 nome=form.nome.data,
-                email=usuarios_service.normalizar_email(form.email.data),
+                email=form.email.data,
                 papel=form.papel.data,
                 autor=current_user,
                 ativo=form.ativo.data,
@@ -126,6 +128,20 @@ def _sentinela_intocavel(usuario) -> bool:
         )
         return True
     return False
+
+
+def _avisar_arquivos_presos(nomes: list[str], acao: str) -> None:
+    """Aviso único dos arquivos que resistiram à remoção pós-commit (a política
+    de tolerância mora em `uploads.remover_do_disco`; a metade que fala com o
+    usuário, aqui). Operação certificada como completa com dado pessoal ainda
+    no disco é retenção silenciosa — não pode ficar só no log."""
+    if nomes:
+        flash(
+            f"Atenção: {len(nomes)} arquivo(s) não puderam ser removidos e "
+            f"permanecem no disco: {', '.join(nomes)}. Remova-os manualmente "
+            f"para concluir {acao}.",
+            "danger",
+        )
 
 
 def _tela_da_senha(usuario, senha: str):
@@ -229,15 +245,7 @@ def eliminar_usuario(usuario_id: int):
                 "registro(s) anonimizado(s).",
                 "success",
             )
-            if presos:
-                # eliminação LGPD com arquivo remanescente não pode ficar só
-                # no log: é retenção silenciosa de dado pessoal
-                flash(
-                    f"Atenção: {len(presos)} arquivo(s) do titular não puderam "
-                    f"ser removidos e permanecem no disco: {', '.join(presos)}. "
-                    "Remova-os manualmente para concluir a eliminação.",
-                    "danger",
-                )
+            _avisar_arquivos_presos(presos, "a eliminação")
             return redirect(url_for("admin.listar_usuarios"))
         except GestaoUsuarioInvalida as exc:
             db.session.commit()  # persiste o log da recusa
@@ -712,16 +720,7 @@ def expurgar_base():
             "removido(s). Apenas a sua conta foi preservada.",
             "success",
         )
-        # arquivo preso não pode ficar só no log: expurgo certificado como
-        # completo com dado pessoal remanescente é retenção silenciosa
-        if resultado["arquivos_presos"]:
-            flash(
-                f"Atenção: {len(resultado['arquivos_presos'])} arquivo(s) de "
-                "upload não puderam ser removidos e permanecem no disco: "
-                f"{', '.join(resultado['arquivos_presos'])}. Remova-os "
-                "manualmente para concluir o expurgo.",
-                "danger",
-            )
+        _avisar_arquivos_presos(resultado["arquivos_presos"], "o expurgo")
         return redirect(url_for("admin.backup"))
     for erros in form.errors.values():
         for erro in erros:
@@ -830,10 +829,5 @@ def excluir_modelo(modelo_id: int):
     # arquivo só depois do banco confirmado (ver docstring de excluir_modelo)
     presos = uploads_service.remover_do_disco([caminho])
     flash("Modelo excluído.", "success")
-    if presos:
-        flash(
-            f"Atenção: o arquivo do modelo ({presos[0]}) não pôde ser removido "
-            "e permanece no disco. Remova-o manualmente.",
-            "danger",
-        )
+    _avisar_arquivos_presos(presos, "a exclusão do modelo")
     return redirect(url_for("admin.gerir_modelos"))

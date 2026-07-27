@@ -83,6 +83,16 @@ def login():
             flash("Credenciais inválidas.", "danger")
             return render_template("auth/login.html", form=form), 401
         if not usuario.ativo:
+            # a senha CONFERE, mas a conta está inativa: uma tentativa aqui
+            # confirma um par de credenciais válido. Sem registro, essa sondagem
+            # ficava invisível à trilha e ao limite por origem — que a conta o
+            # dono possa reusar noutro lugar torna isso mais grave, não menos.
+            # Conta como falha de acesso (ACOES_FALHA) para também ser limitada.
+            auditoria.registrar(
+                "login_falho", "usuario", usuario.id,
+                {"email": form.email.data, "motivo": "conta_desativada"},
+            )
+            db.session.commit()
             flash("Conta desativada. Contate o administrador.", "danger")
             return render_template("auth/login.html", form=form), 403
         login_user(usuario, remember=form.lembrar.data)
