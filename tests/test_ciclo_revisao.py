@@ -209,3 +209,77 @@ def test_parecer_form_atribui_ao_remetente_real(client, orientacao, orientador):
     corpo = resp.data.decode()
     assert "Enviada por Orientador A" in corpo
     assert "Orientando B" not in corpo.split("Enviada por")[1][:40]
+
+
+# --- salvaguarda da incoerência + situação legível ---
+
+
+def test_ultima_entrega_devolve_a_versao_mais_recente(app, orientacao):
+    from datetime import UTC, datetime, timedelta
+
+    marco = _marco(orientacao)
+    assert marco.ultima_entrega is None  # sem entregas
+    doc = _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
+    v1 = doc.versoes.first()
+    v1.enviado_em = datetime.now(UTC) - timedelta(days=1)
+    v2 = VersaoDocumento(
+        documento_id=doc.id,
+        numero_versao=2,
+        nome_original="anotado.pdf",
+        nome_fisico=f"{doc.id:032x}b.pdf",
+        tamanho_bytes=2048,
+        mimetype="application/pdf",
+        enviado_por=orientacao.orientador_id,
+    )
+    db.session.add(v2)
+    db.session.commit()
+    assert marco.ultima_entrega.id == v2.id  # a mais recente
+
+
+def test_marco_preso_mostra_aviso_e_devolver_regulariza(client, orientacao, orientador):
+    """Registro preso: sinalizado + última versão do orientador. A página exibe
+    o aviso; após devolver, some e a situação vira 'aguardando o orientando'."""
+    marco = _marco(orientacao, sinalizado=True)
+    _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientador_id)
+    login(client, "orientador@teste.br")
+
+    corpo = client.get(
+        f"/orientacoes/{orientacao.id}/cronograma/{marco.id}"
+    ).data.decode()
+    assert "foi enviada pelo orientador" in corpo  # aviso flash-warning
+    assert "Aguardando o orientador" in corpo  # situação (autoritativa) ainda
+
+    servico_cronograma.devolver_para_revisao(marco, "corrija")
+    db.session.commit()
+    corpo = client.get(
+        f"/orientacoes/{orientacao.id}/cronograma/{marco.id}"
+    ).data.decode()
+    assert "foi enviada pelo orientador" not in corpo  # aviso sumiu
+    assert "aguardando o orientando" in corpo.lower()
+
+
+def test_painel_marca_entrega_com_versao_do_orientador(app, client, orientacao, orientador):
+    from app.services import painel
+
+    preso = _marco(orientacao, sinalizado=True)
+    _documento_com_v1(orientacao, preso, enviado_por=orientacao.orientador_id)
+    normal = _marco(orientacao, sinalizado=True)
+    _documento_com_v1(orientacao, normal, enviado_por=orientacao.orientando_id)
+
+    with client.application.test_request_context():
+        from flask_login import login_user
+
+        login_user(orientador)
+        pend = painel.pendencias()
+    assert preso.id in pend["entregas_a_confirmar_revisao"]
+    assert normal.id not in pend["entregas_a_confirmar_revisao"]
+
+
+def test_situacao_badge_na_pagina_do_marco(client, orientacao, orientando):
+    """Marco recém-criado, sem sinal: a vez é do orientando."""
+    marco = _marco(orientacao)
+    login(client, "orientando@teste.br")
+    corpo = client.get(
+        f"/orientacoes/{orientacao.id}/cronograma/{marco.id}"
+    ).data.decode()
+    assert "Aguardando o orientando" in corpo

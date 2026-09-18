@@ -10,6 +10,22 @@
 </nav>
 {% endmacro %}
 
+{% macro situacao_marco(marco, curto=False) %}
+{#- Selo de "de quem é a vez" derivado de marco.aguardando, num único ponto.
+    O rótulo diz o que a parte responsável deve fazer; `curto` para tabelas. -#}
+{% set _sit = {
+     'orientador': ('Aguardando o orientador — confirmar ou devolver', 'aguarda orientador', 'badge-risco-medio'),
+     'orientando_revisao': ('Devolvido — aguardando o orientando corrigir e reenviar', 'devolvido', 'badge-atrasado'),
+     'orientando': ('Aguardando o orientando — entregar e sinalizar', 'aguarda orientando', ''),
+   } %}
+{%- if not marco.aguardando -%}
+  <span class="badge badge-concluido">{{ 'concluído' if curto else 'Concluído' }}</span>
+{%- else -%}
+  {% set _l = _sit[marco.aguardando] %}
+  <span class="badge {{ _l[2] }}">{{ _l[1] if curto else _l[0] }}</span>
+{%- endif -%}
+{% endmacro %}
+
 {% macro render_form(form, action='', enctype=None, method='post') %}
 {#- largura de cada campo na grade de 12 colunas, derivada do tipo: texto
     longo e listas de seleção ocupam a linha inteira; datas, horas e números
