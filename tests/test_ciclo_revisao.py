@@ -308,7 +308,9 @@ def test_nova_versao_como_devolucao_devolve_e_sai_dos_pareceres(
     assert nova.id not in _versoes_sem_parecer_ids(orientador)
 
 
-def test_nova_versao_como_entrega_fica_para_parecer(client, orientacao, orientador):
+def test_upload_do_orientador_nao_pede_parecer(client, orientacao, orientador):
+    """Nada que o orientador sobe pede o parecer dele — nem sem marcar devolução.
+    Só a entrega da orientanda entra em 'aguardando parecer'."""
     marco = _marco(orientacao, sinalizado=True)
     doc = _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
     login(client, "orientador@teste.br")
@@ -319,11 +321,35 @@ def test_nova_versao_como_entrega_fica_para_parecer(client, orientacao, orientad
         follow_redirects=True,
     )
     db.session.expire(marco)
-    # sem marcar devolução: segue sinalizado e a versão fica para parecer
+    # sem marcar devolução: não devolve a tarefa
     assert marco.conclusao_sinalizada is True
-    nova = doc.versoes.first()
+    nova = doc.versoes.first()  # v2, enviada pelo orientador
     assert nova.eh_devolucao is False
-    assert nova.id in _versoes_sem_parecer_ids(orientador)
+    # e mesmo assim NÃO pede parecer dele (é upload dele, não entrega da aluna)
+    assert nova.id not in _versoes_sem_parecer_ids(orientador)
+
+
+def test_so_a_entrega_da_orientanda_pede_parecer(client, orientacao, orientador):
+    da_aluna = _documento_com_v1(
+        orientacao, _marco(orientacao), enviado_por=orientacao.orientando_id
+    )
+    do_orientador = _documento_com_v1(
+        orientacao, _marco(orientacao), enviado_por=orientacao.orientador_id
+    )
+    ids = _versoes_sem_parecer_ids(orientador)
+    assert da_aluna.versoes.first().id in ids
+    assert do_orientador.versoes.first().id not in ids
+
+
+def test_lista_de_parecer_tem_link_para_o_documento(client, orientacao, orientador):
+    """A lista 'aguardando parecer' leva ao documento (onde se ajusta: marcar
+    como devolução, etc.), além do atalho 'Emitir parecer'."""
+    doc = _documento_com_v1(
+        orientacao, _marco(orientacao), enviado_por=orientacao.orientando_id
+    )
+    login(client, "orientador@teste.br")
+    corpo = client.get("/dashboard").data.decode()
+    assert f"/orientacoes/{orientacao.id}/documentos/{doc.id}" in corpo
 
 
 def test_orientando_nova_versao_nao_vira_devolucao(client, orientacao, orientando):
@@ -341,7 +367,8 @@ def test_orientando_nova_versao_nao_vira_devolucao(client, orientacao, orientand
 
 
 def test_toggle_devolucao_por_versao(client, orientacao, orientador, orientando):
-    doc = _documento_com_v1(orientacao, _marco(orientacao), enviado_por=orientacao.orientador_id)
+    # versão da orientanda (aparece em pareceres); marcar devolução a remove
+    doc = _documento_com_v1(orientacao, _marco(orientacao), enviado_por=orientacao.orientando_id)
     versao = doc.versoes.first()
     login(client, "orientador@teste.br")
     assert versao.id in _versoes_sem_parecer_ids(orientador)
