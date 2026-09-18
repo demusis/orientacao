@@ -41,10 +41,15 @@ def listar(orientacao_id: int):
 def criar(orientacao_id: int):
     orientacao = orientacao_autorizada(orientacao_id)
     form = NovoDocumentoForm()
+    # a orientanda não devolve: some o campo para ela (e não é lido no POST)
+    eh_gestor = current_user.id != orientacao.orientando_id
+    if not eh_gestor:
+        del form.eh_devolucao
     form.marco_id.choices = [(0, "(nenhum)")] + [
         (m.id, m.titulo) for m in orientacao.marcos
     ]
     if form.validate_on_submit():
+        eh_devolucao = eh_gestor and form.eh_devolucao.data
         documento = Documento(
             orientacao_id=orientacao.id,
             marco_id=form.marco_id.data or None,
@@ -55,7 +60,8 @@ def criar(orientacao_id: int):
         db.session.flush()
         try:
             versao = salvar_versao(
-                documento, form.arquivo.data, current_user, form.comentario.data
+                documento, form.arquivo.data, current_user, form.comentario.data,
+                eh_devolucao=eh_devolucao,
             )
         except UploadInvalido as exc:
             db.session.rollback()
@@ -65,10 +71,20 @@ def criar(orientacao_id: int):
                 "criacao_documento",
                 "documento",
                 documento.id,
-                {"titulo": documento.titulo, "arquivo": versao.nome_original},
+                {"titulo": documento.titulo, "arquivo": versao.nome_original,
+                 "devolucao": eh_devolucao},
+            )
+            devolvido = (
+                eh_devolucao and documento.marco is not None
+                and servico_cronograma.devolver_para_revisao(
+                    documento.marco, "(devolvido com nova versão)"
+                )
             )
             db.session.commit()
             flash("Documento enviado (versão 1).", "success")
+            if devolvido:
+                flash("Marcada como devolução: a tarefa voltou para revisão do "
+                      "orientando.", "info")
             return redirect(url_for("documentos.listar", orientacao_id=orientacao.id))
     modelos = ModeloDocumento.query.order_by(ModeloDocumento.titulo).all()
     return render_template(
@@ -82,10 +98,16 @@ def detalhe(orientacao_id: int, documento_id: int):
     orientacao = orientacao_autorizada(orientacao_id)
     documento = _documento_da_orientacao(orientacao, documento_id)
     form = NovaVersaoForm()
+    eh_gestor = current_user.id != orientacao.orientando_id
+    if not eh_gestor:
+        del form.eh_devolucao
     if form.validate_on_submit():
+        # devolução é declarada pelo gestor; a orientanda sempre entrega
+        eh_devolucao = eh_gestor and form.eh_devolucao.data
         try:
             versao = salvar_versao(
-                documento, form.arquivo.data, current_user, form.comentario.data
+                documento, form.arquivo.data, current_user, form.comentario.data,
+                eh_devolucao=eh_devolucao,
             )
         except UploadInvalido as exc:
             db.session.rollback()
@@ -96,26 +118,23 @@ def detalhe(orientacao_id: int, documento_id: int):
                 "nova_versao_documento",
                 "versao_documento",
                 versao.id,
-                {"documento_id": documento.id, "versao": versao.numero_versao},
+                {"documento_id": documento.id, "versao": versao.numero_versao,
+                 "devolucao": eh_devolucao},
             )
-            # Se quem envia é o lado do orientador (não o orientando) e a entrega
-            # já estava sinalizada, esta nova versão É a devolução com correções:
-            # a tarefa volta ao orientando, sem exigir um segundo clique.
+            # devolução declarada devolve a tarefa ao orientando (se houver marco)
             marco = documento.marco
             devolvido = (
-                marco is not None
-                and current_user.id != orientacao.orientando_id
-                and marco.conclusao_sinalizada
+                eh_devolucao and marco is not None
                 and servico_cronograma.devolver_para_revisao(
-                    marco, "(devolvido junto com nova versão)"
+                    marco, "(devolvido com nova versão)"
                 )
             )
             db.session.commit()
             flash(f"Versão {versao.numero_versao} enviada.", "success")
             if devolvido:
                 flash(
-                    "Como você enviou uma nova versão de uma entrega já "
-                    "sinalizada, a tarefa voltou para revisão do orientando.",
+                    "Marcada como devolução: a tarefa voltou para revisão do "
+                    "orientando.",
                     "info",
                 )
             return redirect(
@@ -126,7 +145,38 @@ def detalhe(orientacao_id: int, documento_id: int):
                 )
             )
     return render_template(
-        "documentos/detalhe.html", orientacao=orientacao, documento=documento, form=form
+        "documentos/detalhe.html", orientacao=orientacao, documento=documento,
+        form=form, eh_gestor=eh_gestor,
+    )
+
+
+@bp.route("/<int:documento_id>/versoes/<int:versao_id>/devolucao", methods=["POST"])
+@login_required
+def alternar_devolucao(orientacao_id: int, documento_id: int, versao_id: int):
+    """Alterna a marca de "devolução" de uma versão (gestor). Marcada, sai de
+    "aguardando parecer"; é o que regulariza registros antigos e a escotilha
+    para reclassificar. RBAC do lado do orientador principal/admin."""
+    orientacao = orientacao_autorizada(orientacao_id)
+    if current_user.id != orientacao.orientador_id and current_user.papel != "admin":
+        abort(403)
+    documento = _documento_da_orientacao(orientacao, documento_id)
+    versao = db.session.get(VersaoDocumento, versao_id)
+    if versao is None or versao.documento_id != documento.id:
+        abort(404)
+    versao.eh_devolucao = not versao.eh_devolucao
+    auditoria.registrar(
+        "marcacao_devolucao_versao", "versao_documento", versao.id,
+        {"eh_devolucao": versao.eh_devolucao},
+    )
+    db.session.commit()
+    flash(
+        "Versão marcada como devolução (fora da lista de pareceres)."
+        if versao.eh_devolucao
+        else "Marca de devolução removida.",
+        "success",
+    )
+    return redirect(
+        url_for("documentos.detalhe", orientacao_id=orientacao.id, documento_id=documento.id)
     )
 
 

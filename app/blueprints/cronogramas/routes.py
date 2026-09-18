@@ -104,11 +104,15 @@ def detalhe(orientacao_id: int, marco_id: int):
     orientando, e as ações (anexar, sinalizar, confirmar) conforme o papel."""
     orientacao = orientacao_autorizada(orientacao_id)
     marco = _marco_da_orientacao(orientacao, marco_id)
+    anexo_form = AnexoMarcoForm(titulo=marco.titulo)
+    # a orientanda não devolve: o campo de devolução some do anexo para ela
+    if current_user.id == orientacao.orientando_id:
+        del anexo_form.eh_devolucao
     return render_template(
         "cronogramas/detalhe.html",
         orientacao=orientacao,
         marco=marco,
-        anexo_form=AnexoMarcoForm(titulo=marco.titulo),
+        anexo_form=anexo_form,
         sinalizar_form=SinalizarForm(),
         confirmacao_form=ConfirmacaoForm(),
         devolver_form=DevolverForm(),
@@ -123,7 +127,11 @@ def anexar(orientacao_id: int, marco_id: int):
     orientacao = orientacao_autorizada(orientacao_id)
     marco = _marco_da_orientacao(orientacao, marco_id)
     form = AnexoMarcoForm()
+    eh_gestor = current_user.id != orientacao.orientando_id
+    if not eh_gestor:
+        del form.eh_devolucao
     if form.validate_on_submit():
+        eh_devolucao = eh_gestor and form.eh_devolucao.data
         documento = Documento(
             orientacao_id=orientacao.id,
             marco_id=marco.id,
@@ -134,7 +142,8 @@ def anexar(orientacao_id: int, marco_id: int):
         db.session.flush()
         try:
             versao = salvar_versao(
-                documento, form.arquivo.data, current_user, form.comentario.data
+                documento, form.arquivo.data, current_user, form.comentario.data,
+                eh_devolucao=eh_devolucao,
             )
         except UploadInvalido as exc:
             db.session.rollback()
@@ -143,8 +152,12 @@ def anexar(orientacao_id: int, marco_id: int):
             auditoria.registrar(
                 "criacao_documento", "documento", documento.id,
                 {"titulo": documento.titulo, "arquivo": versao.nome_original,
-                 "origem": "marco", "marco_id": marco.id},
+                 "origem": "marco", "marco_id": marco.id, "devolucao": eh_devolucao},
             )
+            if eh_devolucao and marco.status != "concluido":
+                servico_cronograma.devolver_para_revisao(
+                    marco, "(devolvido com nova versão)"
+                )
             db.session.commit()
             flash("Documento anexado à tarefa (versão 1).", "success")
     return redirect(

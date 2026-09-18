@@ -463,6 +463,8 @@ def versoes_sem_parecer(destino: dict, hoje=None) -> None:
             Orientacao.status == "ativa",
             VersaoDocumento.numero_versao == versao_corrente,
             VersaoDocumento.id.notin_(com_parecer),
+            # devolução do orientador não pede o parecer dele
+            VersaoDocumento.eh_devolucao.is_(False),
         )
         .order_by(VersaoDocumento.enviado_em)
         .all()

@@ -1,6 +1,7 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileRequired
 from wtforms import (
+    BooleanField,
     DateField,
     SelectField,
     StringField,
@@ -9,6 +10,7 @@ from wtforms import (
 )
 from wtforms.validators import DataRequired, Length, Optional
 
+from app.blueprints.documentos.forms import DEVOLUCAO_LABEL
 from app.models.cronograma import (
     ETAPA_MARCO_LABEL,
     ETAPAS_MARCO,
@@ -68,4 +70,5 @@ class AnexoMarcoForm(FlaskForm):
     titulo = StringField("Título do documento", validators=[DataRequired(), Length(max=255)])
     arquivo = FileField("Arquivo", validators=[FileRequired()])
     comentario = TextAreaField("Comentário", validators=[Optional()])
+    eh_devolucao = BooleanField(DEVOLUCAO_LABEL)
     submit = SubmitField("Anexar documento")

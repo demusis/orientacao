@@ -73,7 +73,10 @@ def validar_arquivo(storage) -> str:
     return ext
 
 
-def salvar_versao(documento: Documento, storage, usuario, comentario: str | None = None):
+def salvar_versao(
+    documento: Documento, storage, usuario, comentario: str | None = None,
+    eh_devolucao: bool = False,
+):
     """Grava o arquivo em disco sob UUID e cria a próxima versão do documento.
     A constraint UNIQUE(documento_id, numero_versao) é a salvaguarda final
     contra numeração concorrente."""
@@ -107,6 +110,7 @@ def salvar_versao(documento: Documento, storage, usuario, comentario: str | None
         mimetype=storage.mimetype or "application/octet-stream",
         enviado_por=usuario.id,
         comentario=comentario,
+        eh_devolucao=eh_devolucao,
     )
     db.session.add(versao)
     return versao

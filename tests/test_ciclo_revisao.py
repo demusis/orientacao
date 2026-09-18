@@ -111,24 +111,10 @@ def test_rota_devolver_negada_ao_orientando(client, orientacao, orientando):
     assert marco.conclusao_sinalizada is True  # nada mudou
 
 
-# --- devolução automática ao reenviar nova versão ---
-
-
-def test_nova_versao_do_orientador_devolve_automaticamente(client, orientacao, orientador):
-    marco = _marco(orientacao, sinalizado=True)
-    doc = _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
-    login(client, "orientador@teste.br")
-    resp = client.post(
-        f"/orientacoes/{orientacao.id}/documentos/{doc.id}",
-        data={"arquivo": pdf_falso("anotado.pdf"), "comentario": "com anotações"},
-        content_type="multipart/form-data",
-        follow_redirects=True,
-    )
-    assert resp.status_code == 200
-    db.session.expire(marco)
-    assert marco.conclusao_sinalizada is False
-    assert marco.devolvido_em is not None
-    assert marco.aguardando == "orientando_revisao"
+# --- nova versão do orientando não devolve ---
+# (a devolução por upload do orientador é coberta em
+#  test_nova_versao_como_devolucao_* / _como_entrega_*, agora por intenção
+#  explícita — não mais pela identidade de quem envia)
 
 
 def test_nova_versao_do_orientando_nao_devolve(client, orientacao, orientando):
@@ -283,3 +269,104 @@ def test_situacao_badge_na_pagina_do_marco(client, orientacao, orientando):
         f"/orientacoes/{orientacao.id}/cronograma/{marco.id}"
     ).data.decode()
     assert "Aguardando o orientando" in corpo
+
+
+# --- versão como devolução (não pede parecer) ---
+
+
+def _versoes_sem_parecer_ids(orientador):
+    """Ids das versões que o Painel lista como aguardando parecer (contexto de
+    requisição autenticado como o orientador)."""
+    from flask import current_app
+    from flask_login import login_user
+
+    from app.services import painel
+
+    with current_app.test_request_context():
+        login_user(orientador)
+        return {v.id for v in painel.pendencias()["versoes_sem_parecer"]}
+
+
+def test_nova_versao_como_devolucao_devolve_e_sai_dos_pareceres(
+    client, orientacao, orientador
+):
+    marco = _marco(orientacao, sinalizado=True)
+    doc = _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
+    login(client, "orientador@teste.br")
+    resp = client.post(
+        f"/orientacoes/{orientacao.id}/documentos/{doc.id}",
+        data={"arquivo": pdf_falso("anot.pdf"), "comentario": "corrigir",
+              "eh_devolucao": "y"},
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    db.session.expire(marco)
+    assert marco.aguardando == "orientando_revisao"
+    nova = doc.versoes.first()
+    assert nova.eh_devolucao is True
+    assert nova.id not in _versoes_sem_parecer_ids(orientador)
+
+
+def test_nova_versao_como_entrega_fica_para_parecer(client, orientacao, orientador):
+    marco = _marco(orientacao, sinalizado=True)
+    doc = _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
+    login(client, "orientador@teste.br")
+    client.post(
+        f"/orientacoes/{orientacao.id}/documentos/{doc.id}",
+        data={"arquivo": pdf_falso("v2.pdf"), "comentario": "registrando entrega"},
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+    db.session.expire(marco)
+    # sem marcar devolução: segue sinalizado e a versão fica para parecer
+    assert marco.conclusao_sinalizada is True
+    nova = doc.versoes.first()
+    assert nova.eh_devolucao is False
+    assert nova.id in _versoes_sem_parecer_ids(orientador)
+
+
+def test_orientando_nova_versao_nao_vira_devolucao(client, orientacao, orientando):
+    marco = _marco(orientacao, sinalizado=True)
+    doc = _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
+    login(client, "orientando@teste.br")
+    # mesmo enviando o campo, a rota ignora para a orientanda
+    client.post(
+        f"/orientacoes/{orientacao.id}/documentos/{doc.id}",
+        data={"arquivo": pdf_falso("v2.pdf"), "eh_devolucao": "y"},
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+    assert doc.versoes.first().eh_devolucao is False
+
+
+def test_toggle_devolucao_por_versao(client, orientacao, orientador, orientando):
+    doc = _documento_com_v1(orientacao, _marco(orientacao), enviado_por=orientacao.orientador_id)
+    versao = doc.versoes.first()
+    login(client, "orientador@teste.br")
+    assert versao.id in _versoes_sem_parecer_ids(orientador)
+    client.post(
+        f"/orientacoes/{orientacao.id}/documentos/{doc.id}/versoes/{versao.id}/devolucao",
+        follow_redirects=True,
+    )
+    db.session.expire(versao)
+    assert versao.eh_devolucao is True
+    assert versao.id not in _versoes_sem_parecer_ids(orientador)
+
+
+def test_toggle_devolucao_negado_ao_orientando(client, orientacao, orientando):
+    doc = _documento_com_v1(orientacao, _marco(orientacao), enviado_por=orientacao.orientador_id)
+    versao = doc.versoes.first()
+    login(client, "orientando@teste.br")
+    resp = client.post(
+        f"/orientacoes/{orientacao.id}/documentos/{doc.id}/versoes/{versao.id}/devolucao",
+    )
+    assert resp.status_code == 403
+
+
+def test_devolver_marco_marca_versao_do_orientador(app, orientacao):
+    marco = _marco(orientacao, sinalizado=True)
+    doc = _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientador_id)
+    servico_cronograma.devolver_para_revisao(marco, "corrija")
+    db.session.commit()
+    assert doc.versoes.first().eh_devolucao is True

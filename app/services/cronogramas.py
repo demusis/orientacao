@@ -98,6 +98,12 @@ def devolver_para_revisao(marco: Marco, nota: str | None = None) -> bool:
     marco.status = "em_andamento"
     marco.devolvido_em = agora()
     marco.nota_devolucao = (nota or "").strip() or None
+    # a versão corrente enviada pelo orientador é a devolução: tira-a de
+    # "aguardando parecer" no mesmo ato, para não cobrar parecer sobre ela
+    for doc in marco.documentos:
+        v = doc.versao_atual
+        if v is not None and v.enviado_por != marco.orientacao.orientando_id:
+            v.eh_devolucao = True
     auditoria.registrar(
         "devolucao_revisao_marco", "marco", marco.id, {"com_nota": bool(marco.nota_devolucao)}
     )
