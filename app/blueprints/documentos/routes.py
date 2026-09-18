@@ -14,6 +14,7 @@ from app.blueprints.documentos.forms import NovaVersaoForm, NovoDocumentoForm
 from app.extensions import db
 from app.models import Documento, ModeloDocumento, VersaoDocumento
 from app.services import auditoria
+from app.services import cronogramas as servico_cronograma
 from app.services.rbac import orientacao_autorizada
 from app.services.uploads import UploadInvalido, salvar_versao
 
@@ -97,8 +98,26 @@ def detalhe(orientacao_id: int, documento_id: int):
                 versao.id,
                 {"documento_id": documento.id, "versao": versao.numero_versao},
             )
+            # Se quem envia é o lado do orientador (não o orientando) e a entrega
+            # já estava sinalizada, esta nova versão É a devolução com correções:
+            # a tarefa volta ao orientando, sem exigir um segundo clique.
+            marco = documento.marco
+            devolvido = (
+                marco is not None
+                and current_user.id != orientacao.orientando_id
+                and marco.conclusao_sinalizada
+                and servico_cronograma.devolver_para_revisao(
+                    marco, "(devolvido junto com nova versão)"
+                )
+            )
             db.session.commit()
             flash(f"Versão {versao.numero_versao} enviada.", "success")
+            if devolvido:
+                flash(
+                    "Como você enviou uma nova versão de uma entrega já "
+                    "sinalizada, a tarefa voltou para revisão do orientando.",
+                    "info",
+                )
             return redirect(
                 url_for(
                     "documentos.detalhe",

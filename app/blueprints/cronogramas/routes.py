@@ -5,6 +5,7 @@ from app.blueprints.cronogramas import bp
 from app.blueprints.cronogramas.forms import (
     AnexoMarcoForm,
     ConfirmacaoForm,
+    DevolverForm,
     MarcoForm,
     SinalizarForm,
 )
@@ -110,6 +111,7 @@ def detalhe(orientacao_id: int, marco_id: int):
         anexo_form=AnexoMarcoForm(titulo=marco.titulo),
         sinalizar_form=SinalizarForm(),
         confirmacao_form=ConfirmacaoForm(),
+        devolver_form=DevolverForm(),
     )
 
 
@@ -203,6 +205,26 @@ def confirmar_conclusao(orientacao_id: int, marco_id: int):
     if form.validate_on_submit() and servico_cronograma.confirmar_conclusao(marco):
         db.session.commit()
         flash("Marco concluído.", "success")
+    return redirect(
+        url_for("cronogramas.detalhe", orientacao_id=orientacao.id, marco_id=marco.id)
+    )
+
+
+@bp.route("/<int:marco_id>/devolver", methods=["POST"])
+@login_required
+def devolver_para_revisao(orientacao_id: int, marco_id: int):
+    """Devolve a entrega ao orientando corrigir. Mesmo RBAC de `confirmar` — o
+    cronograma é do orientador principal (ou admin)."""
+    orientacao = orientacao_autorizada(orientacao_id)
+    if current_user.id != orientacao.orientador_id and current_user.papel != "admin":
+        abort(403)
+    marco = _marco_da_orientacao(orientacao, marco_id)
+    form = DevolverForm()
+    if form.validate_on_submit() and servico_cronograma.devolver_para_revisao(
+        marco, form.nota.data
+    ):
+        db.session.commit()
+        flash("Entrega devolvida para revisão do orientando.", "success")
     return redirect(
         url_for("cronogramas.detalhe", orientacao_id=orientacao.id, marco_id=marco.id)
     )

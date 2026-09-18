@@ -35,6 +35,7 @@
       <span class="badge {% if m.status == 'concluido' %}badge-concluido{% endif %}">{{ m.status }}</span>
       {% if m.atrasado %}<span class="badge badge-atrasado">atrasado</span>{% endif %}
       {% if m.conclusao_sinalizada and m.status != 'concluido' %}<span class="badge">sinalizado</span>{% endif %}
+      {% if m.aguardando == 'orientando_revisao' %}<span class="badge badge-atrasado">devolvido</span>{% endif %}
       {% if m.grupo_id %}<span class="badge">grupo</span>{% endif %}
     </td>
     <td class="acoes">
