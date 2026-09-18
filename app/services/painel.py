@@ -102,6 +102,7 @@ def pendencias() -> dict:
     if not ids:
         return {
             "entregas_a_confirmar": [],
+            "entregas_a_confirmar_revisao": set(),
             "tarefas_abertas": [],
             "reunioes_sem_ata": [],
             "atas_rascunho": [],
@@ -121,6 +122,15 @@ def pendencias() -> dict:
         .order_by(Marco.data_prevista)
         .all()
     )
+    # Dentre as que aguardam confirmação, aquelas cuja versão mais recente veio
+    # do orientador: provável devolução não formalizada (registro anterior à
+    # devolução explícita). O custo por item é aceitável — a lista é curta.
+    entregas_a_confirmar_revisao = {
+        m.id
+        for m in entregas_a_confirmar
+        if (ue := m.ultima_entrega) is not None
+        and ue.enviado_por != m.orientacao.orientando_id
+    }
 
     # ainda não entregue; as atrasadas vêm primeiro por ordem de prazo
     tarefas_abertas = (
@@ -182,6 +192,7 @@ def pendencias() -> dict:
 
     return {
         "entregas_a_confirmar": entregas_a_confirmar,
+        "entregas_a_confirmar_revisao": entregas_a_confirmar_revisao,
         "tarefas_abertas": tarefas_abertas,
         "reunioes_sem_ata": reunioes_sem_ata,
         "atas_rascunho": atas_rascunho,

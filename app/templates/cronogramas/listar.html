@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import nav_modulos %}
+{% from "_macros.html" import nav_modulos, situacao_marco %}
 {% block title %}Cronograma · ARIADNE{% endblock %}
 {% block voltar %}<a class="voltar" href="{{ url_for('main.dashboard') }}">Painel</a>{% endblock %}
 {% block content %}
@@ -34,8 +34,7 @@
     <td>
       <span class="badge {% if m.status == 'concluido' %}badge-concluido{% endif %}">{{ m.status }}</span>
       {% if m.atrasado %}<span class="badge badge-atrasado">atrasado</span>{% endif %}
-      {% if m.conclusao_sinalizada and m.status != 'concluido' %}<span class="badge">sinalizado</span>{% endif %}
-      {% if m.aguardando == 'orientando_revisao' %}<span class="badge badge-atrasado">devolvido</span>{% endif %}
+      {{ situacao_marco(m, curto=True) }}
       {% if m.grupo_id %}<span class="badge">grupo</span>{% endif %}
     </td>
     <td class="acoes">

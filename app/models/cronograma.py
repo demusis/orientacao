@@ -105,6 +105,15 @@ class Marco(db.Model):
         return "orientando"  # em elaboração / a iniciar
 
     @property
+    def ultima_entrega(self):
+        """A versão mais recente (por data de envio) entre as entregas ligadas
+        a este marco, ou None. Serve para detectar quando a última versão veio
+        do orientador — sinal de devolução — mesmo em registros anteriores à
+        devolução explícita, em que `aguardando` ainda não reflete a incoerência."""
+        correntes = [d.versao_atual for d in self.documentos if d.versao_atual]
+        return max(correntes, key=lambda v: v.enviado_em) if correntes else None
+
+    @property
     def atrasado(self) -> bool:
         """Computado na leitura; não depende de scheduler (risco R7). O dia é o
         LOCAL (`hoje_local`): a data prevista é digitada no fuso da instituição,

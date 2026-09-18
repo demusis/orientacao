@@ -92,7 +92,7 @@
     <tr><th>Tarefa</th><th>Etapa</th>{% if avalia %}<th>Orientando</th>{% endif %}<th>Prazo</th><th></th></tr>
     {% for m in pendencias.entregas_a_confirmar %}
     <tr>
-      <td>{{ m.titulo }}</td>
+      <td>{{ m.titulo }}{% if m.id in pendencias.entregas_a_confirmar_revisao %} <span class="badge badge-risco-medio">versão do orientador — revisar?</span>{% endif %}</td>
       <td>{{ ETAPA_MARCO_LABEL.get(m.etapa, 'Não classificada') }}</td>
       {% if avalia %}<td>{{ m.orientacao.orientando.nome }}</td>{% endif %}
       <td>{{ m.data_prevista }}{% if m.atrasado %} <span class="badge badge-atrasado">atrasado</span>{% endif %}</td>

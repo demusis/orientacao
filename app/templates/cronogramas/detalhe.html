@@ -1,16 +1,14 @@
 {% extends "base.html" %}
-{% from "_macros.html" import nav_modulos, render_form %}
+{% from "_macros.html" import nav_modulos, render_form, situacao_marco %}
 {% block title %}{{ marco.titulo }} · ARIADNE{% endblock %}
 {% block voltar %}<a class="voltar" href="{{ url_for('cronogramas.listar', orientacao_id=orientacao.id) }}">Cronograma</a>{% endblock %}
 {% block content %}
 {{ nav_modulos(orientacao, 'cronograma') }}
 {% set is_orientando = current_user.id == orientacao.orientando_id %}
 {% set is_gestor = current_user.id == orientacao.orientador_id or current_user.papel == 'admin' %}
-{% set rotulo_aguardando = {
-     'orientador': 'Aguardando confirmação do orientador',
-     'orientando_revisao': 'Devolvido para revisão — aguardando o orientando',
-     'orientando': 'Em elaboração pelo orientando',
-   } %}
+{% set ultima = marco.ultima_entrega %}
+{% set entrega_devolvida = marco.conclusao_sinalizada and marco.status != 'concluido'
+   and ultima and ultima.enviado_por != orientacao.orientando_id %}
 
 <div class="card">
   <h1>{{ marco.titulo }} <span class="badge">{{ TIPO_MARCO_LABEL[marco.tipo] }}</span></h1>
@@ -22,14 +20,20 @@
   <p>
     <span class="badge {% if marco.status == 'concluido' %}badge-concluido{% endif %}">{{ marco.status }}</span>
     {% if marco.atrasado %}<span class="badge badge-atrasado">atrasado</span>{% endif %}
-    {% if marco.conclusao_sinalizada and marco.status != 'concluido' %}<span class="badge">sinalizado</span>{% endif %}
-    {% if marco.aguardando == 'orientando_revisao' %}<span class="badge badge-atrasado">devolvido</span>{% endif %}
     {% if marco.grupo_id %}<span class="badge">grupo</span>{% endif %}
   </p>
-  <p><strong>Situação:</strong>
-    {{ 'Concluído' if not marco.aguardando else rotulo_aguardando[marco.aguardando] }}</p>
+  <p><strong>Situação:</strong> {{ situacao_marco(marco) }}</p>
   {% if marco.descricao %}<p>{{ marco.descricao }}</p>{% endif %}
 </div>
+
+{% if entrega_devolvida %}
+<div class="flash flash-warning">
+  A versão mais recente desta entrega (<strong>{{ ultima.remetente.nome }}</strong>,
+  {{ ultima.enviado_em.strftime('%d/%m/%Y') }}) foi enviada pelo orientador, mas a tarefa
+  segue como <em>aguardando confirmação</em>. Se foi uma devolução com correções, use
+  <strong>Devolver para revisão</strong>, abaixo, para passar a tarefa ao orientando.
+</div>
+{% endif %}
 
 {% if marco.nota_devolucao or marco.devolvido_em %}
 <div class="card">
@@ -108,18 +112,22 @@
 <div class="card">
   <h2>Ações do orientador</h2>
   <p><a href="{{ url_for('cronogramas.editar', orientacao_id=orientacao.id, marco_id=marco.id) }}">Editar marco</a></p>
-  {% if marco.status != 'concluido' %}
+  {% if marco.conclusao_sinalizada and marco.status != 'concluido' %}
+  <h3>O que fazer com esta entrega?</h3>
+  <p><small>O orientando sinalizou a conclusão. Confira o material e escolha:
+  <strong>Confirmar</strong> encerra o marco; <strong>Devolver para revisão</strong>
+  (com uma nota do que ajustar, opcional) devolve a tarefa ao orientando e a tira da
+  sua lista de confirmações.</small></p>
   <form method="post" action="{{ url_for('cronogramas.confirmar_conclusao', orientacao_id=orientacao.id, marco_id=marco.id) }}">
     {{ confirmacao_form.hidden_tag() }}
     <button type="submit">Confirmar conclusão</button>
   </form>
-  {% endif %}
-  {% if marco.conclusao_sinalizada and marco.status != 'concluido' %}
-  <hr>
-  <p><small>Precisa de correções? Devolva a entrega ao orientando, com uma nota
-  do que ajustar (opcional). A tarefa volta para ele e sai da sua lista de
-  confirmações.</small></p>
   {{ render_form(devolver_form, action=url_for('cronogramas.devolver_para_revisao', orientacao_id=orientacao.id, marco_id=marco.id)) }}
+  {% elif marco.status != 'concluido' %}
+  <form method="post" action="{{ url_for('cronogramas.confirmar_conclusao', orientacao_id=orientacao.id, marco_id=marco.id) }}">
+    {{ confirmacao_form.hidden_tag() }}
+    <button type="submit">Confirmar conclusão</button>
+  </form>
   {% endif %}
 </div>
 {% endif %}
