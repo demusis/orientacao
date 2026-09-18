@@ -463,9 +463,12 @@ def versoes_sem_parecer(destino: dict, hoje=None) -> None:
             Orientacao.status == "ativa",
             VersaoDocumento.numero_versao == versao_corrente,
             VersaoDocumento.id.notin_(com_parecer),
-            # só a entrega da orientanda pede parecer; o que o orientador sobe
-            # (devolução, registro ou submissão) não cobra o parecer dele próprio
-            VersaoDocumento.enviado_por == Orientacao.orientando_id,
+            # só a entrega da orientanda pede parecer — enviada por ela ou
+            # registrada em nome dela pelo orientador (ver painel.py)
+            db.or_(
+                VersaoDocumento.enviado_por == Orientacao.orientando_id,
+                VersaoDocumento.em_nome_do_orientando.is_(True),
+            ),
             VersaoDocumento.eh_devolucao.is_(False),
         )
         .order_by(VersaoDocumento.enviado_em)

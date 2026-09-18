@@ -141,10 +141,10 @@
     cujas deliberações continuam em branco.</li>
     <li><strong>Atas em rascunho</strong>: reuniões já redigidas cuja ata ainda não foi
     finalizada.</li>
-    <li><strong>Versões aguardando parecer</strong>: a versão mais recente <strong>enviada
-    pela orientanda</strong> que ainda não recebeu parecer. Versões superadas por outra não
-    aparecem, e o que o próprio orientador envia (devolução, registro ou submissão) não pede
-    parecer dele.</li>
+    <li><strong>Versões aguardando parecer</strong>: a versão mais recente <strong>entregue
+    pela orientanda</strong> que ainda não recebeu parecer — enviada por ela ou registrada em
+    nome dela pelo orientador (ver 6.2). Versões superadas por outra não aparecem, e o upload
+    comum do orientador (devolução ou registro) não pede parecer dele.</li>
   </ul>
   <p>O quadro <strong>Próximas reuniões</strong> é agenda, e não pendência: reunião
   marcada para a semana que vem não está parada esperando ninguém, e por isso não entra
@@ -429,16 +429,25 @@
     <li>A numeração avança automaticamente; use o comentário para resumir o que mudou
     ("incorporadas as correções da reunião de 15/07").</li>
   </ol>
-  <p><strong>Versão como devolução (orientador).</strong> Quando é o orientador quem sobe o
-  arquivo, o formulário oferece a opção <em>"Esta versão é uma devolução minha, com
-  correções"</em>. Marcada, a versão <strong>não pede parecer</strong> (não é entrega da
-  orientanda a avaliar) e a tarefa ligada <strong>volta para revisão do orientando</strong>.
-  Desmarcada, a versão é apenas registrada (por exemplo, um arquivo da orientanda recebido por
-  outro canal), sem devolver a tarefa. Em nenhum caso o upload do orientador pede parecer dele
-  — <em>Versões aguardando parecer</em> lista só o que a orientanda envia. No histórico do
-  documento, cada versão de devolução leva a etiqueta <em>devolução</em>, e o orientador pode
-  marcar/desmarcar uma versão como devolução ali mesmo (útil para reclassificar envios
-  antigos).</p>
+  <p><strong>O que é esta versão? (orientador).</strong> O caminho normal é a orientanda
+  enviar as próprias entregas. Quando é o <strong>orientador</strong> quem sobe o arquivo, o
+  formulário pergunta o que a versão é, e a resposta define o que o sistema faz:</p>
+  <table>
+    <tr><th>Escolha</th><th>Efeito</th></tr>
+    <tr><td><em>Registro meu</em> (padrão)</td>
+      <td>Só guarda o arquivo: não pede parecer nem altera a tarefa.</td></tr>
+    <tr><td><em>Devolução minha, com correções</em></td>
+      <td>Não pede parecer e <strong>devolve a tarefa</strong> à orientanda para revisão.</td></tr>
+    <tr><td><em>Entrega da orientanda, que estou registrando por ela</em></td>
+      <td>Conta como entrega dela: <strong>entra em "Versões aguardando parecer"</strong>,
+      como se ela mesma tivesse enviado — para o caso de o arquivo chegar por outro canal.</td></tr>
+  </table>
+  <p>Assim, o orientador nunca é cobrado a emitir parecer de um arquivo seu, mas pode registrar
+  a entrega da orientanda quando necessário. A versão enviada pela própria orientanda é sempre
+  entrega dela, sem pergunta alguma. No histórico do documento, cada versão leva a etiqueta
+  correspondente (<em>devolução</em>, <em>entrega da orientanda</em>) e o orientador pode
+  <strong>reclassificá-la</strong> ali mesmo, pelo seletor ao lado — útil para acertar envios
+  antigos.</p>
   <h3>6.3 Regras de validação do upload</h3>
   <ul>
     <li>Extensões aceitas: <code>pdf</code>, <code>doc</code>, <code>docx</code>,

@@ -9,12 +9,15 @@
 <h2>Histórico de versões</h2>
 <table>
   <tr><th>Versão</th><th>Arquivo</th><th>Tamanho</th><th>Enviado por</th><th>Em</th><th>Comentário</th><th></th></tr>
+  {% set etiqueta = {'devolucao': 'devolução', 'entrega': 'entrega da orientanda'} %}
   {% for v in documento.versoes %}
   <tr>
-    <td>v{{ v.numero_versao }}{% if v.eh_devolucao %} <span class="badge">devolução</span>{% endif %}</td>
+    <td>v{{ v.numero_versao }}
+      {%- if etiqueta.get(v.natureza) %} <span class="badge">{{ etiqueta[v.natureza] }}</span>{% endif %}</td>
     <td>{{ v.nome_original }}</td>
     <td>{{ (v.tamanho_bytes / 1024) | round(1) }} KB</td>
-    <td>{{ v.remetente.nome }}</td>
+    <td>{{ v.remetente.nome }}
+      {%- if v.em_nome_do_orientando %} <small>(em nome da orientanda)</small>{% endif %}</td>
     <td>{{ v.enviado_em.strftime('%Y-%m-%d %H:%M') }}</td>
     <td>{{ v.comentario or '' }}</td>
     <td class="acoes">
@@ -24,9 +27,14 @@
       <a href="{{ url_for('atas.emitir_parecer', orientacao_id=orientacao.id, versao=v.id) }}">Emitir parecer</a>
       {% endif %}
       {% if is_principal %}
-      <form method="post" action="{{ url_for('documentos.alternar_devolucao', orientacao_id=orientacao.id, documento_id=documento.id, versao_id=v.id) }}" style="display:inline">
+      <form method="post" action="{{ url_for('documentos.classificar_versao', orientacao_id=orientacao.id, documento_id=documento.id, versao_id=v.id) }}" style="display:inline">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit">{{ 'Desmarcar devolução' if v.eh_devolucao else 'Marcar como devolução' }}</button>
+        <select name="natureza">
+          {% for valor, rotulo in classificar_form.natureza.choices %}
+          <option value="{{ valor }}"{% if v.natureza == valor %} selected{% endif %}>{{ rotulo }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit">Aplicar</button>
       </form>
       {% endif %}
     </td>

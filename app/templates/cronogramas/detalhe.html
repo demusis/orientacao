@@ -64,7 +64,7 @@
     {% for d in marco.documentos %}
     <tr>
       <td>{{ d.titulo }}</td>
-      <td>{% if d.versao_atual %}v{{ d.versao_atual.numero_versao }}{% if d.versao_atual.eh_devolucao %} <span class="badge">devolução</span>{% endif %}{% else %}sem versão{% endif %}</td>
+      <td>{% if d.versao_atual %}v{{ d.versao_atual.numero_versao }}{% if d.versao_atual.eh_devolucao %} <span class="badge">devolução</span>{% elif d.versao_atual.em_nome_do_orientando %} <span class="badge">entrega da orientanda</span>{% endif %}{% else %}sem versão{% endif %}</td>
       <td>{% if d.versao_atual %}{{ d.versao_atual.remetente.nome }}
         {%- if d.versao_atual.enviado_por == orientacao.orientando_id %} <small>(orientando)</small>
         {%- else %} <small>(orientador)</small>{% endif %}{% endif %}</td>

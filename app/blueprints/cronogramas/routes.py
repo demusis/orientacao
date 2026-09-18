@@ -9,6 +9,7 @@ from app.blueprints.cronogramas.forms import (
     MarcoForm,
     SinalizarForm,
 )
+from app.blueprints.documentos.forms import flags_da_natureza
 from app.extensions import db
 from app.models import Documento, Marco
 from app.services import auditoria
@@ -105,9 +106,9 @@ def detalhe(orientacao_id: int, marco_id: int):
     orientacao = orientacao_autorizada(orientacao_id)
     marco = _marco_da_orientacao(orientacao, marco_id)
     anexo_form = AnexoMarcoForm(titulo=marco.titulo)
-    # a orientanda não devolve: o campo de devolução some do anexo para ela
+    # a versão da orientanda é sempre entrega dela: o campo some para ela
     if current_user.id == orientacao.orientando_id:
-        del anexo_form.eh_devolucao
+        del anexo_form.natureza
     return render_template(
         "cronogramas/detalhe.html",
         orientacao=orientacao,
@@ -129,9 +130,11 @@ def anexar(orientacao_id: int, marco_id: int):
     form = AnexoMarcoForm()
     eh_gestor = current_user.id != orientacao.orientando_id
     if not eh_gestor:
-        del form.eh_devolucao
+        del form.natureza
     if form.validate_on_submit():
-        eh_devolucao = eh_gestor and form.eh_devolucao.data
+        eh_devolucao, em_nome = (
+            flags_da_natureza(form.natureza.data) if eh_gestor else (False, False)
+        )
         documento = Documento(
             orientacao_id=orientacao.id,
             marco_id=marco.id,
@@ -143,7 +146,7 @@ def anexar(orientacao_id: int, marco_id: int):
         try:
             versao = salvar_versao(
                 documento, form.arquivo.data, current_user, form.comentario.data,
-                eh_devolucao=eh_devolucao,
+                eh_devolucao=eh_devolucao, em_nome_do_orientando=em_nome,
             )
         except UploadInvalido as exc:
             db.session.rollback()
@@ -152,7 +155,7 @@ def anexar(orientacao_id: int, marco_id: int):
             auditoria.registrar(
                 "criacao_documento", "documento", documento.id,
                 {"titulo": documento.titulo, "arquivo": versao.nome_original,
-                 "origem": "marco", "marco_id": marco.id, "devolucao": eh_devolucao},
+                 "origem": "marco", "marco_id": marco.id, "natureza": versao.natureza},
             )
             if eh_devolucao and marco.status != "concluido":
                 servico_cronograma.devolver_para_revisao(
