@@ -75,7 +75,7 @@ def validar_arquivo(storage) -> str:
 
 def salvar_versao(
     documento: Documento, storage, usuario, comentario: str | None = None,
-    eh_devolucao: bool = False,
+    eh_devolucao: bool = False, em_nome_do_orientando: bool = False,
 ):
     """Grava o arquivo em disco sob UUID e cria a próxima versão do documento.
     A constraint UNIQUE(documento_id, numero_versao) é a salvaguarda final
@@ -111,6 +111,7 @@ def salvar_versao(
         enviado_por=usuario.id,
         comentario=comentario,
         eh_devolucao=eh_devolucao,
+        em_nome_do_orientando=em_nome_do_orientando,
     )
     db.session.add(versao)
     return versao

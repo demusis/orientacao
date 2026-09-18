@@ -186,10 +186,13 @@ def pendencias() -> dict:
             Documento.orientacao_id.in_(ids),
             VersaoDocumento.numero_versao == versao_corrente,
             VersaoDocumento.id.notin_(com_parecer),
-            # parecer é a avaliação da entrega da orientanda: só versão enviada
-            # por ela pede parecer. O que o orientador sobe (devolução, registro
-            # ou submissão) nunca cobra o parecer dele próprio.
-            VersaoDocumento.enviado_por == Orientacao.orientando_id,
+            # parecer é a avaliação da entrega da orientanda: entra a versão que
+            # ela enviou — ou que o orientador registrou EM NOME dela. O upload
+            # comum do orientador nunca cobra o parecer dele próprio.
+            db.or_(
+                VersaoDocumento.enviado_por == Orientacao.orientando_id,
+                VersaoDocumento.em_nome_do_orientando.is_(True),
+            ),
             VersaoDocumento.eh_devolucao.is_(False),
         )
         .order_by(VersaoDocumento.enviado_em.desc())

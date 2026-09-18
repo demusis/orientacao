@@ -56,9 +56,25 @@ class VersaoDocumento(db.Model):
     # tarefa. A distinção é por intenção, não por quem enviou — no fluxo misto,
     # o orientador tanto registra a entrega da aluna quanto devolve correções.
     eh_devolucao = db.Column(db.Boolean, nullable=False, default=False)
+    # Versão que o orientador sobe EM NOME da orientanda (arquivo dela, recebido
+    # por outro canal). Conta como entrega dela: pede parecer, como se ela mesma
+    # tivesse enviado. Sem isto, o upload do orientador nunca entraria na lista.
+    em_nome_do_orientando = db.Column(db.Boolean, nullable=False, default=False)
 
     documento = db.relationship("Documento", back_populates="versoes")
     remetente = db.relationship("Usuario", foreign_keys=[enviado_por])
+
+    @property
+    def natureza(self) -> str:
+        """O que a versão é, em uma palavra: "devolucao" (correções do
+        orientador), "entrega" (da orientanda — enviada por ela ou registrada em
+        nome dela) ou "registro" (qualquer outro upload do orientador). É o
+        vocabulário do formulário de envio e das etiquetas."""
+        if self.eh_devolucao:
+            return "devolucao"
+        if self.em_nome_do_orientando:
+            return "entrega"
+        return "registro"
 
     def __repr__(self) -> str:
         return f"<VersaoDocumento doc={self.documento_id} v{self.numero_versao}>"

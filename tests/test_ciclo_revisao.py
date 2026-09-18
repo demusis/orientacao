@@ -296,7 +296,7 @@ def test_nova_versao_como_devolucao_devolve_e_sai_dos_pareceres(
     resp = client.post(
         f"/orientacoes/{orientacao.id}/documentos/{doc.id}",
         data={"arquivo": pdf_falso("anot.pdf"), "comentario": "corrigir",
-              "eh_devolucao": "y"},
+              "natureza": "devolucao"},
         content_type="multipart/form-data",
         follow_redirects=True,
     )
@@ -359,36 +359,90 @@ def test_orientando_nova_versao_nao_vira_devolucao(client, orientacao, orientand
     # mesmo enviando o campo, a rota ignora para a orientanda
     client.post(
         f"/orientacoes/{orientacao.id}/documentos/{doc.id}",
-        data={"arquivo": pdf_falso("v2.pdf"), "eh_devolucao": "y"},
+        data={"arquivo": pdf_falso("v2.pdf"), "natureza": "devolucao"},
         content_type="multipart/form-data",
         follow_redirects=True,
     )
     assert doc.versoes.first().eh_devolucao is False
 
 
-def test_toggle_devolucao_por_versao(client, orientacao, orientador, orientando):
-    # versão da orientanda (aparece em pareceres); marcar devolução a remove
+def test_classificar_versao_como_devolucao(client, orientacao, orientador, orientando):
+    # versão da orientanda (aparece em pareceres); classificar como devolução a remove
     doc = _documento_com_v1(orientacao, _marco(orientacao), enviado_por=orientacao.orientando_id)
     versao = doc.versoes.first()
     login(client, "orientador@teste.br")
     assert versao.id in _versoes_sem_parecer_ids(orientador)
     client.post(
-        f"/orientacoes/{orientacao.id}/documentos/{doc.id}/versoes/{versao.id}/devolucao",
+        f"/orientacoes/{orientacao.id}/documentos/{doc.id}/versoes/{versao.id}/classificar",
+        data={"natureza": "devolucao"},
         follow_redirects=True,
     )
     db.session.expire(versao)
-    assert versao.eh_devolucao is True
+    assert versao.natureza == "devolucao"
     assert versao.id not in _versoes_sem_parecer_ids(orientador)
 
 
-def test_toggle_devolucao_negado_ao_orientando(client, orientacao, orientando):
+def test_classificar_negado_ao_orientando(client, orientacao, orientando):
     doc = _documento_com_v1(orientacao, _marco(orientacao), enviado_por=orientacao.orientador_id)
     versao = doc.versoes.first()
     login(client, "orientando@teste.br")
     resp = client.post(
-        f"/orientacoes/{orientacao.id}/documentos/{doc.id}/versoes/{versao.id}/devolucao",
+        f"/orientacoes/{orientacao.id}/documentos/{doc.id}/versoes/{versao.id}/classificar",
+        data={"natureza": "entrega"},
     )
     assert resp.status_code == 403
+
+
+# --- registrar entrega em nome da orientanda ---
+
+
+def test_upload_como_entrega_da_orientanda_pede_parecer(client, orientacao, orientador):
+    """O orientador registra o arquivo que a aluna mandou por fora: conta como
+    entrega dela e entra na lista de pareceres."""
+    doc = _documento_com_v1(orientacao, _marco(orientacao), enviado_por=orientacao.orientando_id)
+    login(client, "orientador@teste.br")
+    client.post(
+        f"/orientacoes/{orientacao.id}/documentos/{doc.id}",
+        data={"arquivo": pdf_falso("dela.pdf"), "comentario": "recebido por e-mail",
+              "natureza": "entrega"},
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+    nova = doc.versoes.first()
+    assert nova.em_nome_do_orientando is True
+    assert nova.natureza == "entrega"
+    assert nova.id in _versoes_sem_parecer_ids(orientador)
+
+
+def test_classificar_versao_como_entrega_da_orientanda(client, orientacao, orientador):
+    """Escotilha: um upload antigo do orientador pode ser reclassificado como
+    entrega da orientanda e volta a pedir parecer."""
+    doc = _documento_com_v1(orientacao, _marco(orientacao), enviado_por=orientacao.orientador_id)
+    versao = doc.versoes.first()
+    login(client, "orientador@teste.br")
+    assert versao.id not in _versoes_sem_parecer_ids(orientador)
+    client.post(
+        f"/orientacoes/{orientacao.id}/documentos/{doc.id}/versoes/{versao.id}/classificar",
+        data={"natureza": "entrega"},
+        follow_redirects=True,
+    )
+    db.session.expire(versao)
+    assert versao.natureza == "entrega"
+    assert versao.id in _versoes_sem_parecer_ids(orientador)
+
+
+def test_natureza_padrao_do_upload_do_orientador_e_registro(client, orientacao, orientador):
+    doc = _documento_com_v1(orientacao, _marco(orientacao), enviado_por=orientacao.orientando_id)
+    login(client, "orientador@teste.br")
+    client.post(  # sem informar natureza: vale o padrão "registro"
+        f"/orientacoes/{orientacao.id}/documentos/{doc.id}",
+        data={"arquivo": pdf_falso("meu.pdf")},
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+    nova = doc.versoes.first()
+    assert nova.natureza == "registro"
+    assert nova.id not in _versoes_sem_parecer_ids(orientador)
 
 
 def test_devolver_marco_marca_versao_do_orientador(app, orientacao):

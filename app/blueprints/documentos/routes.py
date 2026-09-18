@@ -10,7 +10,12 @@ from flask import (
 from flask_login import current_user, login_required
 
 from app.blueprints.documentos import bp
-from app.blueprints.documentos.forms import NovaVersaoForm, NovoDocumentoForm
+from app.blueprints.documentos.forms import (
+    ClassificarVersaoForm,
+    NovaVersaoForm,
+    NovoDocumentoForm,
+    flags_da_natureza,
+)
 from app.extensions import db
 from app.models import Documento, ModeloDocumento, VersaoDocumento
 from app.services import auditoria
@@ -41,15 +46,18 @@ def listar(orientacao_id: int):
 def criar(orientacao_id: int):
     orientacao = orientacao_autorizada(orientacao_id)
     form = NovoDocumentoForm()
-    # a orientanda não devolve: some o campo para ela (e não é lido no POST)
+    # a versão da orientanda é sempre entrega dela: o campo some para ela (e não
+    # é lido no POST)
     eh_gestor = current_user.id != orientacao.orientando_id
     if not eh_gestor:
-        del form.eh_devolucao
+        del form.natureza
     form.marco_id.choices = [(0, "(nenhum)")] + [
         (m.id, m.titulo) for m in orientacao.marcos
     ]
     if form.validate_on_submit():
-        eh_devolucao = eh_gestor and form.eh_devolucao.data
+        eh_devolucao, em_nome = (
+            flags_da_natureza(form.natureza.data) if eh_gestor else (False, False)
+        )
         documento = Documento(
             orientacao_id=orientacao.id,
             marco_id=form.marco_id.data or None,
@@ -61,7 +69,7 @@ def criar(orientacao_id: int):
         try:
             versao = salvar_versao(
                 documento, form.arquivo.data, current_user, form.comentario.data,
-                eh_devolucao=eh_devolucao,
+                eh_devolucao=eh_devolucao, em_nome_do_orientando=em_nome,
             )
         except UploadInvalido as exc:
             db.session.rollback()
@@ -72,7 +80,7 @@ def criar(orientacao_id: int):
                 "documento",
                 documento.id,
                 {"titulo": documento.titulo, "arquivo": versao.nome_original,
-                 "devolucao": eh_devolucao},
+                 "natureza": versao.natureza},
             )
             devolvido = (
                 eh_devolucao and documento.marco is not None
@@ -100,14 +108,16 @@ def detalhe(orientacao_id: int, documento_id: int):
     form = NovaVersaoForm()
     eh_gestor = current_user.id != orientacao.orientando_id
     if not eh_gestor:
-        del form.eh_devolucao
+        del form.natureza
     if form.validate_on_submit():
-        # devolução é declarada pelo gestor; a orientanda sempre entrega
-        eh_devolucao = eh_gestor and form.eh_devolucao.data
+        # a natureza é declarada pelo gestor; a orientanda sempre entrega
+        eh_devolucao, em_nome = (
+            flags_da_natureza(form.natureza.data) if eh_gestor else (False, False)
+        )
         try:
             versao = salvar_versao(
                 documento, form.arquivo.data, current_user, form.comentario.data,
-                eh_devolucao=eh_devolucao,
+                eh_devolucao=eh_devolucao, em_nome_do_orientando=em_nome,
             )
         except UploadInvalido as exc:
             db.session.rollback()
@@ -119,7 +129,7 @@ def detalhe(orientacao_id: int, documento_id: int):
                 "versao_documento",
                 versao.id,
                 {"documento_id": documento.id, "versao": versao.numero_versao,
-                 "devolucao": eh_devolucao},
+                 "natureza": versao.natureza},
             )
             # devolução declarada devolve a tarefa ao orientando (se houver marco)
             marco = documento.marco
@@ -146,16 +156,16 @@ def detalhe(orientacao_id: int, documento_id: int):
             )
     return render_template(
         "documentos/detalhe.html", orientacao=orientacao, documento=documento,
-        form=form, eh_gestor=eh_gestor,
+        form=form, eh_gestor=eh_gestor, classificar_form=ClassificarVersaoForm(),
     )
 
 
-@bp.route("/<int:documento_id>/versoes/<int:versao_id>/devolucao", methods=["POST"])
+@bp.route("/<int:documento_id>/versoes/<int:versao_id>/classificar", methods=["POST"])
 @login_required
-def alternar_devolucao(orientacao_id: int, documento_id: int, versao_id: int):
-    """Alterna a marca de "devolução" de uma versão (gestor). Marcada, sai de
-    "aguardando parecer"; é o que regulariza registros antigos e a escotilha
-    para reclassificar. RBAC do lado do orientador principal/admin."""
+def classificar_versao(orientacao_id: int, documento_id: int, versao_id: int):
+    """Reclassifica uma versão já enviada (devolução, entrega da orientanda ou
+    registro). É a escotilha para acertar envios antigos — e o que decide se a
+    versão pede parecer. RBAC do orientador principal/admin."""
     orientacao = orientacao_autorizada(orientacao_id)
     if current_user.id != orientacao.orientador_id and current_user.papel != "admin":
         abort(403)
@@ -163,18 +173,24 @@ def alternar_devolucao(orientacao_id: int, documento_id: int, versao_id: int):
     versao = db.session.get(VersaoDocumento, versao_id)
     if versao is None or versao.documento_id != documento.id:
         abort(404)
-    versao.eh_devolucao = not versao.eh_devolucao
-    auditoria.registrar(
-        "marcacao_devolucao_versao", "versao_documento", versao.id,
-        {"eh_devolucao": versao.eh_devolucao},
-    )
-    db.session.commit()
-    flash(
-        "Versão marcada como devolução (fora da lista de pareceres)."
-        if versao.eh_devolucao
-        else "Marca de devolução removida.",
-        "success",
-    )
+    form = ClassificarVersaoForm()
+    if form.validate_on_submit():
+        versao.eh_devolucao, versao.em_nome_do_orientando = flags_da_natureza(
+            form.natureza.data
+        )
+        auditoria.registrar(
+            "classificacao_versao", "versao_documento", versao.id,
+            {"natureza": versao.natureza},
+        )
+        db.session.commit()
+        flash(
+            {
+                "devolucao": "Versão marcada como devolução (fora da lista de pareceres).",
+                "entrega": "Versão marcada como entrega da orientanda (entra para parecer).",
+                "registro": "Versão marcada como registro (não pede parecer).",
+            }[versao.natureza],
+            "success",
+        )
     return redirect(
         url_for("documentos.detalhe", orientacao_id=orientacao.id, documento_id=documento.id)
     )
