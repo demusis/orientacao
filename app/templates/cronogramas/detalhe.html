@@ -6,6 +6,11 @@
 {{ nav_modulos(orientacao, 'cronograma') }}
 {% set is_orientando = current_user.id == orientacao.orientando_id %}
 {% set is_gestor = current_user.id == orientacao.orientador_id or current_user.papel == 'admin' %}
+{% set rotulo_aguardando = {
+     'orientador': 'Aguardando confirmação do orientador',
+     'orientando_revisao': 'Devolvido para revisão — aguardando o orientando',
+     'orientando': 'Em elaboração pelo orientando',
+   } %}
 
 <div class="card">
   <h1>{{ marco.titulo }} <span class="badge">{{ TIPO_MARCO_LABEL[marco.tipo] }}</span></h1>
@@ -18,10 +23,27 @@
     <span class="badge {% if marco.status == 'concluido' %}badge-concluido{% endif %}">{{ marco.status }}</span>
     {% if marco.atrasado %}<span class="badge badge-atrasado">atrasado</span>{% endif %}
     {% if marco.conclusao_sinalizada and marco.status != 'concluido' %}<span class="badge">sinalizado</span>{% endif %}
+    {% if marco.aguardando == 'orientando_revisao' %}<span class="badge badge-atrasado">devolvido</span>{% endif %}
     {% if marco.grupo_id %}<span class="badge">grupo</span>{% endif %}
   </p>
+  <p><strong>Situação:</strong>
+    {{ 'Concluído' if not marco.aguardando else rotulo_aguardando[marco.aguardando] }}</p>
   {% if marco.descricao %}<p>{{ marco.descricao }}</p>{% endif %}
 </div>
+
+{% if marco.nota_devolucao or marco.devolvido_em %}
+<div class="card">
+  <h2>Devolvido para revisão</h2>
+  {% if marco.devolvido_em %}<p><small>Devolvido em
+    {{ marco.devolvido_em.strftime('%Y-%m-%d %H:%M') }} (UTC).</small></p>{% endif %}
+  {% if marco.nota_devolucao %}<p>{{ marco.nota_devolucao }}</p>{% endif %}
+  {% if marco.aguardando == 'orientando_revisao' %}
+  <p><small>Corrija o material, envie uma nova versão na aba
+  <a href="{{ url_for('documentos.listar', orientacao_id=orientacao.id) }}">Documentos</a>
+  e sinalize a conclusão de novo.</small></p>
+  {% endif %}
+</div>
+{% endif %}
 
 {% if marco.nota_conclusao %}
 <div class="card">
@@ -34,11 +56,14 @@
   <h2>Entregas ligadas a esta tarefa</h2>
   {% if marco.documentos %}
   <table>
-    <tr><th>Documento</th><th>Versão atual</th><th>Enviada em</th><th></th></tr>
+    <tr><th>Documento</th><th>Versão atual</th><th>Enviada por</th><th>Enviada em</th><th></th></tr>
     {% for d in marco.documentos %}
     <tr>
       <td>{{ d.titulo }}</td>
       <td>{% if d.versao_atual %}v{{ d.versao_atual.numero_versao }}{% else %}sem versão{% endif %}</td>
+      <td>{% if d.versao_atual %}{{ d.versao_atual.remetente.nome }}
+        {%- if d.versao_atual.enviado_por == orientacao.orientando_id %} <small>(orientando)</small>
+        {%- else %} <small>(orientador)</small>{% endif %}{% endif %}</td>
       <td>{% if d.versao_atual %}{{ d.versao_atual.enviado_em.strftime('%Y-%m-%d %H:%M') }}{% endif %}</td>
       <td><a href="{{ url_for('documentos.detalhe', orientacao_id=orientacao.id, documento_id=d.id) }}">Abrir</a></td>
     </tr>
@@ -88,6 +113,13 @@
     {{ confirmacao_form.hidden_tag() }}
     <button type="submit">Confirmar conclusão</button>
   </form>
+  {% endif %}
+  {% if marco.conclusao_sinalizada and marco.status != 'concluido' %}
+  <hr>
+  <p><small>Precisa de correções? Devolva a entrega ao orientando, com uma nota
+  do que ajustar (opcional). A tarefa volta para ele e sai da sua lista de
+  confirmações.</small></p>
+  {{ render_form(devolver_form, action=url_for('cronogramas.devolver_para_revisao', orientacao_id=orientacao.id, marco_id=marco.id)) }}
   {% endif %}
 </div>
 {% endif %}

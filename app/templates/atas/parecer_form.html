@@ -9,7 +9,7 @@
   <h1>Emitir parecer</h1>
   <p><strong>{{ avaliada.documento.titulo }}</strong>, versão {{ avaliada.numero_versao }}</p>
   <p><small>
-    Enviada por {{ avaliada.documento.orientacao.orientando.nome }}
+    Enviada por {{ avaliada.remetente.nome }}
     em {{ avaliada.enviado_em.strftime('%d/%m/%Y às %H:%M') }} (UTC) ·
     {{ avaliada.nome_original }} ·
     <a href="{{ url_for('documentos.download', orientacao_id=orientacao.id, documento_id=avaliada.documento_id, versao_id=avaliada.id) }}">Baixar arquivo</a>

@@ -160,6 +160,20 @@ SECOES = {
             "antecedência; ele pode ajustar a data prevista.",
         ],
     },
+    "marcos_devolvidos": {
+        "titulo": "Tarefas devolvidas para revisão",
+        "explicacao": (
+            "Seu orientador devolveu estas entregas para você corrigir e "
+            "reenviar. A tarefa está com você."
+        ),
+        "passos": [
+            "Abra a tarefa pelo Painel ou pelo Cronograma e leia a nota de "
+            "devolução, que diz o que ajustar.",
+            "Corrija o material e envie uma nova versão na aba Documentos.",
+            "Feito isso, clique em Sinalizar conclusão de novo, para o "
+            "orientador reavaliar.",
+        ],
+    },
     "reunioes_hoje": {
         "titulo": "Reunião de orientação hoje",
         "explicacao": (
@@ -365,6 +379,32 @@ def reunioes_proximas(destino: dict, hoje=None) -> None:
             _acumular(destino, pessoa, secao, "Reunião de orientação", detalhe)
 
 
+def marcos_devolvidos(destino: dict, hoje=None) -> None:
+    """Ao orientando: o orientador devolveu a entrega para revisão. É a vez do
+    aluno — devolvido (`devolvido_em` set) e ainda não re-sinalizado."""
+    itens = (
+        Marco.query.join(Orientacao, Orientacao.id == Marco.orientacao_id)
+        .options(joinedload(Marco.orientacao).joinedload(Orientacao.orientando))
+        .filter(
+            Orientacao.status == "ativa",
+            Marco.status != "concluido",
+            Marco.conclusao_sinalizada.is_(False),
+            Marco.devolvido_em.isnot(None),
+        )
+        .order_by(Marco.data_prevista)
+        .all()
+    )
+    for m in itens:
+        _acumular(
+            destino,
+            m.orientacao.orientando,
+            "marcos_devolvidos",
+            m.titulo,
+            (f"Devolvido em {m.devolvido_em.strftime('%d/%m/%Y')} · " if m.devolvido_em else "")
+            + m.orientacao.titulo_projeto,
+        )
+
+
 def marcos_a_confirmar(destino: dict, hoje=None) -> None:
     """Ao orientador: o orientando sinalizou conclusão e ninguém confirmou."""
     itens = (
@@ -434,7 +474,9 @@ def versoes_sem_parecer(destino: dict, hoje=None) -> None:
             orientacao.orientador,
             "sem_parecer",
             f"{v.documento.titulo} (versão {v.numero_versao})",
-            f"Enviado por {orientacao.orientando.nome} em "
+            # quem enviou a versão corrente, e não sempre o orientando — o
+            # orientador pode ter devolvido uma versão com anotações
+            f"Enviado por {v.remetente.nome} em "
             f"{v.enviado_em.strftime('%d/%m/%Y')} · {orientacao.titulo_projeto}",
         )
 
@@ -484,6 +526,7 @@ def atas_em_rascunho(destino: dict, hoje=None) -> None:
 CATEGORIAS = (
     marcos_atrasados,
     marcos_a_vencer,
+    marcos_devolvidos,
     marcos_atrasados_dos_orientandos,
     reunioes_proximas,
     marcos_a_confirmar,

@@ -51,6 +51,16 @@ class SinalizarForm(FlaskForm):
     submit = SubmitField("Sinalizar conclusão")
 
 
+class DevolverForm(FlaskForm):
+    """Devolução da entrega ao orientando pelo orientador, com uma nota opcional
+    dizendo o que corrigir."""
+
+    nota = TextAreaField(
+        "O que precisa corrigir (opcional)", validators=[Optional(), Length(max=2000)]
+    )
+    submit = SubmitField("Devolver para revisão")
+
+
 class AnexoMarcoForm(FlaskForm):
     """Anexo de documento diretamente pela página da tarefa. Cria um documento
     ligado ao marco, reaproveitando o armazenamento de versões."""

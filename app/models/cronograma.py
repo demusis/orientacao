@@ -72,6 +72,12 @@ class Marco(db.Model):
     conclusao_sinalizada = db.Column(db.Boolean, nullable=False, default=False)
     # nota opcional que o orientando escreve ao sinalizar a conclusão
     nota_conclusao = db.Column(db.Text, nullable=True)
+    # devolução para revisão: instante da última devolução pelo orientador e a
+    # nota que a acompanha. Ficam preenchidos após uma devolução e distinguem
+    # "devolvido, aguardando o aluno reenviar" de "nunca iniciado" (ver
+    # `aguardando`). Permanecem como histórico quando o aluno re-sinaliza.
+    devolvido_em = db.Column(db.DateTime, nullable=True)
+    nota_devolucao = db.Column(db.Text, nullable=True)
     # UUID hex comum aos marcos criados por uma mesma tarefa em grupo
     grupo_id = db.Column(db.String(32), nullable=True, index=True)
 
@@ -82,6 +88,21 @@ class Marco(db.Model):
     atas = db.relationship(
         "Ata", secondary="ata_marco", order_by="Ata.data_reuniao", viewonly=True
     )
+
+    @property
+    def aguardando(self) -> str | None:
+        """De quem é a vez, derivado do estado. `None` quando concluído; senão
+        indica a parte que precisa agir — o que o painel e a página do marco
+        anunciam. A ordem importa: um marco re-sinalizado tem `devolvido_em` de
+        histórico, mas a vez volta ao orientador, então `conclusao_sinalizada`
+        vem antes de `devolvido_em`."""
+        if self.status == "concluido":
+            return None
+        if self.conclusao_sinalizada:
+            return "orientador"  # aguarda confirmar OU devolver
+        if self.devolvido_em is not None:
+            return "orientando_revisao"  # devolvido; aguarda o aluno reenviar
+        return "orientando"  # em elaboração / a iniciar
 
     @property
     def atrasado(self) -> bool:

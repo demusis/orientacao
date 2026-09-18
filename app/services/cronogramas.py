@@ -10,7 +10,7 @@ from datetime import date, timedelta
 from app.extensions import db
 from app.models import Marco
 from app.services import auditoria
-from app.services.tempo import hoje_local
+from app.services.tempo import agora, hoje_local
 
 # Modelo por modalidade: (título, tipo, etapa, mês a partir de data_inicio). É o
 # único ponto a editar para mudar o que se semeia. Tipos válidos: TIPOS_MARCO em
@@ -81,4 +81,24 @@ def confirmar_conclusao(marco: Marco) -> bool:
     # data de parede local, como toda data exibida ao lado das digitadas
     marco.data_conclusao = hoje_local()
     auditoria.registrar("conclusao_marco", "marco", marco.id)
+    return True
+
+
+def devolver_para_revisao(marco: Marco, nota: str | None = None) -> bool:
+    """Devolve a entrega ao orientando corrigir — a volta que faltava ao ciclo.
+    Espelha `confirmar_conclusao`: **não faz commit** (a transação é do
+    chamador) e devolve False, sem efeito, se o marco já está concluído.
+
+    Zera `conclusao_sinalizada` (a vez volta ao orientando), mantém o marco em
+    andamento e carimba `devolvido_em`/`nota_devolucao` — que distinguem
+    "devolvido, aguardando o aluno" de "nunca iniciado" e dizem o que corrigir."""
+    if marco.status == "concluido":
+        return False
+    marco.conclusao_sinalizada = False
+    marco.status = "em_andamento"
+    marco.devolvido_em = agora()
+    marco.nota_devolucao = (nota or "").strip() or None
+    auditoria.registrar(
+        "devolucao_revisao_marco", "marco", marco.id, {"com_nota": bool(marco.nota_devolucao)}
+    )
     return True
