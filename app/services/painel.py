@@ -180,12 +180,16 @@ def pendencias() -> dict:
     )
     versoes_sem_parecer = (
         VersaoDocumento.query.join(Documento, Documento.id == VersaoDocumento.documento_id)
+        .join(Orientacao, Orientacao.id == Documento.orientacao_id)
         .options(joinedload(VersaoDocumento.documento).joinedload(Documento.orientacao))
         .filter(
             Documento.orientacao_id.in_(ids),
             VersaoDocumento.numero_versao == versao_corrente,
             VersaoDocumento.id.notin_(com_parecer),
-            # devolução do orientador não pede o parecer dele
+            # parecer é a avaliação da entrega da orientanda: só versão enviada
+            # por ela pede parecer. O que o orientador sobe (devolução, registro
+            # ou submissão) nunca cobra o parecer dele próprio.
+            VersaoDocumento.enviado_por == Orientacao.orientando_id,
             VersaoDocumento.eh_devolucao.is_(False),
         )
         .order_by(VersaoDocumento.enviado_em.desc())

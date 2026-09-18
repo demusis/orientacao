@@ -13,7 +13,7 @@ from wtforms.validators import DataRequired, Length, Optional
 # exibe a gestores; a rota só o honra quando quem envia não é a orientanda.
 DEVOLUCAO_LABEL = (
     "Esta versão é uma devolução minha, com correções "
-    "(não pede parecer e devolve a tarefa à orientanda)"
+    "(devolve a tarefa à orientanda para revisão)"
 )
 
 

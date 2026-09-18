@@ -69,8 +69,11 @@ def test_ata_em_rascunho_aparece_e_some_ao_finalizar(client, orientacao, orienta
     assert "Atas em rascunho" not in client.get("/dashboard").data.decode()
 
 
-def test_versao_sem_parecer_aparece_e_some_apos_parecer(client, orientacao, orientador):
-    login(client, "orientador@teste.br")
+def test_versao_sem_parecer_aparece_e_some_apos_parecer(
+    client, orientacao, orientador, orientando
+):
+    # a entrega é da orientanda — só o que ela envia pede parecer do orientador
+    login(client, "orientando@teste.br")
     client.post(
         f"/orientacoes/{orientacao.id}/documentos/novo",
         data={
@@ -84,6 +87,8 @@ def test_versao_sem_parecer_aparece_e_some_apos_parecer(client, orientacao, orie
     from app.models import VersaoDocumento
 
     versao = VersaoDocumento.query.one()
+    client.post("/auth/logout")  # troca de usuária: a de login redireciona quem já entrou
+    login(client, "orientador@teste.br")
     pagina = client.get("/dashboard").data.decode()
     assert "aguardando parecer" in pagina
     assert "Projeto de pesquisa" in pagina
@@ -100,9 +105,12 @@ def test_versao_sem_parecer_aparece_e_some_apos_parecer(client, orientacao, orie
     assert "aguardando parecer" not in client.get("/dashboard").data.decode()
 
 
-def test_apenas_a_versao_corrente_conta_como_pendencia(client, orientacao, orientador):
+def test_apenas_a_versao_corrente_conta_como_pendencia(
+    client, orientacao, orientador, orientando
+):
     """Versão superada por outra não é pendência, ainda que sem parecer."""
-    login(client, "orientador@teste.br")
+    # ambas as versões enviadas pela orientanda (é a entrega dela que pede parecer)
+    login(client, "orientando@teste.br")
     client.post(
         f"/orientacoes/{orientacao.id}/documentos/novo",
         data={
@@ -122,6 +130,8 @@ def test_apenas_a_versao_corrente_conta_como_pendencia(client, orientacao, orien
         content_type="multipart/form-data",
     )
 
+    client.post("/auth/logout")  # troca de usuária antes de ver como orientador
+    login(client, "orientador@teste.br")
     resp = client.get("/dashboard")
     assert resp.status_code == 200
     # duas versões, uma única pendência (a corrente). O orientador vê "Emitir
