@@ -185,6 +185,8 @@ def pendencias() -> dict:
             Documento.orientacao_id.in_(ids),
             VersaoDocumento.numero_versao == versao_corrente,
             VersaoDocumento.id.notin_(com_parecer),
+            # devolução do orientador não pede o parecer dele
+            VersaoDocumento.eh_devolucao.is_(False),
         )
         .order_by(VersaoDocumento.enviado_em.desc())
         .all()

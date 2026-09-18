@@ -51,6 +51,11 @@ class VersaoDocumento(db.Model):
         db.DateTime, nullable=False, default=lambda: datetime.now(UTC)
     )
     comentario = db.Column(db.Text, nullable=True)
+    # Versão enviada pelo orientador como devolução com correções (não é entrega
+    # da orientanda a avaliar): fica fora de "aguardando parecer" e devolve a
+    # tarefa. A distinção é por intenção, não por quem enviou — no fluxo misto,
+    # o orientador tanto registra a entrega da aluna quanto devolve correções.
+    eh_devolucao = db.Column(db.Boolean, nullable=False, default=False)
 
     documento = db.relationship("Documento", back_populates="versoes")
     remetente = db.relationship("Usuario", foreign_keys=[enviado_por])

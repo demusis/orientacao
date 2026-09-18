@@ -1,7 +1,20 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileRequired
-from wtforms import SelectField, StringField, SubmitField, TextAreaField
+from wtforms import (
+    BooleanField,
+    SelectField,
+    StringField,
+    SubmitField,
+    TextAreaField,
+)
 from wtforms.validators import DataRequired, Length, Optional
+
+# Rótulo do campo de devolução, comum aos formulários de envio. O template só o
+# exibe a gestores; a rota só o honra quando quem envia não é a orientanda.
+DEVOLUCAO_LABEL = (
+    "Esta versão é uma devolução minha, com correções "
+    "(não pede parecer e devolve a tarefa à orientanda)"
+)
 
 
 class NovoDocumentoForm(FlaskForm):
@@ -9,10 +22,12 @@ class NovoDocumentoForm(FlaskForm):
     marco_id = SelectField("Marco associado", coerce=int, validators=[Optional()])
     arquivo = FileField("Arquivo", validators=[FileRequired()])
     comentario = TextAreaField("Comentário", validators=[Optional()])
+    eh_devolucao = BooleanField(DEVOLUCAO_LABEL)
     submit = SubmitField("Enviar")
 
 
 class NovaVersaoForm(FlaskForm):
     arquivo = FileField("Arquivo", validators=[FileRequired()])
     comentario = TextAreaField("Comentário", validators=[Optional()])
+    eh_devolucao = BooleanField(DEVOLUCAO_LABEL)
     submit = SubmitField("Enviar nova versão")
