@@ -101,14 +101,18 @@ def _marcos_com_registro_do_orientador(ids_marcos: list[int]) -> set[int]:
     """Ids, entre os marcos dados, cuja entrega mais recente é um registro do
     orientador — nem enviada pela orientanda, nem registrada em nome dela.
 
-    Uma consulta para todos: a versão mais recente de cada marco é a que casa
-    com o `max(enviado_em)` das versões dos documentos daquele marco."""
+    Uma consulta para todos. A "mais recente" é escolhida por data **e id**,
+    como em `Marco.ultima_entrega`: comparar só com `max(enviado_em)` casaria as
+    duas linhas de um empate de instante, e o marco entraria no conjunto por
+    causa da versão do orientador ainda que a da orientanda fosse a vigente."""
     if not ids_marcos:
         return set()
     mais_recente = (
-        select(db.func.max(VersaoDocumento.enviado_em))
+        select(VersaoDocumento.id)
         .join(Documento, Documento.id == VersaoDocumento.documento_id)
         .where(Documento.marco_id == Marco.id)
+        .order_by(VersaoDocumento.enviado_em.desc(), VersaoDocumento.id.desc())
+        .limit(1)
         .correlate(Marco)
         .scalar_subquery()
     )
@@ -120,7 +124,7 @@ def _marcos_com_registro_do_orientador(ids_marcos: list[int]) -> set[int]:
             .join(Orientacao, Orientacao.id == Marco.orientacao_id)
             .where(
                 Marco.id.in_(ids_marcos),
-                VersaoDocumento.enviado_em == mais_recente,
+                VersaoDocumento.id == mais_recente,
                 VersaoDocumento.enviado_por != Orientacao.orientando_id,
                 VersaoDocumento.em_nome_do_orientando.is_(False),
             )

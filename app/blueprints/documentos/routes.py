@@ -85,16 +85,19 @@ def criar(orientacao_id: int):
                 {"titulo": documento.titulo, "arquivo": versao.nome_original,
                  "natureza": versao.natureza},
             )
-            # nota=None preserva o que o orientador já escreveu no marco
+            # o comentário do upload vira a nota da devolução
             devolvido = (
                 eh_devolucao and documento.marco is not None
-                and servico_cronograma.devolver_para_revisao(documento.marco)
+                and servico_cronograma.devolver_para_revisao(
+                    documento.marco, form.comentario.data or ""
+                )
             )
             db.session.commit()
             flash("Documento enviado (versão 1).", "success")
-            if devolvido:
-                flash("Marcada como devolução: a tarefa voltou para revisão do "
-                      "orientando.", "info")
+            if eh_devolucao and documento.marco is not None:
+                flash(*servico_cronograma.recado_da_devolucao(
+                    documento.marco, devolvido
+                ))
             return redirect(url_for("documentos.listar", orientacao_id=orientacao.id))
     modelos = ModeloDocumento.query.order_by(ModeloDocumento.titulo).all()
     return render_template(
@@ -136,20 +139,18 @@ def detalhe(orientacao_id: int, documento_id: int):
                  "natureza": versao.natureza},
             )
             # devolução declarada devolve a tarefa ao orientando (se houver marco
-            # e ela estiver sinalizada); nota=None preserva a nota já escrita
+            # e ela estiver sinalizada); o comentário vira a nota
             marco = documento.marco
             devolvido = (
                 eh_devolucao and marco is not None
-                and servico_cronograma.devolver_para_revisao(marco)
+                and servico_cronograma.devolver_para_revisao(
+                    marco, form.comentario.data or ""
+                )
             )
             db.session.commit()
             flash(f"Versão {versao.numero_versao} enviada.", "success")
-            if devolvido:
-                flash(
-                    "Marcada como devolução: a tarefa voltou para revisão do "
-                    "orientando.",
-                    "info",
-                )
+            if eh_devolucao and marco is not None:
+                flash(*servico_cronograma.recado_da_devolucao(marco, devolvido))
             return redirect(
                 url_for(
                     "documentos.detalhe",

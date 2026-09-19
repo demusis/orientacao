@@ -45,6 +45,32 @@ usuário, um a um. Sem população remanescente, não há o que corrigir.
 Verificação: `ruff check .` limpo; suíte completa **528 passed, exit 0** (sem
 `| tail`, via `PIPESTATUS`).
 
+### Volta 2
+
+24 candidatos, 14 verificadores, 2 refutados. **7 confirmados corrigidos**,
+quase todos nos patches da volta 1 — inclusive uma perda silenciosa de arquivo.
+
+| # | Achado (arquivo:linha) | Correção |
+|---|---|---|
+| 1 | `cronogramas/routes.py:111` — o GET da tarefa montava o anexo **sem** `restringir_natureza`: o coorientador via a opção "Devolução", o POST a rejeitava e a rota só redirecionava — **upload descartado sem mensagem** | o GET oferece as mesmas escolhas que o POST aceita; `anexar` passou a exibir os erros do formulário |
+| 2 | `cronogramas.py:113` — o laço carimbava `eh_devolucao` na versão corrente de **todos** os documentos do marco (a ata da reunião virava "devolução" e perdia o link de parecer) | **laço removido**: ficou obsoleto quando a fila de pareceres passou a ignorar o upload do orientador. Classificar é ato do documento; devolver move só o estado do marco |
+| 3 | `cronogramas/routes.py:164` e `documentos/routes.py:143` — quando o serviço recusava (sem entrega sinalizada), o upload **nada dizia**, embora o rótulo da opção prometa que a tarefa volta | `recado_da_devolucao` no serviço, usado pelos três caminhos, explica o desfecho |
+| 4 | `cronogramas.py:108` — `nota=None` preservava a nota do ciclo **anterior** sob a data da devolução nova: a aluna refaria trabalho pronto | o comentário do upload vira a nota (`""` limpa); no mesmo ciclo a segunda devolução é no-op pela precondição |
+| 5 | `cronogramas/detalhe.html:76` — a entrega registrada em nome da aluna saía como **"Orientador A (orientando)"** | rótulo "(em nome da orientanda)", como na página do documento |
+| 6 | `painel.py:123` (PLAUSIBLE) — `enviado_em == max(enviado_em)` casava as duas linhas de um empate de instante e divergia de `Marco.ultima_entrega` | desempate por `id` nos dois lados (subconsulta ordenada) |
+| 7 | `cronogramas/detalhe.html:9` — a página percorria as entregas **duas vezes** (aviso + tabela) | a rota computa uma vez (`marco.entregas` + `ultima_versao`) e passa ao template |
+| 8 | `tests/test_ciclo_revisao.py:499` — o teste do coorientador passaria com qualquer implementação que ignorasse a escolha, e não cobria `anexar` | cobre os dois caminhos, exige que nada seja gravado e que o erro apareça |
+
+Nota de método: tentei memorizar `Marco.entregas` na instância para a passada
+única; o próprio teste de `ultima_entrega` expôs a obsolescência do cache
+(ler antes de acrescentar versão devolvia lista velha). Trocado por computar na
+rota e passar ao template — sem estado escondido.
+
+Três testes da volta 1 afirmavam o carimbo removido: dois ajustados, um
+excluído com nota explicando por quê.
+
+Verificação: `ruff check .` limpo; suíte completa **532 passed, exit 0**.
+
 ## Corrida 2026-07-26 (branch `revisao/2026-07-25`)
 
 ### Volta 1

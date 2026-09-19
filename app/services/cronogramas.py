@@ -84,6 +84,32 @@ def confirmar_conclusao(marco: Marco) -> bool:
     return True
 
 
+def recado_da_devolucao(marco: Marco, devolvida: bool) -> tuple[str, str]:
+    """Mensagem e categoria de flash para quem declarou uma versão como
+    devolução — dita num ponto só, porque três rotas de upload a exibem.
+
+    Declarar devolução e nada acontecer é o silêncio que confunde: o rótulo da
+    opção promete que a tarefa volta à orientanda, e sem entrega sinalizada ela
+    não volta."""
+    if devolvida:
+        return (
+            "Marcada como devolução: a tarefa voltou para revisão do orientando.",
+            "info",
+        )
+    if marco.status == "concluido":
+        return (
+            f'A versão foi gravada como devolução, mas a tarefa "{marco.titulo}" '
+            "já está concluída e não foi reaberta.",
+            "warning",
+        )
+    return (
+        f'A versão foi gravada como devolução, mas a tarefa "{marco.titulo}" '
+        "não tinha entrega sinalizada — nada foi devolvido ao orientando, e ele "
+        "não será avisado.",
+        "warning",
+    )
+
+
 def devolver_para_revisao(marco: Marco, nota: str | None = None) -> bool:
     """Devolve a entrega ao orientando corrigir — a volta que faltava ao ciclo.
     Espelha `confirmar_conclusao`: **não faz commit** (a transação é do
@@ -98,8 +124,17 @@ def devolver_para_revisao(marco: Marco, nota: str | None = None) -> bool:
     entregou. A guarda mora aqui, e não só no botão, porque três rotas chamam
     esta função (o botão e os dois caminhos de upload).
 
-    `nota=None` **preserva** a nota anterior: o upload de uma versão-devolução
-    não pode apagar as correções que o orientador já escreveu no marco."""
+    Sobre a nota: `None` preserva a que estiver lá, `""` limpa, texto substitui.
+    Quem devolve junto com uma versão passa o comentário do upload (ou `""`),
+    para que a nota nunca descreva o ciclo anterior — já resolvido — sob a data
+    da devolução nova.
+
+    **Não mexe em versão alguma.** Classificar a versão é ato do documento
+    (`natureza`), declarado no upload ou no seletor; aqui só se move o estado do
+    marco. Enquanto esta função marcava `eh_devolucao`, carimbava a versão
+    corrente de *todos* os documentos do marco — a ata da reunião virava
+    "devolução". O carimbo também deixou de ser necessário: a fila de pareceres
+    já ignora o que o orientador envia (ver `painel.versoes_sem_parecer`)."""
     if marco.status == "concluido" or not marco.conclusao_sinalizada:
         return False
     marco.conclusao_sinalizada = False
@@ -107,17 +142,6 @@ def devolver_para_revisao(marco: Marco, nota: str | None = None) -> bool:
     marco.devolvido_em = agora()
     if nota is not None:
         marco.nota_devolucao = nota.strip() or None
-    # O registro do orientador vira a devolução, saindo de "aguardando parecer".
-    # A entrega da orientanda NÃO é tocada — nem a que ela enviou, nem a que o
-    # orientador registrou em nome dela: essa espera parecer, não é devolução.
-    for doc in marco.documentos:
-        v = doc.versao_atual
-        if (
-            v is not None
-            and v.enviado_por != marco.orientacao.orientando_id
-            and not v.em_nome_do_orientando
-        ):
-            v.eh_devolucao = True
     auditoria.registrar(
         "devolucao_revisao_marco", "marco", marco.id, {"com_nota": bool(marco.nota_devolucao)}
     )
