@@ -18,3 +18,4 @@ uploads/
 .vscode/
 .idea/
 deploy-credenciais.txt
+uv.lock
