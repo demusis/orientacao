@@ -28,9 +28,23 @@ NATUREZA_CHOICES = [
 
 
 def campo_natureza() -> RadioField:
+    """Campo montado com TODAS as opções; a rota restringe as escolhas de quem
+    não pode devolver (ver `restringir_natureza`)."""
     return RadioField(
         "O que é esta versão?", choices=NATUREZA_CHOICES, default="registro"
     )
+
+
+def restringir_natureza(campo, pode_devolver: bool) -> None:
+    """Tira "devolução" das escolhas de quem não é o orientador principal.
+
+    Devolver muda o estado do marco, e o cronograma é do orientador principal —
+    a rota `/devolver` responde 403 ao coorientador. Sem isto, o mesmo ato
+    passaria pelo upload. Mexer nas `choices` basta: o `RadioField` valida o
+    valor recebido contra elas, então um POST forjado cai como formulário
+    inválido, sem gravar nada."""
+    if not pode_devolver:
+        campo.choices = [c for c in NATUREZA_CHOICES if c[0] != "devolucao"]
 
 
 def flags_da_natureza(natureza: str) -> tuple[bool, bool]:

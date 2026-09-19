@@ -15,12 +15,13 @@ from app.blueprints.documentos.forms import (
     NovaVersaoForm,
     NovoDocumentoForm,
     flags_da_natureza,
+    restringir_natureza,
 )
 from app.extensions import db
 from app.models import Documento, ModeloDocumento, VersaoDocumento
 from app.services import auditoria
 from app.services import cronogramas as servico_cronograma
-from app.services.rbac import orientacao_autorizada
+from app.services.rbac import manda_no_cronograma, orientacao_autorizada
 from app.services.uploads import UploadInvalido, salvar_versao
 
 
@@ -47,10 +48,12 @@ def criar(orientacao_id: int):
     orientacao = orientacao_autorizada(orientacao_id)
     form = NovoDocumentoForm()
     # a versão da orientanda é sempre entrega dela: o campo some para ela (e não
-    # é lido no POST)
+    # é lido no POST). Devolver, só o orientador principal (ver rbac).
     eh_gestor = current_user.id != orientacao.orientando_id
     if not eh_gestor:
         del form.natureza
+    else:
+        restringir_natureza(form.natureza, manda_no_cronograma(orientacao))
     form.marco_id.choices = [(0, "(nenhum)")] + [
         (m.id, m.titulo) for m in orientacao.marcos
     ]
@@ -82,11 +85,10 @@ def criar(orientacao_id: int):
                 {"titulo": documento.titulo, "arquivo": versao.nome_original,
                  "natureza": versao.natureza},
             )
+            # nota=None preserva o que o orientador já escreveu no marco
             devolvido = (
                 eh_devolucao and documento.marco is not None
-                and servico_cronograma.devolver_para_revisao(
-                    documento.marco, "(devolvido com nova versão)"
-                )
+                and servico_cronograma.devolver_para_revisao(documento.marco)
             )
             db.session.commit()
             flash("Documento enviado (versão 1).", "success")
@@ -109,6 +111,8 @@ def detalhe(orientacao_id: int, documento_id: int):
     eh_gestor = current_user.id != orientacao.orientando_id
     if not eh_gestor:
         del form.natureza
+    else:
+        restringir_natureza(form.natureza, manda_no_cronograma(orientacao))
     if form.validate_on_submit():
         # a natureza é declarada pelo gestor; a orientanda sempre entrega
         eh_devolucao, em_nome = (
@@ -131,13 +135,12 @@ def detalhe(orientacao_id: int, documento_id: int):
                 {"documento_id": documento.id, "versao": versao.numero_versao,
                  "natureza": versao.natureza},
             )
-            # devolução declarada devolve a tarefa ao orientando (se houver marco)
+            # devolução declarada devolve a tarefa ao orientando (se houver marco
+            # e ela estiver sinalizada); nota=None preserva a nota já escrita
             marco = documento.marco
             devolvido = (
                 eh_devolucao and marco is not None
-                and servico_cronograma.devolver_para_revisao(
-                    marco, "(devolvido com nova versão)"
-                )
+                and servico_cronograma.devolver_para_revisao(marco)
             )
             db.session.commit()
             flash(f"Versão {versao.numero_versao} enviada.", "success")
@@ -167,7 +170,7 @@ def classificar_versao(orientacao_id: int, documento_id: int, versao_id: int):
     registro). É a escotilha para acertar envios antigos — e o que decide se a
     versão pede parecer. RBAC do orientador principal/admin."""
     orientacao = orientacao_autorizada(orientacao_id)
-    if current_user.id != orientacao.orientador_id and current_user.papel != "admin":
+    if not manda_no_cronograma(orientacao):
         abort(403)
     documento = _documento_da_orientacao(orientacao, documento_id)
     versao = db.session.get(VersaoDocumento, versao_id)
@@ -191,6 +194,16 @@ def classificar_versao(orientacao_id: int, documento_id: int, versao_id: int):
             }[versao.natureza],
             "success",
         )
+        # reclassificar é sobre o documento; a tarefa tem botão próprio. Dizê-lo
+        # evita a impressão de que marcar devolução já devolveu a tarefa.
+        marco = documento.marco
+        if versao.eh_devolucao and marco is not None and marco.conclusao_sinalizada:
+            flash(
+                f'A tarefa "{marco.titulo}" continua aguardando sua confirmação. '
+                "Para devolvê-la ao orientando, use Devolver para revisão na "
+                "página da tarefa.",
+                "info",
+            )
     return redirect(
         url_for("documentos.detalhe", orientacao_id=orientacao.id, documento_id=documento.id)
     )

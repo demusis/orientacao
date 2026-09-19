@@ -5,6 +5,46 @@ arquivo:linha, o veredito da verificação adversarial e o destino: commit da
 correção, "fora da alçada" (aguardando decisão) ou "hipótese" (não confirmado).
 O protocolo do loop está em `.claude/commands/revisar.md`.
 
+## Corrida 2026-09-19 (branch `revisao/2026-09-19`)
+
+Primeira revisão do código escrito depois da corrida anterior (commits
+`50e5e5c..38e0d71`: ciclo de revisão do marco, natureza da versão de documento,
+filtros de "aguardando parecer"). Escopo integral, como decidido.
+
+### Volta 1
+
+39 candidatos, 30 verificadores, 9 refutados. **8 confirmados corrigidos** — e
+todos no código novo, nenhum no código antigo do sistema.
+
+| # | Achado (arquivo:linha) | Correção |
+|---|---|---|
+| 1 | `cronogramas.py:105` — `devolver_para_revisao` marcava como devolução **qualquer** versão corrente não enviada pela orientanda, inclusive a registrada **em nome dela**: a entrega dela sumia da fila de pareceres, sem rastro | só o *registro* do orientador vira devolução; `em_nome_do_orientando` é preservada |
+| 2 | `documentos/routes.py:138` (e `:51`, `cronogramas/routes.py:161`) — o upload deixava o **coorientador devolver** o que a rota `/devolver` recusa com 403 (`eh_gestor` = "não é orientanda" inclui coorientador) | `rbac.manda_no_cronograma` unifica a regra nos quatro pontos; `restringir_natureza` tira "devolução" das escolhas de quem não é principal (o `RadioField` rejeita POST forjado) |
+| 3 | `documentos/routes.py:139` — o upload passava a nota fixa "(devolvido com nova versão)", **apagando a nota de correções** já escrita pelo orientador | `nota=None` preserva a nota anterior (documentado no serviço) |
+| 4 | `painel.py:132` + `cronogramas/detalhe.html:64` — o selo "versão do orientador — revisar?" e o aviso ignoravam `em_nome_do_orientando`: mandavam **devolver a entrega que se deve confirmar**, e o aviso não tinha como ser limpo | ambos passam a exigir que a última entrega seja registro do orientador |
+| 6 | `cronogramas/routes.py:239` — `/devolver` não checava `conclusao_sinalizada` (guarda só no template): dava para devolver marco **nunca entregue**, e a aluna recebia e-mail sobre devolução de algo que não entregou | precondição no serviço, onde as três rotas passam |
+| 7 | `cronograma.py:79` — card "Devolvido para revisão" aparecia **em marco concluído**, contradizendo o selo "Concluído" pelo resto da vida do registro | card só enquanto o marco não está concluído (dados preservados) |
+| 9 | `cronograma.py:113` — `ultima_entrega` lia `versao_atual` (relação *dynamic*) duas vezes por documento, uma vez por marco do Painel: N+1 sem teto | uma leitura por documento; no Painel, **uma consulta só** (`_marcos_com_registro_do_orientador`) no lugar do laço |
+| 10 | `cronogramas/detalhe.html:67` — a tabela de entregas lia `versao_atual` **sete vezes por linha** | `{% set va = d.versao_atual %}` uma vez por linha |
+| — | (abaixo do teto do relatório) `style="display:inline"` no form de reclassificar viola a CSP `style-src 'self'` | removido — `.acoes form { display: inline }` já fazia isso |
+
+**Fora da alçada (decisão do usuário):** achado 5 — reclassificar uma versão
+como "devolução" pelo seletor **não devolve a tarefa**, ao contrário do upload
+com a mesma declaração. Corrigir exigiria mudar comportamento visível. Paliativo
+aplicado: a tela passa a avisar que a tarefa segue aguardando confirmação e
+indica o botão próprio. Proposta ao usuário: unificar o gatilho da devolução no
+serviço, de modo que declarar "devolução" por qualquer caminho devolva a tarefa
+(impacto médio, esforço baixo, risco baixo).
+
+**Hipótese (PLAUSIBLE, sem correção):** achado 8 — a migração `b4d7f2e91c63`
+não fez backfill, então versões antigas enviadas pelo orientador saíram de
+"aguardando parecer" ao aplicar o upgrade. **Já observado em produção** em
+19/09: a lista foi de 6 para 0 e os itens foram regularizados manualmente com o
+usuário, um a um. Sem população remanescente, não há o que corrigir.
+
+Verificação: `ruff check .` limpo; suíte completa **528 passed, exit 0** (sem
+`| tail`, via `PIPESTATUS`).
+
 ## Corrida 2026-07-26 (branch `revisao/2026-07-25`)
 
 ### Volta 1

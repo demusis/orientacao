@@ -97,6 +97,37 @@ def _com_orientando(consulta):
     )
 
 
+def _marcos_com_registro_do_orientador(ids_marcos: list[int]) -> set[int]:
+    """Ids, entre os marcos dados, cuja entrega mais recente é um registro do
+    orientador — nem enviada pela orientanda, nem registrada em nome dela.
+
+    Uma consulta para todos: a versão mais recente de cada marco é a que casa
+    com o `max(enviado_em)` das versões dos documentos daquele marco."""
+    if not ids_marcos:
+        return set()
+    mais_recente = (
+        select(db.func.max(VersaoDocumento.enviado_em))
+        .join(Documento, Documento.id == VersaoDocumento.documento_id)
+        .where(Documento.marco_id == Marco.id)
+        .correlate(Marco)
+        .scalar_subquery()
+    )
+    return set(
+        db.session.execute(
+            select(Marco.id)
+            .join(Documento, Documento.marco_id == Marco.id)
+            .join(VersaoDocumento, VersaoDocumento.documento_id == Documento.id)
+            .join(Orientacao, Orientacao.id == Marco.orientacao_id)
+            .where(
+                Marco.id.in_(ids_marcos),
+                VersaoDocumento.enviado_em == mais_recente,
+                VersaoDocumento.enviado_por != Orientacao.orientando_id,
+                VersaoDocumento.em_nome_do_orientando.is_(False),
+            )
+        ).scalars()
+    )
+
+
 def pendencias() -> dict:
     ids = _ids_visiveis()
     if not ids:
@@ -122,15 +153,16 @@ def pendencias() -> dict:
         .order_by(Marco.data_prevista)
         .all()
     )
-    # Dentre as que aguardam confirmação, aquelas cuja versão mais recente veio
-    # do orientador: provável devolução não formalizada (registro anterior à
-    # devolução explícita). O custo por item é aceitável — a lista é curta.
-    entregas_a_confirmar_revisao = {
-        m.id
-        for m in entregas_a_confirmar
-        if (ue := m.ultima_entrega) is not None
-        and ue.enviado_por != m.orientacao.orientando_id
-    }
+    # Dentre as que aguardam confirmação, aquelas cuja versão mais recente é um
+    # registro do orientador: provável devolução não formalizada. A entrega que
+    # ele registrou EM NOME da orientanda não conta — é entrega dela, e marcá-la
+    # mandaria devolver o que se deve confirmar.
+    #
+    # Em uma consulta só: percorrer `marco.ultima_entrega` em Python custava uma
+    # ida ao banco por documento de cada marco (`Documento.versoes` é dynamic).
+    entregas_a_confirmar_revisao = _marcos_com_registro_do_orientador(
+        [m.id for m in entregas_a_confirmar]
+    )
 
     # ainda não entregue; as atrasadas vêm primeiro por ordem de prazo
     tarefas_abertas = (
