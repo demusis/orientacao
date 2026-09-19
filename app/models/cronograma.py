@@ -110,7 +110,9 @@ class Marco(db.Model):
         a este marco, ou None. Serve para detectar quando a última versão veio
         do orientador — sinal de devolução — mesmo em registros anteriores à
         devolução explícita, em que `aguardando` ainda não reflete a incoerência."""
-        correntes = [d.versao_atual for d in self.documentos if d.versao_atual]
+        # uma leitura de `versao_atual` por documento: a relação é dynamic, e
+        # cada acesso vai ao banco
+        correntes = [v for v in (d.versao_atual for d in self.documentos) if v]
         return max(correntes, key=lambda v: v.enviado_em) if correntes else None
 
     @property

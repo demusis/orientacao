@@ -9,12 +9,12 @@ from app.blueprints.cronogramas.forms import (
     MarcoForm,
     SinalizarForm,
 )
-from app.blueprints.documentos.forms import flags_da_natureza
+from app.blueprints.documentos.forms import flags_da_natureza, restringir_natureza
 from app.extensions import db
 from app.models import Documento, Marco
 from app.services import auditoria
 from app.services import cronogramas as servico_cronograma
-from app.services.rbac import orientacao_autorizada
+from app.services.rbac import manda_no_cronograma, orientacao_autorizada
 from app.services.uploads import UploadInvalido, salvar_versao
 
 
@@ -42,7 +42,7 @@ def listar(orientacao_id: int):
 @login_required
 def criar(orientacao_id: int):
     orientacao = orientacao_autorizada(orientacao_id)
-    if current_user.id != orientacao.orientador_id and current_user.papel != "admin":
+    if not manda_no_cronograma(orientacao):
         abort(403)
     form = MarcoForm()
     if form.validate_on_submit():
@@ -70,7 +70,7 @@ def semear_padrao(orientacao_id: int):
     cronograma vazio, para nunca duplicar marcos; as datas semeadas são sugestões
     e ficam editáveis marco a marco."""
     orientacao = orientacao_autorizada(orientacao_id)
-    if current_user.id != orientacao.orientador_id and current_user.papel != "admin":
+    if not manda_no_cronograma(orientacao):
         abort(403)
     form = ConfirmacaoForm()
     if form.validate_on_submit():
@@ -131,6 +131,8 @@ def anexar(orientacao_id: int, marco_id: int):
     eh_gestor = current_user.id != orientacao.orientando_id
     if not eh_gestor:
         del form.natureza
+    else:
+        restringir_natureza(form.natureza, manda_no_cronograma(orientacao))
     if form.validate_on_submit():
         eh_devolucao, em_nome = (
             flags_da_natureza(form.natureza.data) if eh_gestor else (False, False)
@@ -157,12 +159,17 @@ def anexar(orientacao_id: int, marco_id: int):
                 {"titulo": documento.titulo, "arquivo": versao.nome_original,
                  "origem": "marco", "marco_id": marco.id, "natureza": versao.natureza},
             )
-            if eh_devolucao and marco.status != "concluido":
-                servico_cronograma.devolver_para_revisao(
-                    marco, "(devolvido com nova versão)"
-                )
+            # nota=None preserva a nota de devolução já escrita no marco; o
+            # serviço recusa se a entrega não estiver sinalizada
+            devolvido = eh_devolucao and servico_cronograma.devolver_para_revisao(marco)
             db.session.commit()
             flash("Documento anexado à tarefa (versão 1).", "success")
+            if devolvido:
+                flash(
+                    "Marcada como devolução: a tarefa voltou para revisão do "
+                    "orientando.",
+                    "info",
+                )
     return redirect(
         url_for("cronogramas.detalhe", orientacao_id=orientacao.id, marco_id=marco.id)
     )
@@ -172,7 +179,7 @@ def anexar(orientacao_id: int, marco_id: int):
 @login_required
 def editar(orientacao_id: int, marco_id: int):
     orientacao = orientacao_autorizada(orientacao_id)
-    if current_user.id != orientacao.orientador_id and current_user.papel != "admin":
+    if not manda_no_cronograma(orientacao):
         abort(403)
     marco = _marco_da_orientacao(orientacao, marco_id)
     form = MarcoForm(obj=marco)
@@ -214,7 +221,7 @@ def sinalizar_conclusao(orientacao_id: int, marco_id: int):
 @login_required
 def confirmar_conclusao(orientacao_id: int, marco_id: int):
     orientacao = orientacao_autorizada(orientacao_id)
-    if current_user.id != orientacao.orientador_id and current_user.papel != "admin":
+    if not manda_no_cronograma(orientacao):
         abort(403)
     marco = _marco_da_orientacao(orientacao, marco_id)
     form = ConfirmacaoForm()
@@ -232,7 +239,7 @@ def devolver_para_revisao(orientacao_id: int, marco_id: int):
     """Devolve a entrega ao orientando corrigir. Mesmo RBAC de `confirmar` — o
     cronograma é do orientador principal (ou admin)."""
     orientacao = orientacao_autorizada(orientacao_id)
-    if current_user.id != orientacao.orientador_id and current_user.papel != "admin":
+    if not manda_no_cronograma(orientacao):
         abort(403)
     marco = _marco_da_orientacao(orientacao, marco_id)
     form = DevolverForm()

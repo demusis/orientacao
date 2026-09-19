@@ -7,8 +7,11 @@
 {% set is_orientando = current_user.id == orientacao.orientando_id %}
 {% set is_gestor = current_user.id == orientacao.orientador_id or current_user.papel == 'admin' %}
 {% set ultima = marco.ultima_entrega %}
+{# suspeita de devolução não formalizada: a última entrega é um REGISTRO do
+   orientador. A que ele registrou em nome da orientanda é entrega dela. #}
 {% set entrega_devolvida = marco.conclusao_sinalizada and marco.status != 'concluido'
-   and ultima and ultima.enviado_por != orientacao.orientando_id %}
+   and ultima and ultima.enviado_por != orientacao.orientando_id
+   and not ultima.em_nome_do_orientando %}
 
 <div class="card">
   <h1>{{ marco.titulo }} <span class="badge">{{ TIPO_MARCO_LABEL[marco.tipo] }}</span></h1>
@@ -35,7 +38,9 @@
 </div>
 {% endif %}
 
-{% if marco.nota_devolucao or marco.devolvido_em %}
+{# histórico de devolução só enquanto o ciclo corre: em marco concluído o card
+   contradiria a situação "Concluído" #}
+{% if (marco.nota_devolucao or marco.devolvido_em) and marco.status != 'concluido' %}
 <div class="card">
   <h2>Devolvido para revisão</h2>
   {% if marco.devolvido_em %}<p><small>Devolvido em
@@ -61,14 +66,16 @@
   {% if marco.documentos %}
   <table>
     <tr><th>Documento</th><th>Versão atual</th><th>Enviada por</th><th>Enviada em</th><th></th></tr>
-    {% for d in marco.documentos %}
+    {# `versao_atual` consulta o banco a cada acesso (relação dynamic): lida uma
+       vez por linha, não sete #}
+    {% for d in marco.documentos %}{% set va = d.versao_atual %}
     <tr>
       <td>{{ d.titulo }}</td>
-      <td>{% if d.versao_atual %}v{{ d.versao_atual.numero_versao }}{% if d.versao_atual.eh_devolucao %} <span class="badge">devolução</span>{% elif d.versao_atual.em_nome_do_orientando %} <span class="badge">entrega da orientanda</span>{% endif %}{% else %}sem versão{% endif %}</td>
-      <td>{% if d.versao_atual %}{{ d.versao_atual.remetente.nome }}
-        {%- if d.versao_atual.enviado_por == orientacao.orientando_id %} <small>(orientando)</small>
+      <td>{% if va %}v{{ va.numero_versao }}{% if va.eh_devolucao %} <span class="badge">devolução</span>{% elif va.em_nome_do_orientando %} <span class="badge">entrega da orientanda</span>{% endif %}{% else %}sem versão{% endif %}</td>
+      <td>{% if va %}{{ va.remetente.nome }}
+        {%- if va.enviado_por == orientacao.orientando_id or va.em_nome_do_orientando %} <small>(orientando)</small>
         {%- else %} <small>(orientador)</small>{% endif %}{% endif %}</td>
-      <td>{% if d.versao_atual %}{{ d.versao_atual.enviado_em.strftime('%Y-%m-%d %H:%M') }}{% endif %}</td>
+      <td>{% if va %}{{ va.enviado_em.strftime('%Y-%m-%d %H:%M') }}{% endif %}</td>
       <td><a href="{{ url_for('documentos.detalhe', orientacao_id=orientacao.id, documento_id=d.id) }}">Abrir</a></td>
     </tr>
     {% endfor %}

@@ -37,6 +37,18 @@ def orientacao_autorizada(orientacao_id: int) -> Orientacao:
     return orientacao
 
 
+def manda_no_cronograma(orientacao: Orientacao) -> bool:
+    """O cronograma é do **orientador principal** (ou do admin): é quem confirma
+    conclusão e devolve entrega para revisão. O coorientador lê o vínculo e
+    redige atas, mas não move o estado das tarefas.
+
+    Existe como função porque a mesma regra é aplicada em quatro pontos — a rota
+    `/devolver`, a de confirmar e os dois caminhos de upload que podem devolver.
+    Enquanto esteve escrita à mão em cada um, o upload aceitava do coorientador
+    o que a rota `/devolver` recusava com 403."""
+    return current_user.id == orientacao.orientador_id or current_user.papel == "admin"
+
+
 def orientacoes_do_usuario():
     """Consulta-base de orientações visíveis ao usuário corrente. Orientador
     enxerga vínculos em que é principal ou coorientador."""

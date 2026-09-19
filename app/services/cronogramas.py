@@ -87,22 +87,36 @@ def confirmar_conclusao(marco: Marco) -> bool:
 def devolver_para_revisao(marco: Marco, nota: str | None = None) -> bool:
     """Devolve a entrega ao orientando corrigir — a volta que faltava ao ciclo.
     Espelha `confirmar_conclusao`: **não faz commit** (a transação é do
-    chamador) e devolve False, sem efeito, se o marco já está concluído.
+    chamador) e devolve False, sem efeito, quando não há o que devolver.
 
     Zera `conclusao_sinalizada` (a vez volta ao orientando), mantém o marco em
     andamento e carimba `devolvido_em`/`nota_devolucao` — que distinguem
-    "devolvido, aguardando o aluno" de "nunca iniciado" e dizem o que corrigir."""
-    if marco.status == "concluido":
+    "devolvido, aguardando o aluno" de "nunca iniciado" e dizem o que corrigir.
+
+    Só age sobre entrega **sinalizada**: devolver o que o orientando ainda nem
+    declarou concluído anunciaria a ele, por e-mail, a devolução de algo que não
+    entregou. A guarda mora aqui, e não só no botão, porque três rotas chamam
+    esta função (o botão e os dois caminhos de upload).
+
+    `nota=None` **preserva** a nota anterior: o upload de uma versão-devolução
+    não pode apagar as correções que o orientador já escreveu no marco."""
+    if marco.status == "concluido" or not marco.conclusao_sinalizada:
         return False
     marco.conclusao_sinalizada = False
     marco.status = "em_andamento"
     marco.devolvido_em = agora()
-    marco.nota_devolucao = (nota or "").strip() or None
-    # a versão corrente enviada pelo orientador é a devolução: tira-a de
-    # "aguardando parecer" no mesmo ato, para não cobrar parecer sobre ela
+    if nota is not None:
+        marco.nota_devolucao = nota.strip() or None
+    # O registro do orientador vira a devolução, saindo de "aguardando parecer".
+    # A entrega da orientanda NÃO é tocada — nem a que ela enviou, nem a que o
+    # orientador registrou em nome dela: essa espera parecer, não é devolução.
     for doc in marco.documentos:
         v = doc.versao_atual
-        if v is not None and v.enviado_por != marco.orientacao.orientando_id:
+        if (
+            v is not None
+            and v.enviado_por != marco.orientacao.orientando_id
+            and not v.em_nome_do_orientando
+        ):
             v.eh_devolucao = True
     auditoria.registrar(
         "devolucao_revisao_marco", "marco", marco.id, {"com_nota": bool(marco.nota_devolucao)}

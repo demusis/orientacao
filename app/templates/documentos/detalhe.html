@@ -27,7 +27,8 @@
       <a href="{{ url_for('atas.emitir_parecer', orientacao_id=orientacao.id, versao=v.id) }}">Emitir parecer</a>
       {% endif %}
       {% if is_principal %}
-      <form method="post" action="{{ url_for('documentos.classificar_versao', orientacao_id=orientacao.id, documento_id=documento.id, versao_id=v.id) }}" style="display:inline">
+      {# dentro de td.acoes, que já põe os forms em linha (style.css) #}
+      <form method="post" action="{{ url_for('documentos.classificar_versao', orientacao_id=orientacao.id, documento_id=documento.id, versao_id=v.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <select name="natureza">
           {% for valor, rotulo in classificar_form.natureza.choices %}
