@@ -12,10 +12,17 @@ from app.blueprints.cronogramas.forms import (
 from app.blueprints.documentos.forms import flags_da_natureza, restringir_natureza
 from app.extensions import db
 from app.models import Documento, Marco
+from app.models.cronograma import ultima_versao
 from app.services import auditoria
 from app.services import cronogramas as servico_cronograma
 from app.services.rbac import manda_no_cronograma, orientacao_autorizada
 from app.services.uploads import UploadInvalido, salvar_versao
+
+
+def _avisar_devolucao(declarada: bool, marco, devolvida: bool) -> None:
+    """Exibe o desfecho da devolução declarada no upload (ver serviço)."""
+    if declarada:
+        flash(*servico_cronograma.recado_da_devolucao(marco, devolvida))
 
 
 def _marco_da_orientacao(orientacao, marco_id: int) -> Marco:
@@ -106,13 +113,22 @@ def detalhe(orientacao_id: int, marco_id: int):
     orientacao = orientacao_autorizada(orientacao_id)
     marco = _marco_da_orientacao(orientacao, marco_id)
     anexo_form = AnexoMarcoForm(titulo=marco.titulo)
-    # a versão da orientanda é sempre entrega dela: o campo some para ela
+    # a versão da orientanda é sempre entrega dela: o campo some para ela. Para
+    # os demais, as escolhas são as MESMAS que o POST aceita — oferecer aqui uma
+    # opção que a rota recusa descartaria o upload sem explicação.
     if current_user.id == orientacao.orientando_id:
         del anexo_form.natureza
+    else:
+        restringir_natureza(anexo_form.natureza, manda_no_cronograma(orientacao))
+    # uma passada pelas entregas serve o aviso do topo e a tabela: cada leitura
+    # de `versao_atual` vai ao banco (relação dynamic)
+    entregas = marco.entregas
     return render_template(
         "cronogramas/detalhe.html",
         orientacao=orientacao,
         marco=marco,
+        entregas=entregas,
+        ultima=ultima_versao(entregas),
         anexo_form=anexo_form,
         sinalizar_form=SinalizarForm(),
         confirmacao_form=ConfirmacaoForm(),
@@ -159,17 +175,18 @@ def anexar(orientacao_id: int, marco_id: int):
                 {"titulo": documento.titulo, "arquivo": versao.nome_original,
                  "origem": "marco", "marco_id": marco.id, "natureza": versao.natureza},
             )
-            # nota=None preserva a nota de devolução já escrita no marco; o
-            # serviço recusa se a entrega não estiver sinalizada
-            devolvido = eh_devolucao and servico_cronograma.devolver_para_revisao(marco)
+            # o comentário do upload vira a nota da devolução; o serviço recusa
+            # se a entrega não estiver sinalizada
+            devolvido = eh_devolucao and servico_cronograma.devolver_para_revisao(
+                marco, form.comentario.data or ""
+            )
             db.session.commit()
             flash("Documento anexado à tarefa (versão 1).", "success")
-            if devolvido:
-                flash(
-                    "Marcada como devolução: a tarefa voltou para revisão do "
-                    "orientando.",
-                    "info",
-                )
+            _avisar_devolucao(eh_devolucao, marco, devolvido)
+    else:
+        for erros in form.errors.values():
+            for erro in erros:
+                flash(erro, "danger")
     return redirect(
         url_for("cronogramas.detalhe", orientacao_id=orientacao.id, marco_id=marco.id)
     )

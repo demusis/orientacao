@@ -53,6 +53,16 @@ ETAPA_MARCO_LABEL = {
 }
 
 
+def ultima_versao(entregas):
+    """A versão mais recente de uma lista `(documento, versão)`, ou None.
+
+    Desempata pelo id, e não só pela data: duas versões gravadas no mesmo
+    instante (importação, mesmo segundo) precisam dar sempre a mesma resposta —
+    e a mesma que a consulta equivalente do painel."""
+    correntes = [v for _, v in entregas if v is not None]
+    return max(correntes, key=lambda v: (v.enviado_em, v.id)) if correntes else None
+
+
 class Marco(db.Model):
     __tablename__ = "marco"
 
@@ -105,15 +115,21 @@ class Marco(db.Model):
         return "orientando"  # em elaboração / a iniciar
 
     @property
+    def entregas(self):
+        """`(documento, versão corrente)` de cada entrega ligada — a versão é
+        None no documento ainda sem versão. Uma leitura de `versao_atual` por
+        documento (a relação é *dynamic*: cada acesso vai ao banco).
+
+        Quem precisa da lista e da última numa mesma tela deve guardar o
+        resultado e passá-lo a `ultima_versao`, em vez de chamar as duas
+        propriedades — ver `cronogramas.detalhe`."""
+        return [(d, d.versao_atual) for d in self.documentos]
+
+    @property
     def ultima_entrega(self):
-        """A versão mais recente (por data de envio) entre as entregas ligadas
-        a este marco, ou None. Serve para detectar quando a última versão veio
-        do orientador — sinal de devolução — mesmo em registros anteriores à
-        devolução explícita, em que `aguardando` ainda não reflete a incoerência."""
-        # uma leitura de `versao_atual` por documento: a relação é dynamic, e
-        # cada acesso vai ao banco
-        correntes = [v for v in (d.versao_atual for d in self.documentos) if v]
-        return max(correntes, key=lambda v: v.enviado_em) if correntes else None
+        """A versão mais recente entre as entregas ligadas, ou None. Serve para
+        detectar quando a última versão veio do orientador — sinal de devolução."""
+        return ultima_versao(self.entregas)
 
     @property
     def atrasado(self) -> bool:

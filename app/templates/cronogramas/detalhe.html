@@ -6,7 +6,7 @@
 {{ nav_modulos(orientacao, 'cronograma') }}
 {% set is_orientando = current_user.id == orientacao.orientando_id %}
 {% set is_gestor = current_user.id == orientacao.orientador_id or current_user.papel == 'admin' %}
-{% set ultima = marco.ultima_entrega %}
+{# `entregas` e `ultima` vêm da rota, computados numa passada só #}
 {# suspeita de devolução não formalizada: a última entrega é um REGISTRO do
    orientador. A que ele registrou em nome da orientanda é entrega dela. #}
 {% set entrega_devolvida = marco.conclusao_sinalizada and marco.status != 'concluido'
@@ -63,17 +63,16 @@
 
 <div class="card">
   <h2>Entregas ligadas a esta tarefa</h2>
-  {% if marco.documentos %}
+  {% if entregas %}
   <table>
     <tr><th>Documento</th><th>Versão atual</th><th>Enviada por</th><th>Enviada em</th><th></th></tr>
-    {# `versao_atual` consulta o banco a cada acesso (relação dynamic): lida uma
-       vez por linha, não sete #}
-    {% for d in marco.documentos %}{% set va = d.versao_atual %}
+    {% for d, va in entregas %}
     <tr>
       <td>{{ d.titulo }}</td>
       <td>{% if va %}v{{ va.numero_versao }}{% if va.eh_devolucao %} <span class="badge">devolução</span>{% elif va.em_nome_do_orientando %} <span class="badge">entrega da orientanda</span>{% endif %}{% else %}sem versão{% endif %}</td>
       <td>{% if va %}{{ va.remetente.nome }}
-        {%- if va.enviado_por == orientacao.orientando_id or va.em_nome_do_orientando %} <small>(orientando)</small>
+        {%- if va.em_nome_do_orientando %} <small>(em nome da orientanda)</small>
+        {%- elif va.enviado_por == orientacao.orientando_id %} <small>(orientando)</small>
         {%- else %} <small>(orientador)</small>{% endif %}{% endif %}</td>
       <td>{% if va %}{{ va.enviado_em.strftime('%Y-%m-%d %H:%M') }}{% endif %}</td>
       <td><a href="{{ url_for('documentos.detalhe', orientacao_id=orientacao.id, documento_id=d.id) }}">Abrir</a></td>
