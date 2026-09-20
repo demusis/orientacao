@@ -221,6 +221,10 @@ def sinalizar_conclusao(orientacao_id: int, marco_id: int):
     if form.validate_on_submit() and marco.status != "concluido":
         marco.conclusao_sinalizada = True
         marco.status = "em_andamento"
+        # o reenvio fecha o ciclo da devolução: a nota do orientador descrevia
+        # o que corrigir, e o que ele pediu já foi atendido. Deixá-la viva a
+        # faria reaparecer sob a data da devolução seguinte.
+        marco.nota_devolucao = None
         if form.nota.data:
             marco.nota_conclusao = form.nota.data
         auditoria.registrar(
@@ -260,11 +264,19 @@ def devolver_para_revisao(orientacao_id: int, marco_id: int):
         abort(403)
     marco = _marco_da_orientacao(orientacao, marco_id)
     form = DevolverForm()
-    if form.validate_on_submit() and servico_cronograma.devolver_para_revisao(
-        marco, form.nota.data
-    ):
-        db.session.commit()
-        flash("Entrega devolvida para revisão do orientando.", "success")
+    if form.validate_on_submit():
+        if servico_cronograma.devolver_para_revisao(marco, form.nota.data):
+            db.session.commit()
+            flash("Entrega devolvida para revisão do orientando.", "success")
+        else:
+            # recusa silenciosa perderia, sem aviso, a nota que ele digitou —
+            # acontece com formulário reenviado depois de a tarefa já ter sido
+            # devolvida ou concluída noutra aba
+            flash(
+                *servico_cronograma.recado_da_devolucao(
+                    marco, False, com_versao=False
+                )
+            )
     return redirect(
         url_for("cronogramas.detalhe", orientacao_id=orientacao.id, marco_id=marco.id)
     )

@@ -7,7 +7,7 @@ from wtforms import (
     SubmitField,
     TextAreaField,
 )
-from wtforms.validators import DataRequired, Length, Optional
+from wtforms.validators import DataRequired, Length, Optional, ValidationError
 
 # O que é esta versão, quando quem envia NÃO é a orientanda. O formulário só
 # mostra o campo a gestores; a rota o ignora para a orientanda, cuja versão é
@@ -27,10 +27,27 @@ NATUREZA_CHOICES = [
 ]
 
 
-def campo_natureza() -> RadioField:
+class NaturezaField(RadioField):
+    """Escolha da natureza da versão, com a recusa dita em português.
+
+    O WTForms responde "Not a valid choice." — inglês, num sistema todo em
+    português, e sem dizer que campo falhou. A recusa aqui não é digitação
+    errada: é o coorientador tentando uma opção que a tela não lhe oferece."""
+
+    def pre_validate(self, form):
+        # ValidationError, e não ValueError: só a primeira o WTForms captura e
+        # transforma em erro de campo — a outra sobe como erro 500
+        if self.data not in [valor for valor, _ in self.choices]:
+            raise ValidationError(
+                "Opção de natureza da versão inválida para o seu papel: "
+                "devolver a tarefa cabe ao orientador principal."
+            )
+
+
+def campo_natureza() -> NaturezaField:
     """Campo montado com TODAS as opções; a rota restringe as escolhas de quem
     não pode devolver (ver `restringir_natureza`)."""
-    return RadioField(
+    return NaturezaField(
         "O que é esta versão?", choices=NATUREZA_CHOICES, default="registro"
     )
 

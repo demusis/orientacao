@@ -71,6 +71,43 @@ excluído com nota explicando por quê.
 
 Verificação: `ruff check .` limpo; suíte completa **532 passed, exit 0**.
 
+### Volta 3
+
+Primeira execução caiu no limite de sessão (3 frentes e os 11 verificadores) e
+devolveu "nada sobreviveu" — **resultado descartado**; retomada do cache, trouxe
+28 candidatos, 23 verificadores, 3 refutados, **10 achados**. Em vez de remendar
+sintoma, esta volta atacou a **raiz**: ninguém era dono do ciclo de vida da nota
+de devolução, e as precondições divergiam entre os quatro caminhos.
+
+| # | Achado (arquivo:linha) | Correção |
+|---|---|---|
+| 1 | `documentos/routes.py:147` — comentário em branco no upload **apagava** a nota (`""` limpava); o caso comum é justamente não comentar, com as correções dentro do arquivo | nota: texto substitui, vazio não mexe. Quem a encerra é o reenvio |
+| 6 | `cronogramas.py:144` — `DevolverForm.nota` chega `None` quando o campo falta no POST, e "preservar" ressuscitava a nota do ciclo anterior sob a data nova | **dono único**: `sinalizar_conclusao` zera `nota_devolucao` ao fechar o ciclo; some a ambiguidade preserva/limpa que oscilou por três voltas |
+| 4 | `cronogramas.py:138` — a precondição "só devolve o sinalizado", que **eu** pusera na volta 1, trancou o caso comum (ela envia o arquivo e esquece de sinalizar) e a tela não oferece outro caminho: regressão | precondição passa a ser "há o que devolver" — sinalizado **ou** com ao menos uma entrega |
+| 2 | `cronogramas/routes.py:263` — `/devolver` recusado **descartava a nota digitada em silêncio** (acontece com aba antiga ou reenvio do formulário) | a rota exibe o `recado_da_devolucao`, agora com variante para o botão (sem versão) |
+| 3 | `documentos/routes.py:152` — declarar devolução em documento **sem marco** continuava mudo, justamente o silêncio que o recado existia para eliminar | o aviso passa a sair também sem marco, dizendo que nada foi devolvido |
+| 5 | `documentos/routes.py:201` — o aviso do seletor dizia "continua aguardando sua confirmação" em marco **concluído** (`conclusao_sinalizada` não é zerado na confirmação) e apontava um botão que a página não desenha | gate em `marco.aguardando == "orientador"` |
+| 7 | `cronogramas/detalhe.html:43` — esconder o card em marco concluído sumia com o único lugar que mostra `nota_devolucao`/`devolvido_em`. **Além disso, era mudança de comportamento visível aplicada dentro de uma volta — o que `.claude/commands/revisar.md` proíbe** | desfeito: o card permanece como histórico, com título "Devolução anterior (resolvida)" para não contradizer o selo "Concluído" |
+| 9 | `cronogramas/routes.py:189` — o flash de erros do formulário (posto na volta 2) despejava mensagens **em inglês** ("Not a valid choice.") num sistema em português | `NaturezaField` com recusa em português, explicando que devolver cabe ao orientador principal |
+| 8 | `tests/…:68` — `test_devolver_recusa_marco_concluido` ficou **vazio** quando a precondição mudou: parava na guarda de "não sinalizado" e nunca tocava a de "concluído" | o teste passa a montar marco sinalizado **e** concluído |
+| 10 | (PLAUSIBLE) o botão "Devolver" não classifica a versão do orientador: ela não ganha o selo *devolução* e ainda oferece "Emitir parecer" no arquivo dele | **fora da alçada** — ver proposta abaixo |
+
+Nota de método, para o próximo ciclo: esta corrida **não convergiu** como as
+anteriores (8 → 7 → 10). O motivo é claro e vale registrar: revisou-se código
+escrito no mesmo dia, sem decantação, e cada correção virava o achado da volta
+seguinte. A volta 3 tratou o desenho (dono da nota, precondição única, nenhum
+caminho mudo), o que deve quebrar o ciclo; se a volta 4 trouxer outra safra do
+mesmo tipo, a recomendação é **parar e redesenhar a área com o usuário**, em vez
+de seguir remendando.
+
+**Proposta ao usuário (fora da alçada, decisão pendente):**
+
+| Item | Impacto | Esforço | Risco |
+|---|---|---|---|
+| Declarar "devolução" por qualquer caminho (upload, seletor, botão) devolver a tarefa e classificar a versão — hoje cada caminho faz uma parte | médio | baixo | baixo |
+
+Verificação: `ruff check .` limpo; suíte completa **533 passed, exit 0**.
+
 ## Corrida 2026-07-26 (branch `revisao/2026-07-25`)
 
 ### Volta 1
