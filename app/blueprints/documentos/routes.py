@@ -89,12 +89,12 @@ def criar(orientacao_id: int):
             devolvido = (
                 eh_devolucao and documento.marco is not None
                 and servico_cronograma.devolver_para_revisao(
-                    documento.marco, form.comentario.data or ""
+                    documento.marco, form.comentario.data
                 )
             )
             db.session.commit()
             flash("Documento enviado (versão 1).", "success")
-            if eh_devolucao and documento.marco is not None:
+            if eh_devolucao:  # inclusive sem marco: o silêncio é o que confunde
                 flash(*servico_cronograma.recado_da_devolucao(
                     documento.marco, devolvido
                 ))
@@ -144,12 +144,12 @@ def detalhe(orientacao_id: int, documento_id: int):
             devolvido = (
                 eh_devolucao and marco is not None
                 and servico_cronograma.devolver_para_revisao(
-                    marco, form.comentario.data or ""
+                    marco, form.comentario.data
                 )
             )
             db.session.commit()
             flash(f"Versão {versao.numero_versao} enviada.", "success")
-            if eh_devolucao and marco is not None:
+            if eh_devolucao:  # inclusive sem marco: o silêncio é o que confunde
                 flash(*servico_cronograma.recado_da_devolucao(marco, devolvido))
             return redirect(
                 url_for(
@@ -198,7 +198,9 @@ def classificar_versao(orientacao_id: int, documento_id: int, versao_id: int):
         # reclassificar é sobre o documento; a tarefa tem botão próprio. Dizê-lo
         # evita a impressão de que marcar devolução já devolveu a tarefa.
         marco = documento.marco
-        if versao.eh_devolucao and marco is not None and marco.conclusao_sinalizada:
+        # `aguardando` já considera o concluído; `conclusao_sinalizada` sozinho
+        # continua True depois da confirmação e produzia aviso falso
+        if versao.eh_devolucao and marco is not None and marco.aguardando == "orientador":
             flash(
                 f'A tarefa "{marco.titulo}" continua aguardando sua confirmação. '
                 "Para devolvê-la ao orientando, use Devolver para revisão na "

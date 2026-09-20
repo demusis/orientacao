@@ -84,28 +84,39 @@ def confirmar_conclusao(marco: Marco) -> bool:
     return True
 
 
-def recado_da_devolucao(marco: Marco, devolvida: bool) -> tuple[str, str]:
-    """Mensagem e categoria de flash para quem declarou uma versão como
-    devolução — dita num ponto só, porque três rotas de upload a exibem.
+def recado_da_devolucao(
+    marco: Marco | None, devolvida: bool, com_versao: bool = True
+) -> tuple[str, str]:
+    """Mensagem e categoria de flash do desfecho de uma devolução — dita num
+    ponto só, porque as quatro rotas que devolvem a exibem.
 
     Declarar devolução e nada acontecer é o silêncio que confunde: o rótulo da
-    opção promete que a tarefa volta à orientanda, e sem entrega sinalizada ela
-    não volta."""
+    opção promete que a tarefa volta ao orientando. `com_versao` distingue o
+    upload (gravou um arquivo) do botão da tarefa (não gravou nada)."""
     if devolvida:
         return (
-            "Marcada como devolução: a tarefa voltou para revisão do orientando.",
+            "Marcada como devolução: a tarefa voltou para revisão do orientando."
+            if com_versao
+            else "Entrega devolvida para revisão do orientando.",
             "info",
+        )
+    inicio = "A versão foi gravada como devolução, mas a" if com_versao else "A"
+    if marco is None:
+        return (
+            "A versão foi gravada como devolução, mas o documento não está "
+            "ligado a tarefa alguma — nada foi devolvido ao orientando, e ele "
+            "não será avisado. Ligue o documento a um marco para devolver.",
+            "warning",
         )
     if marco.status == "concluido":
         return (
-            f'A versão foi gravada como devolução, mas a tarefa "{marco.titulo}" '
-            "já está concluída e não foi reaberta.",
+            f'{inicio} tarefa "{marco.titulo}" já está concluída e não foi '
+            "reaberta.",
             "warning",
         )
     return (
-        f'A versão foi gravada como devolução, mas a tarefa "{marco.titulo}" '
-        "não tinha entrega sinalizada — nada foi devolvido ao orientando, e ele "
-        "não será avisado.",
+        f'{inicio} tarefa "{marco.titulo}" não tem entrega alguma — nada foi '
+        "devolvido ao orientando, e ele não será avisado.",
         "warning",
     )
 
@@ -119,29 +130,34 @@ def devolver_para_revisao(marco: Marco, nota: str | None = None) -> bool:
     andamento e carimba `devolvido_em`/`nota_devolucao` — que distinguem
     "devolvido, aguardando o aluno" de "nunca iniciado" e dizem o que corrigir.
 
-    Só age sobre entrega **sinalizada**: devolver o que o orientando ainda nem
-    declarou concluído anunciaria a ele, por e-mail, a devolução de algo que não
-    entregou. A guarda mora aqui, e não só no botão, porque três rotas chamam
-    esta função (o botão e os dois caminhos de upload).
+    **Precisa haver o que devolver**: entrega sinalizada, ou ao menos um arquivo
+    entregue. Devolver marco vazio anunciaria ao orientando, por e-mail, a
+    devolução de algo que ele nunca entregou; exigir a sinalização, porém,
+    trancava o caso comum de quem envia o arquivo e esquece de sinalizar — e a
+    tela não oferece outro caminho. A guarda mora aqui porque quatro rotas
+    chamam esta função.
 
-    Sobre a nota: `None` preserva a que estiver lá, `""` limpa, texto substitui.
-    Quem devolve junto com uma versão passa o comentário do upload (ou `""`),
-    para que a nota nunca descreva o ciclo anterior — já resolvido — sob a data
-    da devolução nova.
+    Sobre a nota: texto substitui; vazio ou `None` deixa como está. Quem a
+    apaga é o **reenvio do orientando** (`sinalizar_conclusao`), que fecha o
+    ciclo: assim a nota nunca descreve um ciclo anterior já resolvido, sem que
+    cada chamador precise adivinhar quando limpar.
 
     **Não mexe em versão alguma.** Classificar a versão é ato do documento
     (`natureza`), declarado no upload ou no seletor; aqui só se move o estado do
     marco. Enquanto esta função marcava `eh_devolucao`, carimbava a versão
     corrente de *todos* os documentos do marco — a ata da reunião virava
-    "devolução". O carimbo também deixou de ser necessário: a fila de pareceres
-    já ignora o que o orientador envia (ver `painel.versoes_sem_parecer`)."""
-    if marco.status == "concluido" or not marco.conclusao_sinalizada:
+    "devolução"."""
+    if marco.status == "concluido":
+        return False
+    if not marco.conclusao_sinalizada and not any(
+        v is not None for _, v in marco.entregas
+    ):
         return False
     marco.conclusao_sinalizada = False
     marco.status = "em_andamento"
     marco.devolvido_em = agora()
-    if nota is not None:
-        marco.nota_devolucao = nota.strip() or None
+    if (nota or "").strip():
+        marco.nota_devolucao = nota.strip()
     auditoria.registrar(
         "devolucao_revisao_marco", "marco", marco.id, {"com_nota": bool(marco.nota_devolucao)}
     )

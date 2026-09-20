@@ -38,14 +38,19 @@
 </div>
 {% endif %}
 
-{# histórico de devolução só enquanto o ciclo corre: em marco concluído o card
-   contradiria a situação "Concluído" #}
-{% if (marco.nota_devolucao or marco.devolvido_em) and marco.status != 'concluido' %}
+{# o card fica enquanto houver devolução no histórico; concluído o marco, muda
+   de título para não contradizer a situação "Concluído" #}
+{% if marco.nota_devolucao or marco.devolvido_em %}
 <div class="card">
-  <h2>Devolvido para revisão</h2>
+  <h2>{% if marco.status == 'concluido' %}Devolução anterior (resolvida)
+      {%- else %}Devolvido para revisão{% endif %}</h2>
   {% if marco.devolvido_em %}<p><small>Devolvido em
     {{ marco.devolvido_em.strftime('%Y-%m-%d %H:%M') }} (UTC).</small></p>{% endif %}
-  {% if marco.nota_devolucao %}<p>{{ marco.nota_devolucao }}</p>{% endif %}
+  {% if marco.nota_devolucao %}<p>{{ marco.nota_devolucao }}</p>
+  {% elif marco.aguardando == 'orientando_revisao' %}
+  <p><small>Sem nota: as correções estão no arquivo devolvido, em
+  <a href="{{ url_for('documentos.listar', orientacao_id=orientacao.id) }}">Documentos</a>.</small></p>
+  {% endif %}
   {% if marco.aguardando == 'orientando_revisao' %}
   <p><small>Corrija o material, envie uma nova versão na aba
   <a href="{{ url_for('documentos.listar', orientacao_id=orientacao.id) }}">Documentos</a>
