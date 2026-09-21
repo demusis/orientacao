@@ -108,6 +108,57 @@ de seguir remendando.
 
 Verificação: `ruff check .` limpo; suíte completa **533 passed, exit 0**.
 
+### Volta 4 — e o encerramento da corrida
+
+Primeira execução não rodou (os quatro localizadores no limite semanal);
+retomada em 21/09. 34 candidatos, 21 verificadores, 6 refutados, **10 achados**
+— outra safra completa, **com defeitos dentro da própria correção "de raiz" da
+volta 3**:
+
+| # | Achado | Situação |
+|---|---|---|
+| 1 | `cronogramas.py:152` — a precondição "há o que devolver" é **vazia nos três caminhos de upload**: o arquivo que o próprio orientador acabou de gravar conta como entrega, e o marco nunca entregue é devolvido do mesmo jeito | **não corrigido** — núcleo em disputa |
+| 2 | `cronogramas.py:159` — nota vazia deixou de limpar, e a nota do ciclo anterior volta sob a data nova | **não corrigido** — é a **4ª volta** deste mesmo defeito |
+| 3 | `cronogramas/routes.py:227` — zerar a nota no reenvio destrói a lista de correções **no momento em que o orientador precisa dela** para decidir confirmar ou devolver, e deixa um card com título e sem corpo | **não corrigido** — efeito colateral do "dono único" da volta 3 |
+| 4 | `detalhe.html:12` — o aviso de devolução aparecia **ao orientando**, mandando-o usar um botão que só o orientador vê | corrigido (gate `is_gestor`) |
+| 5 | `detalhe.html:51` — o texto "as correções estão no arquivo devolvido" **inventa um arquivo** quando a devolução veio pelo botão | corrigido (texto não afirma a existência) |
+| 6 | `cronogramas/routes.py:187` — o flash de erros ainda despeja mensagens do WTForms **em inglês** ("This field is required.", CSRF expirado); a volta 3 traduziu só uma | **não corrigido** — vale para o app todo, ver proposta |
+| 7 | `documentos/forms.py:30` — `NaturezaField` mudou `field.type` e o grupo caiu da tabela de larguras, encolhendo para meia linha | corrigido |
+| 8-10 | três testes fracos: o do "mesmo ciclo" passa pelo ramo errado; o do card concluído afirma comportamento que a volta 3 reverteu; o desempate `(enviado_em, id)` da volta 2 **não tem teste** (dá para reverter os dois lados com 533 testes verdes) | **não corrigidos** |
+
+**Decisão: a corrida está encerrada em 4 voltas, sem atingir o critério de
+parada — e por decisão explícita, não por esgotamento.**
+
+A série de achados foi **8 → 7 → 10 → 10**, e a cada volta a maioria estava nos
+patches da volta anterior. O caso do ciclo de vida da nota de devolução é a
+prova: oscilou quatro vezes (preservar → limpar → dono único → obsoleta de
+novo). Isso não é um loop convergindo devagar; é sinal de que a área tem um
+**defeito de projeto**, e remendá-la uma quinta vez gastaria tempo sem fechar.
+
+Causas, ditas sem rodeio:
+
+1. O recurso (devolução + natureza da versão) foi desenhado e implantado no
+   mesmo dia, em quatro PRs seguidos, sem decantação.
+2. A revisão estava sendo feita sobre código do próprio autor, recém-escrito —
+   a condição em que o revisor menos enxerga.
+3. O desenho junta dois conceitos (classificar a **versão** e mover o estado do
+   **marco**) em quatro pontos de entrada com precondições distintas. Toda
+   correção num ponto desalinha os outros.
+
+O restante do sistema, revisado nas mesmas quatro voltas, **não gerou um único
+achado** — o problema está circunscrito a esta área.
+
+**Proposta ao usuário (a decidir antes de mexer de novo na área):**
+
+| Item | Impacto | Esforço | Risco |
+|---|---|---|---|
+| Redesenhar o ciclo de devolução num **ponto único**: um serviço que receba "esta versão é a devolução" e faça, em um ato, classificar a versão + mover o marco + registrar a nota; os quatro caminhos (botão, dois uploads, seletor) passam a chamá-lo | alto | médio | médio |
+| Definir por escrito o **dono da nota** e o momento em que ela morre (e se deve virar histórico em vez de sumir) | alto | baixo | baixo |
+| Traduzir as mensagens de formulário do WTForms (vale para o app inteiro, não só aqui) | médio | baixo | baixo |
+| Cobrir com teste o desempate `(enviado_em, id)` e refazer os três testes fracos | médio | baixo | baixo |
+
+Verificação da volta: `ruff check .` limpo; suíte completa verde (ver commit).
+
 ## Corrida 2026-07-26 (branch `revisao/2026-07-25`)
 
 ### Volta 1

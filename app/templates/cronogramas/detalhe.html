@@ -29,7 +29,9 @@
   {% if marco.descricao %}<p>{{ marco.descricao }}</p>{% endif %}
 </div>
 
-{% if entrega_devolvida %}
+{# só a quem pode agir: o botão citado vive no card "Ações do orientador", que
+   o orientando não vê — mandá-lo clicar ali seria instrução impossível #}
+{% if entrega_devolvida and is_gestor %}
 <div class="flash flash-warning">
   A versão mais recente desta entrega (<strong>{{ ultima.remetente.nome }}</strong>,
   {{ ultima.enviado_em.strftime('%d/%m/%Y') }}) foi enviada pelo orientador, mas a tarefa
@@ -48,8 +50,10 @@
     {{ marco.devolvido_em.strftime('%Y-%m-%d %H:%M') }} (UTC).</small></p>{% endif %}
   {% if marco.nota_devolucao %}<p>{{ marco.nota_devolucao }}</p>
   {% elif marco.aguardando == 'orientando_revisao' %}
-  <p><small>Sem nota: as correções estão no arquivo devolvido, em
-  <a href="{{ url_for('documentos.listar', orientacao_id=orientacao.id) }}">Documentos</a>.</small></p>
+  {# não afirmar que há arquivo: devolver pelo botão não envia nenhum #}
+  <p><small>Sem nota do orientador. Veja se há versão nova em
+  <a href="{{ url_for('documentos.listar', orientacao_id=orientacao.id) }}">Documentos</a>;
+  não havendo, procure-o para saber o que corrigir.</small></p>
   {% endif %}
   {% if marco.aguardando == 'orientando_revisao' %}
   <p><small>Corrija o material, envie uma nova versão na aba
