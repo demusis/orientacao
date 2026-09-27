@@ -159,6 +159,48 @@ achado** — o problema está circunscrito a esta área.
 
 Verificação da volta: `ruff check .` limpo; suíte completa verde (ver commit).
 
+### Desfecho — o redesenho (21/09, PR #23)
+
+A proposta registrada acima foi **aceita e executada**. O redesenho separou os
+dois conceitos que estavam misturados e reduziu as cinco portas a uma:
+
+- **`devolver_entrega(marco, nota, versao)`** — ponto único: move o marco, grava
+  a nota do ato e carimba a versão, atomicamente. `pode_devolver` exige entrega
+  **da orientanda** (fim da precondição vazia).
+- **Devolver é ação da tarefa**, com nota + documento-alvo + arquivo corrigido
+  num passo. O envio de versão perdeu "devolução": o eixo do documento ficou
+  binário (*registro* / *entrega da orientanda*).
+- Removidos `restringir_natureza`, `flags_da_natureza`, o band-aid do painel
+  (`_marcos_com_registro_do_orientador`, `entregas_a_confirmar_revisao`) e o
+  aviso heurístico. Saldo: **−70 linhas**.
+
+**Limitações da corrida, uma a uma:** volta-4 #1 (precondição vazia), #2 (nota
+oscilando), #3 (nota apagada no reenvio) e volta-3 #10 (o botão não classificava
+a versão) — **todas resolvidas** pelo desenho novo. Volta-1 #5 (reclassificar
+não devolvia) tornou-se sem objeto: o seletor não oferece mais "devolução".
+Volta-4 #8/#9/#10 (testes fracos, desempate sem cobertura) — **resolvidas**: a
+suíte da área foi reescrita, com teste do desempate `(enviado_em, id)`.
+Volta-4 #6 (mensagens do WTForms em inglês) — **parcial**: feita nos formulários
+tocados; o resto do app ficou em `DECISOES.md` como adiado.
+
+**Revisão pré-merge** (`/code-review` alto esforço sobre o próprio diff): 4
+achados, 2 bugs reais — **perda silenciosa de arquivo** (devolver com arquivo
+num marco sem documentos descartava o upload e exibia sucesso) e **seletor
+representando a versão-devolução como "registro"** (um *Aplicar* apagava a
+etiqueta); mais a nota duplicada no comentário da versão. Os três corrigidos com
+teste antes do merge (`067ff07`). O quarto (dupla avaliação de `pode_devolver`)
+foi **mantido de propósito**: defesa-em-profundidade, com short-circuit no caso
+comum.
+
+Contraste que vale registrar: uma **única** passada de revisão sobre o desenho
+novo encontrou e fechou tudo numa tacada, contra as quatro voltas sem
+convergência do desenho anterior. Atacar a raiz, e não o sintoma, foi o que
+mudou. Verificação: `ruff` limpo, **550 passed, exit 0**; sem migração.
+
+**Pendente:** rodar o loop `/revisar` sobre esta área **após alguns dias de
+decantação** — revisar código próprio recém-escrito foi a condição que produziu
+o retrabalho desta corrida.
+
 ## Corrida 2026-07-26 (branch `revisao/2026-07-25`)
 
 ### Volta 1
