@@ -358,27 +358,24 @@
     Defesa). Ao concluir o trabalho, clica em <em>Sinalizar conclusão</em>: o marco passa
     a <em>em andamento</em> com o selo "sinalizado". É uma declaração, não a conclusão
     definitiva.</li>
-    <li><strong>Orientador</strong> abre a mesma tarefa, examina a entrega e a nota, e
-    então tem <strong>duas saídas</strong>: <em>Confirmar conclusão</em>, e o status muda
-    para <em>concluído</em> com a data registrada; ou <em>Devolver para revisão</em>, com
-    uma nota do que corrigir — a tarefa volta ao orientando (sai da lista de
-    confirmações do orientador) e o ciclo recomeça: o orientando corrige, envia nova
+    <li><strong>Orientador</strong> abre a mesma tarefa. Quando a vez é dele, a página
+    mostra o painel <em>Conferir a entrega</em> com <strong>duas saídas</strong>:
+    <em>Confirmar conclusão</em>, e o status muda para <em>concluído</em> com a data
+    registrada; ou <em>Devolver para revisão</em> — escreve o que corrigir e, se quiser,
+    <strong>anexa já o arquivo corrigido no mesmo passo</strong>. A tarefa volta ao
+    orientando (sai da lista de confirmações) e o ciclo recomeça: ele corrige, envia nova
     versão e sinaliza de novo.</li>
   </ol>
+  <p><strong>Devolver é uma ação da tarefa</strong> — mora só aqui, na página do marco. O
+  envio de versão no módulo Documentos não devolve nada; apenas guarda o arquivo. Assim há
+  um único lugar, e um único jeito, de passar a tarefa de volta.</p>
   <p>Cada tarefa mostra em <strong>Situação</strong> um selo com de quem é a vez e o que
   se espera dela: <em>Aguardando o orientando — entregar e sinalizar</em>, <em>Aguardando o
   orientador — confirmar ou devolver</em>, <em>Devolvido — aguardando o orientando corrigir
   e reenviar</em> ou <em>Concluído</em>. O mesmo selo aparece na lista do cronograma e no
-  Painel. A tabela de <strong>entregas ligadas à tarefa</strong> indica <strong>quem
-  enviou</strong> cada versão (orientando ou orientador), de modo que uma versão devolvida
-  com anotações não se confunde com uma entrega do aluno.</p>
-  <p><small>Se a versão mais recente de uma entrega tiver sido enviada pelo orientador mas a
-  tarefa ainda constar como "aguardando confirmação", a página exibe um aviso sugerindo
-  <em>Devolver para revisão</em> — situação comum em registros anteriores a este recurso.</small></p>
-  <p><small><strong>Atalho:</strong> se o próprio orientador envia uma nova versão de uma
-  entrega já sinalizada — devolvendo o arquivo com correções —, a tarefa volta
-  automaticamente para revisão do orientando, sem precisar clicar em <em>Devolver</em>
-  à parte.</small></p>
+  Painel. Enquanto a tarefa está devolvida, um cartão mostra <strong>o que corrigir</strong>
+  (a nota do orientador); a tabela de <strong>entregas</strong> indica quem enviou cada
+  versão e marca a devolução do orientador com a etiqueta <em>devolução</em>.</p>
   <p><small>O documento anexado pela página da tarefa é um documento comum, ligado ao
   marco: aparece também no módulo Documentos, onde se enviam novas versões.</small></p>
   <h3>5.2 Tarefa para um ou mais orientandos</h3>
@@ -433,25 +430,26 @@
     menos um dos dois). Ela aparece na linha do tempo do histórico e não pede parecer, por não
     haver arquivo a avaliar.</li>
   </ol>
-  <p><strong>O que é esta versão? (orientador).</strong> O caminho normal é a orientanda
+  <p><strong>De quem é este arquivo? (orientador).</strong> O caminho normal é a orientanda
   enviar as próprias entregas. Quando é o <strong>orientador</strong> quem sobe o arquivo, o
-  formulário pergunta o que a versão é, e a resposta define o que o sistema faz:</p>
+  formulário pergunta só de quem ele é — um eixo simples, que decide apenas se a versão pede
+  parecer:</p>
   <table>
     <tr><th>Escolha</th><th>Efeito</th></tr>
     <tr><td><em>Registro meu</em> (padrão)</td>
-      <td>Só guarda o arquivo: não pede parecer nem altera a tarefa.</td></tr>
-    <tr><td><em>Devolução minha, com correções</em></td>
-      <td>Não pede parecer e <strong>devolve a tarefa</strong> à orientanda para revisão.</td></tr>
+      <td>Arquivo do orientador: não pede parecer dele próprio.</td></tr>
     <tr><td><em>Entrega da orientanda, que estou registrando por ela</em></td>
       <td>Conta como entrega dela: <strong>entra em "Versões aguardando parecer"</strong>,
       como se ela mesma tivesse enviado — para o caso de o arquivo chegar por outro canal.</td></tr>
   </table>
-  <p>Assim, o orientador nunca é cobrado a emitir parecer de um arquivo seu, mas pode registrar
-  a entrega da orientanda quando necessário. A versão enviada pela própria orientanda é sempre
-  entrega dela, sem pergunta alguma. No histórico do documento, cada versão leva a etiqueta
-  correspondente (<em>devolução</em>, <em>entrega da orientanda</em>) e o orientador pode
-  <strong>reclassificá-la</strong> ali mesmo, pelo seletor ao lado — útil para acertar envios
-  antigos.</p>
+  <p>Assim, o orientador nunca é cobrado a emitir parecer de um arquivo seu. A versão enviada
+  pela própria orientanda é sempre entrega dela, sem pergunta alguma. No histórico, o orientador
+  pode <strong>reclassificar</strong> uma versão entre esses dois (útil para acertar envios
+  antigos), pelo seletor ao lado.</p>
+  <p><strong>E a devolução?</strong> Não é uma opção do envio de versão — é a ação
+  <em>Devolver para revisão</em> na página da tarefa (seção 5), que pode anexar o arquivo
+  corrigido num passo. A versão devolvida ganha automaticamente a etiqueta <em>devolução</em>
+  no histórico.</p>
   <h3>6.3 Regras de validação do upload</h3>
   <ul>
     <li>Extensões aceitas: <code>pdf</code>, <code>doc</code>, <code>docx</code>,

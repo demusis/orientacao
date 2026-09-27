@@ -6,12 +6,7 @@
 {{ nav_modulos(orientacao, 'cronograma') }}
 {% set is_orientando = current_user.id == orientacao.orientando_id %}
 {% set is_gestor = current_user.id == orientacao.orientador_id or current_user.papel == 'admin' %}
-{# `entregas` e `ultima` vêm da rota, computados numa passada só #}
-{# suspeita de devolução não formalizada: a última entrega é um REGISTRO do
-   orientador. A que ele registrou em nome da orientanda é entrega dela. #}
-{% set entrega_devolvida = marco.conclusao_sinalizada and marco.status != 'concluido'
-   and ultima and ultima.enviado_por != orientacao.orientando_id
-   and not ultima.em_nome_do_orientando %}
+{# `entregas` vem da rota, numa passada só #}
 
 <div class="card">
   <h1>{{ marco.titulo }} <span class="badge">{{ TIPO_MARCO_LABEL[marco.tipo] }}</span></h1>
@@ -29,33 +24,27 @@
   {% if marco.descricao %}<p>{{ marco.descricao }}</p>{% endif %}
 </div>
 
-{# só a quem pode agir: o botão citado vive no card "Ações do orientador", que
-   o orientando não vê — mandá-lo clicar ali seria instrução impossível #}
-{% if entrega_devolvida and is_gestor %}
-<div class="flash flash-warning">
-  A versão mais recente desta entrega (<strong>{{ ultima.remetente.nome }}</strong>,
-  {{ ultima.enviado_em.strftime('%d/%m/%Y') }}) foi enviada pelo orientador, mas a tarefa
-  segue como <em>aguardando confirmação</em>. Se foi uma devolução com correções, use
-  <strong>Devolver para revisão</strong>, abaixo, para passar a tarefa ao orientando.
-</div>
-{% endif %}
-
-{# o card fica enquanto houver devolução no histórico; concluído o marco, muda
-   de título para não contradizer a situação "Concluído" #}
-{% if marco.nota_devolucao or marco.devolvido_em %}
+{# Card da devolução, dirigido por `aguardando` (a relevância vem do estado, não
+   de mutar o dado): ativo enquanto a orientanda corrige; contexto quando ela
+   reenviou e a vez é do orientador; histórico quando concluído. #}
+{% if marco.devolvido_em %}
 <div class="card">
-  <h2>{% if marco.status == 'concluido' %}Devolução anterior (resolvida)
-      {%- else %}Devolvido para revisão{% endif %}</h2>
-  {% if marco.devolvido_em %}<p><small>Devolvido em
-    {{ marco.devolvido_em.strftime('%Y-%m-%d %H:%M') }} (UTC).</small></p>{% endif %}
-  {% if marco.nota_devolucao %}<p>{{ marco.nota_devolucao }}</p>
-  {% elif marco.aguardando == 'orientando_revisao' %}
-  {# não afirmar que há arquivo: devolver pelo botão não envia nenhum #}
-  <p><small>Sem nota do orientador. Veja se há versão nova em
-  <a href="{{ url_for('documentos.listar', orientacao_id=orientacao.id) }}">Documentos</a>;
-  não havendo, procure-o para saber o que corrigir.</small></p>
-  {% endif %}
   {% if marco.aguardando == 'orientando_revisao' %}
+  <h2>Devolvido para revisão</h2>
+  {% elif marco.status == 'concluido' %}
+  <h2>Devolução anterior (resolvida)</h2>
+  {% else %}
+  <h2>Última devolução</h2>
+  {% endif %}
+  <p><small>Devolvido em {{ marco.devolvido_em.strftime('%d/%m/%Y %H:%M') }} (UTC).</small></p>
+  {% if marco.nota_devolucao %}
+  <p><strong>O que corrigir:</strong> {{ marco.nota_devolucao }}</p>
+  {% elif marco.aguardando == 'orientando_revisao' %}
+  <p><small>Sem nota escrita — as correções podem estar no arquivo devolvido, na aba
+  <a href="{{ url_for('documentos.listar', orientacao_id=orientacao.id) }}">Documentos</a>;
+  na dúvida, procure o orientador.</small></p>
+  {% endif %}
+  {% if marco.aguardando == 'orientando_revisao' and is_orientando %}
   <p><small>Corrija o material, envie uma nova versão na aba
   <a href="{{ url_for('documentos.listar', orientacao_id=orientacao.id) }}">Documentos</a>
   e sinalize a conclusão de novo.</small></p>
@@ -127,22 +116,39 @@
 <div class="card">
   <h2>Ações do orientador</h2>
   <p><a href="{{ url_for('cronogramas.editar', orientacao_id=orientacao.id, marco_id=marco.id) }}">Editar marco</a></p>
-  {% if marco.conclusao_sinalizada and marco.status != 'concluido' %}
-  <h3>O que fazer com esta entrega?</h3>
-  <p><small>O orientando sinalizou a conclusão. Confira o material e escolha:
-  <strong>Confirmar</strong> encerra o marco; <strong>Devolver para revisão</strong>
-  (com uma nota do que ajustar, opcional) devolve a tarefa ao orientando e a tira da
-  sua lista de confirmações.</small></p>
-  <form method="post" action="{{ url_for('cronogramas.confirmar_conclusao', orientacao_id=orientacao.id, marco_id=marco.id) }}">
-    {{ confirmacao_form.hidden_tag() }}
-    <button type="submit">Confirmar conclusão</button>
-  </form>
-  {{ render_form(devolver_form, action=url_for('cronogramas.devolver_para_revisao', orientacao_id=orientacao.id, marco_id=marco.id)) }}
-  {% elif marco.status != 'concluido' %}
-  <form method="post" action="{{ url_for('cronogramas.confirmar_conclusao', orientacao_id=orientacao.id, marco_id=marco.id) }}">
-    {{ confirmacao_form.hidden_tag() }}
-    <button type="submit">Confirmar conclusão</button>
-  </form>
+
+  {% if marco.status == 'concluido' %}
+  <p><small>Marco concluído. Não há nada a fazer aqui.</small></p>
+
+  {% elif marco.aguardando == 'orientador' %}
+  {# a vez é do orientador: conferir a entrega sinalizada e decidir #}
+  <h3>Conferir a entrega</h3>
+  <p><small>A orientanda sinalizou a conclusão. Confira o material e escolha um
+  dos dois caminhos.</small></p>
+
+  <div class="decisao">
+    <div class="decisao-opcao">
+      <h4>Está bom — encerrar</h4>
+      <p><small>Confirma a conclusão e fecha o marco.</small></p>
+      <form method="post" action="{{ url_for('cronogramas.confirmar_conclusao', orientacao_id=orientacao.id, marco_id=marco.id) }}">
+        {{ confirmacao_form.hidden_tag() }}
+        <button type="submit">Confirmar conclusão</button>
+      </form>
+    </div>
+    <div class="decisao-opcao">
+      <h4>Precisa corrigir — devolver</h4>
+      <p><small>Escreva o que ajustar e, se quiser, anexe já o arquivo corrigido:
+      a tarefa volta para a orientanda revisar, num passo só.</small></p>
+      {{ render_form(devolver_form, action=url_for('cronogramas.devolver_para_revisao', orientacao_id=orientacao.id, marco_id=marco.id), enctype='multipart/form-data') }}
+    </div>
+  </div>
+
+  {% elif marco.aguardando == 'orientando_revisao' %}
+  <p><small>Devolvido — aguardando a orientanda corrigir e reenviar. Quando ela
+  sinalizar de novo, a decisão de confirmar ou devolver volta para cá.</small></p>
+
+  {% else %}
+  <p><small>Aguardando a orientanda entregar e sinalizar a conclusão.</small></p>
   {% endif %}
 </div>
 {% endif %}

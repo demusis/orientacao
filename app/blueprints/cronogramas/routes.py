@@ -9,20 +9,13 @@ from app.blueprints.cronogramas.forms import (
     MarcoForm,
     SinalizarForm,
 )
-from app.blueprints.documentos.forms import flags_da_natureza, restringir_natureza
+from app.blueprints.documentos.forms import eh_entrega_da_orientanda
 from app.extensions import db
 from app.models import Documento, Marco
-from app.models.cronograma import ultima_versao
 from app.services import auditoria
 from app.services import cronogramas as servico_cronograma
 from app.services.rbac import manda_no_cronograma, orientacao_autorizada
 from app.services.uploads import UploadInvalido, salvar_versao
-
-
-def _avisar_devolucao(declarada: bool, marco, devolvida: bool) -> None:
-    """Exibe o desfecho da devolução declarada no upload (ver serviço)."""
-    if declarada:
-        flash(*servico_cronograma.recado_da_devolucao(marco, devolvida))
 
 
 def _marco_da_orientacao(orientacao, marco_id: int) -> Marco:
@@ -113,26 +106,28 @@ def detalhe(orientacao_id: int, marco_id: int):
     orientacao = orientacao_autorizada(orientacao_id)
     marco = _marco_da_orientacao(orientacao, marco_id)
     anexo_form = AnexoMarcoForm(titulo=marco.titulo)
-    # a versão da orientanda é sempre entrega dela: o campo some para ela. Para
-    # os demais, as escolhas são as MESMAS que o POST aceita — oferecer aqui uma
-    # opção que a rota recusa descartaria o upload sem explicação.
+    # a versão da orientanda é sempre entrega dela: o campo some para ela
     if current_user.id == orientacao.orientando_id:
         del anexo_form.natureza
-    else:
-        restringir_natureza(anexo_form.natureza, manda_no_cronograma(orientacao))
-    # uma passada pelas entregas serve o aviso do topo e a tabela: cada leitura
-    # de `versao_atual` vai ao banco (relação dynamic)
+    # uma passada pelas entregas serve a tabela e o default do documento-alvo:
+    # cada leitura de `versao_atual` vai ao banco (relação dynamic)
     entregas = marco.entregas
+    # o form de devolver aceita anexar o arquivo corrigido; oferece os documentos
+    # do marco como alvo, com o da última entrega já selecionado
+    devolver_form = DevolverForm()
+    devolver_form.documento_id.choices = [(d.id, d.titulo) for d, _ in entregas]
+    ultima = marco.ultima_entrega
+    if ultima is not None:
+        devolver_form.documento_id.data = ultima.documento_id
     return render_template(
         "cronogramas/detalhe.html",
         orientacao=orientacao,
         marco=marco,
         entregas=entregas,
-        ultima=ultima_versao(entregas),
         anexo_form=anexo_form,
         sinalizar_form=SinalizarForm(),
         confirmacao_form=ConfirmacaoForm(),
-        devolver_form=DevolverForm(),
+        devolver_form=devolver_form,
     )
 
 
@@ -147,12 +142,9 @@ def anexar(orientacao_id: int, marco_id: int):
     eh_gestor = current_user.id != orientacao.orientando_id
     if not eh_gestor:
         del form.natureza
-    else:
-        restringir_natureza(form.natureza, manda_no_cronograma(orientacao))
     if form.validate_on_submit():
-        eh_devolucao, em_nome = (
-            flags_da_natureza(form.natureza.data) if eh_gestor else (False, False)
-        )
+        # o anexo só grava a versão — devolver é ação da tarefa (o botão abaixo)
+        em_nome = eh_gestor and eh_entrega_da_orientanda(form.natureza.data)
         documento = Documento(
             orientacao_id=orientacao.id,
             marco_id=marco.id,
@@ -164,8 +156,7 @@ def anexar(orientacao_id: int, marco_id: int):
         try:
             versao = salvar_versao(
                 documento, form.arquivo.data or None, current_user,
-                form.comentario.data,
-                eh_devolucao=eh_devolucao, em_nome_do_orientando=em_nome,
+                form.comentario.data, em_nome_do_orientando=em_nome,
             )
         except UploadInvalido as exc:
             db.session.rollback()
@@ -176,14 +167,8 @@ def anexar(orientacao_id: int, marco_id: int):
                 {"titulo": documento.titulo, "arquivo": versao.nome_original,
                  "origem": "marco", "marco_id": marco.id, "natureza": versao.natureza},
             )
-            # o comentário do upload vira a nota da devolução; o serviço recusa
-            # se a entrega não estiver sinalizada
-            devolvido = eh_devolucao and servico_cronograma.devolver_para_revisao(
-                marco, form.comentario.data or ""
-            )
             db.session.commit()
             flash("Documento anexado à tarefa (versão 1).", "success")
-            _avisar_devolucao(eh_devolucao, marco, devolvido)
     else:
         for erros in form.errors.values():
             for erro in erros:
@@ -222,10 +207,11 @@ def sinalizar_conclusao(orientacao_id: int, marco_id: int):
     if form.validate_on_submit() and marco.status != "concluido":
         marco.conclusao_sinalizada = True
         marco.status = "em_andamento"
-        # o reenvio fecha o ciclo da devolução: a nota do orientador descrevia
-        # o que corrigir, e o que ele pediu já foi atendido. Deixá-la viva a
-        # faria reaparecer sob a data da devolução seguinte.
-        marco.nota_devolucao = None
+        # a nota_devolucao NÃO é apagada aqui: ela é o registro da última
+        # devolução, e o orientador precisa dela ao decidir confirmar ou devolver
+        # de novo. A relevância na tela vem de `aguardando`; a próxima devolução
+        # a sobrescreve (nota e data juntas), então nunca há nota velha sob data
+        # nova.
         if form.nota.data:
             marco.nota_conclusao = form.nota.data
         auditoria.registrar(
@@ -258,26 +244,48 @@ def confirmar_conclusao(orientacao_id: int, marco_id: int):
 @bp.route("/<int:marco_id>/devolver", methods=["POST"])
 @login_required
 def devolver_para_revisao(orientacao_id: int, marco_id: int):
-    """Devolve a entrega ao orientando corrigir. Mesmo RBAC de `confirmar` — o
-    cronograma é do orientador principal (ou admin)."""
+    """A porta única de devolver: move o marco, grava a nota e, se veio o arquivo
+    corrigido, anexa-o ao documento-alvo e carimba a versão como devolução — tudo
+    num ato. RBAC do orientador principal/admin (o cronograma é dele)."""
     orientacao = orientacao_autorizada(orientacao_id)
     if not manda_no_cronograma(orientacao):
         abort(403)
     marco = _marco_da_orientacao(orientacao, marco_id)
     form = DevolverForm()
-    if form.validate_on_submit():
-        if servico_cronograma.devolver_para_revisao(marco, form.nota.data):
-            db.session.commit()
-            flash("Entrega devolvida para revisão do orientando.", "success")
-        else:
-            # recusa silenciosa perderia, sem aviso, a nota que ele digitou —
-            # acontece com formulário reenviado depois de a tarefa já ter sido
-            # devolvida ou concluída noutra aba
-            flash(
-                *servico_cronograma.recado_da_devolucao(
-                    marco, False, com_versao=False
-                )
+    form.documento_id.choices = [(d.id, d.titulo) for d in marco.documentos]
+    if not form.validate_on_submit():
+        for erros in form.errors.values():
+            for erro in erros:
+                flash(erro, "danger")
+        return redirect(
+            url_for("cronogramas.detalhe", orientacao_id=orientacao.id, marco_id=marco.id)
+        )
+    # a precondição é checada ANTES de gravar o arquivo, para não deixar versão
+    # órfã quando não há entrega da orientanda a devolver
+    if not servico_cronograma.pode_devolver(marco):
+        flash(*servico_cronograma.recado_da_devolucao(marco))
+        return redirect(
+            url_for("cronogramas.detalhe", orientacao_id=orientacao.id, marco_id=marco.id)
+        )
+    versao = None
+    if form.arquivo.data and form.documento_id.data:
+        documento = db.session.get(Documento, form.documento_id.data)
+        if documento is None or documento.marco_id != marco.id:
+            abort(404)
+        try:
+            versao = salvar_versao(
+                documento, form.arquivo.data, current_user, form.nota.data,
             )
+        except UploadInvalido as exc:
+            db.session.rollback()
+            flash(str(exc), "danger")
+            return redirect(
+                url_for("cronogramas.detalhe", orientacao_id=orientacao.id, marco_id=marco.id)
+            )
+        db.session.flush()
+    servico_cronograma.devolver_entrega(marco, form.nota.data, versao=versao)
+    db.session.commit()
+    flash("Entrega devolvida para revisão do orientando.", "success")
     return redirect(
         url_for("cronogramas.detalhe", orientacao_id=orientacao.id, marco_id=marco.id)
     )
