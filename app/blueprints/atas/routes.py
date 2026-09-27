@@ -314,7 +314,11 @@ def emitir_parecer(orientacao_id: int):
     versoes = (
         db.session.query(VersaoDocumento)
         .join(Documento)
-        .filter(Documento.orientacao_id == orientacao.id)
+        .filter(
+            Documento.orientacao_id == orientacao.id,
+            # versão só comentário não tem arquivo a apreciar
+            VersaoDocumento.nome_fisico.isnot(None),
+        )
         .order_by(VersaoDocumento.enviado_em.desc())
         .all()
     )

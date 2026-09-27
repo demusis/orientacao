@@ -7,27 +7,34 @@
 {% set is_principal = current_user.id == orientacao.orientador_id or current_user.papel == 'admin' %}
 <h1>{{ documento.titulo }}</h1>
 <h2>Histórico de versões</h2>
-<table>
-  <tr><th>Versão</th><th>Arquivo</th><th>Tamanho</th><th>Enviado por</th><th>Em</th><th>Comentário</th><th></th></tr>
-  {% set etiqueta = {'devolucao': 'devolução', 'entrega': 'entrega da orientanda'} %}
+{# linha do tempo: cada versão é um bloco — cabeçalho com metadados e o
+   comentário em largura inteira abaixo, para acomodar texto longo e versão sem
+   arquivo (retorno todo textual) #}
+{% set etiqueta = {'devolucao': 'devolução', 'entrega': 'entrega da orientanda'} %}
+<div class="versoes">
   {% for v in documento.versoes %}
-  <tr>
-    <td>v{{ v.numero_versao }}
-      {%- if etiqueta.get(v.natureza) %} <span class="badge">{{ etiqueta[v.natureza] }}</span>{% endif %}</td>
-    <td>{{ v.nome_original }}</td>
-    <td>{{ (v.tamanho_bytes / 1024) | round(1) }} KB</td>
-    <td>{{ v.remetente.nome }}
-      {%- if v.em_nome_do_orientando %} <small>(em nome da orientanda)</small>{% endif %}</td>
-    <td>{{ v.enviado_em.strftime('%Y-%m-%d %H:%M') }}</td>
-    <td>{{ v.comentario or '' }}</td>
-    <td class="acoes">
+  <div class="versao-item">
+    <div class="versao-cab">
+      <strong>v{{ v.numero_versao }}</strong>
+      {%- if etiqueta.get(v.natureza) %} <span class="badge">{{ etiqueta[v.natureza] }}</span>{% endif %}
+      <span class="versao-meta">{{ v.remetente.nome }}
+        {%- if v.em_nome_do_orientando %} (em nome da orientanda){% endif %}
+        · {{ v.enviado_em.strftime('%Y-%m-%d %H:%M') }}</span>
+    </div>
+    <p class="versao-arquivo">
+      {% if v.tem_arquivo %}
+      Arquivo: {{ v.nome_original }} ({{ (v.tamanho_bytes / 1024) | round(1) }} KB) ·
       <a href="{{ url_for('documentos.download', orientacao_id=orientacao.id, documento_id=documento.id, versao_id=v.id) }}">Baixar</a>
-      {# mesmo atalho do Painel: a intenção de avaliar também nasce aqui #}
-      {% if is_principal and not v.eh_devolucao %}
+      {% else %}
+      <em>Sem arquivo — comentário</em>
+      {% endif %}
+    </p>
+    {% if v.comentario %}<p class="versao-comentario">{{ v.comentario }}</p>{% endif %}
+    {% if is_principal %}
+    <div class="versao-acoes acoes">
+      {% if v.tem_arquivo and not v.eh_devolucao %}
       <a href="{{ url_for('atas.emitir_parecer', orientacao_id=orientacao.id, versao=v.id) }}">Emitir parecer</a>
       {% endif %}
-      {% if is_principal %}
-      {# dentro de td.acoes, que já põe os forms em linha (style.css) #}
       <form method="post" action="{{ url_for('documentos.classificar_versao', orientacao_id=orientacao.id, documento_id=documento.id, versao_id=v.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <select name="natureza">
@@ -37,11 +44,11 @@
         </select>
         <button type="submit">Aplicar</button>
       </form>
-      {% endif %}
-    </td>
-  </tr>
+    </div>
+    {% endif %}
+  </div>
   {% endfor %}
-</table>
+</div>
 <div class="card">
   <h2>Enviar nova versão</h2>
   {{ render_form(form, enctype='multipart/form-data') }}

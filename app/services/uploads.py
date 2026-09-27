@@ -77,23 +77,34 @@ def salvar_versao(
     documento: Documento, storage, usuario, comentario: str | None = None,
     eh_devolucao: bool = False, em_nome_do_orientando: bool = False,
 ):
-    """Grava o arquivo em disco sob UUID e cria a próxima versão do documento.
-    A constraint UNIQUE(documento_id, numero_versao) é a salvaguarda final
-    contra numeração concorrente."""
-    ext = validar_arquivo(storage)
-    nome_fisico = f"{uuid.uuid4().hex}.{ext}"
+    """Cria a próxima versão do documento. `storage` é o arquivo enviado ou
+    `None` — neste caso a versão é só comentário (retorno todo textual), e as
+    colunas de arquivo ficam vazias. Versão sem arquivo E sem comentário não faz
+    sentido: é `UploadInvalido`. A constraint UNIQUE(documento_id, numero_versao)
+    é a salvaguarda final contra numeração concorrente."""
+    tem_comentario = bool((comentario or "").strip())
+    if storage is None and not tem_comentario:
+        raise UploadInvalido("A versão precisa de um arquivo ou de um comentário.")
 
-    pasta = current_app.config["UPLOAD_FOLDER"]
-    os.makedirs(pasta, exist_ok=True)
-    caminho = os.path.join(pasta, nome_fisico)
-    storage.save(caminho)
-    # O arquivo vai a disco antes de a linha ser confirmada. Rastreia-o na sessão
-    # para que um rollback posterior — colisão de numeração na UNIQUE ao dar
-    # flush, ou "database is locked" no commit — não o deixe órfão na pasta de
-    # uploads (que o backup ainda incluiria). A remoção fica nos eventos de
-    # sessão abaixo, que cobrem todos os chamadores de salvar_versao.
-    db.session.info.setdefault("uploads_novos", []).append(caminho)
-    tamanho = os.path.getsize(caminho)
+    nome_original = nome_fisico = mimetype = None
+    tamanho = None
+    if storage is not None:
+        ext = validar_arquivo(storage)
+        nome_fisico = f"{uuid.uuid4().hex}.{ext}"
+
+        pasta = current_app.config["UPLOAD_FOLDER"]
+        os.makedirs(pasta, exist_ok=True)
+        caminho = os.path.join(pasta, nome_fisico)
+        storage.save(caminho)
+        # O arquivo vai a disco antes de a linha ser confirmada. Rastreia-o na
+        # sessão para que um rollback posterior — colisão de numeração na UNIQUE
+        # ao dar flush, ou "database is locked" no commit — não o deixe órfão na
+        # pasta de uploads (que o backup ainda incluiria). A remoção fica nos
+        # eventos de sessão abaixo, que cobrem todos os chamadores.
+        db.session.info.setdefault("uploads_novos", []).append(caminho)
+        nome_original = secure_filename(storage.filename)
+        tamanho = os.path.getsize(caminho)
+        mimetype = storage.mimetype or "application/octet-stream"
 
     proxima = (
         db.session.query(func.coalesce(func.max(VersaoDocumento.numero_versao), 0))
@@ -104,10 +115,10 @@ def salvar_versao(
     versao = VersaoDocumento(
         documento_id=documento.id,
         numero_versao=proxima,
-        nome_original=secure_filename(storage.filename),
+        nome_original=nome_original,
         nome_fisico=nome_fisico,
         tamanho_bytes=tamanho,
-        mimetype=storage.mimetype or "application/octet-stream",
+        mimetype=mimetype,
         enviado_por=usuario.id,
         comentario=comentario,
         eh_devolucao=eh_devolucao,

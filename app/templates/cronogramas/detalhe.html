@@ -78,7 +78,7 @@
     {% for d, va in entregas %}
     <tr>
       <td>{{ d.titulo }}</td>
-      <td>{% if va %}v{{ va.numero_versao }}{% if va.eh_devolucao %} <span class="badge">devolução</span>{% elif va.em_nome_do_orientando %} <span class="badge">entrega da orientanda</span>{% endif %}{% else %}sem versão{% endif %}</td>
+      <td>{% if va %}v{{ va.numero_versao }}{% if va.eh_devolucao %} <span class="badge">devolução</span>{% elif va.em_nome_do_orientando %} <span class="badge">entrega da orientanda</span>{% endif %}{% if not va.tem_arquivo %} <small>· comentário</small>{% endif %}{% else %}sem versão{% endif %}</td>
       <td>{% if va %}{{ va.remetente.nome }}
         {%- if va.em_nome_do_orientando %} <small>(em nome da orientanda)</small>
         {%- elif va.enviado_por == orientacao.orientando_id %} <small>(orientando)</small>
