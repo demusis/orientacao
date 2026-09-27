@@ -127,9 +127,22 @@ class Marco(db.Model):
 
     @property
     def ultima_entrega(self):
-        """A versão mais recente entre as entregas ligadas, ou None. Serve para
-        detectar quando a última versão veio do orientador — sinal de devolução."""
+        """A versão mais recente entre as entregas ligadas, ou None. Usada para
+        escolher o documento-alvo padrão ao devolver com arquivo."""
         return ultima_versao(self.entregas)
+
+    @property
+    def tem_entrega_do_orientando(self) -> bool:
+        """Existe alguma versão enviada pela orientanda — por ela mesma ou
+        registrada em nome dela — em qualquer documento do marco. Distingue "há
+        entrega a devolver" de "só o orientador mexeu aqui": é a precondição de
+        `devolver_entrega` (ver services/cronogramas.py)."""
+        orientando_id = self.orientacao.orientando_id
+        return any(
+            v.enviado_por == orientando_id or v.em_nome_do_orientando
+            for doc in self.documentos
+            for v in doc.versoes
+        )
 
     @property
     def atrasado(self) -> bool:

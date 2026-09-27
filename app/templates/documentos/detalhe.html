@@ -37,11 +37,12 @@
       {% endif %}
       <form method="post" action="{{ url_for('documentos.classificar_versao', orientacao_id=orientacao.id, documento_id=documento.id, versao_id=v.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>De quem é:
         <select name="natureza">
           {% for valor, rotulo in classificar_form.natureza.choices %}
           <option value="{{ valor }}"{% if v.natureza == valor %} selected{% endif %}>{{ rotulo }}</option>
           {% endfor %}
-        </select>
+        </select></label>
         <button type="submit">Aplicar</button>
       </form>
     </div>

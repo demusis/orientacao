@@ -57,7 +57,7 @@ def test_devolver_reseta_sinal_e_marca_devolucao(app, orientacao):
     marco = _marco(orientacao, sinalizado=True)
     assert marco.aguardando == "orientador"
 
-    assert servico_cronograma.devolver_para_revisao(marco, "Falta discutir o vício") is True
+    assert servico_cronograma.devolver_entrega(marco, "Falta discutir o vício") is True
     db.session.commit()
 
     assert marco.conclusao_sinalizada is False
@@ -76,13 +76,13 @@ def test_devolver_recusa_marco_concluido(app, orientacao):
     servico_cronograma.confirmar_conclusao(marco)
     db.session.commit()
     assert marco.status == "concluido" and marco.conclusao_sinalizada is True
-    assert servico_cronograma.devolver_para_revisao(marco, "x") is False
+    assert servico_cronograma.devolver_entrega(marco, "x") is False
     assert marco.devolvido_em is None
 
 
 def test_re_sinalizar_devolve_a_vez_ao_orientador(app, orientacao):
     marco = _marco(orientacao, sinalizado=True)
-    servico_cronograma.devolver_para_revisao(marco, "corrija")
+    servico_cronograma.devolver_entrega(marco, "corrija")
     db.session.commit()
     # aluno re-sinaliza: a vez volta ao orientador, devolvido_em fica de histórico
     marco.conclusao_sinalizada = True
@@ -150,7 +150,7 @@ def test_painel_move_devolvido_para_tarefas_abertas(app, client, orientacao, ori
     from app.services import painel
 
     marco = _marco(orientacao, sinalizado=True)
-    servico_cronograma.devolver_para_revisao(marco, "ajuste")
+    servico_cronograma.devolver_entrega(marco, "ajuste")
     db.session.commit()
 
     login(client, "orientador@teste.br")
@@ -169,7 +169,7 @@ def test_aviso_de_marco_devolvido_vai_ao_orientando(app, orientacao, orientando)
     from app.services import avisos
 
     marco = _marco(orientacao, sinalizado=True)
-    servico_cronograma.devolver_para_revisao(marco, "ajuste")
+    servico_cronograma.devolver_entrega(marco, "ajuste")
     db.session.commit()
 
     coletado = avisos.coletar()
@@ -231,43 +231,19 @@ def test_ultima_entrega_devolve_a_versao_mais_recente(app, orientacao):
     assert marco.ultima_entrega.id == v2.id  # a mais recente
 
 
-def test_marco_preso_mostra_aviso_e_devolver_regulariza(client, orientacao, orientador):
-    """Registro preso: sinalizado + última versão do orientador. A página exibe
-    o aviso; após devolver, some e a situação vira 'aguardando o orientando'."""
+def test_painel_conferir_entrega_com_devolver(client, orientacao, orientador):
+    """Sinalizada a entrega, a página oferece o painel "Conferir a entrega" com
+    confirmar e devolver (a porta única de devolução)."""
     marco = _marco(orientacao, sinalizado=True)
-    _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientador_id)
+    _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
     login(client, "orientador@teste.br")
-
     corpo = client.get(
         f"/orientacoes/{orientacao.id}/cronograma/{marco.id}"
     ).data.decode()
-    assert "foi enviada pelo orientador" in corpo  # aviso flash-warning
-    assert "Aguardando o orientador" in corpo  # situação (autoritativa) ainda
-
-    servico_cronograma.devolver_para_revisao(marco, "corrija")
-    db.session.commit()
-    corpo = client.get(
-        f"/orientacoes/{orientacao.id}/cronograma/{marco.id}"
-    ).data.decode()
-    assert "foi enviada pelo orientador" not in corpo  # aviso sumiu
-    assert "aguardando o orientando" in corpo.lower()
-
-
-def test_painel_marca_entrega_com_versao_do_orientador(app, client, orientacao, orientador):
-    from app.services import painel
-
-    preso = _marco(orientacao, sinalizado=True)
-    _documento_com_v1(orientacao, preso, enviado_por=orientacao.orientador_id)
-    normal = _marco(orientacao, sinalizado=True)
-    _documento_com_v1(orientacao, normal, enviado_por=orientacao.orientando_id)
-
-    with client.application.test_request_context():
-        from flask_login import login_user
-
-        login_user(orientador)
-        pend = painel.pendencias()
-    assert preso.id in pend["entregas_a_confirmar_revisao"]
-    assert normal.id not in pend["entregas_a_confirmar_revisao"]
+    assert "Conferir a entrega" in corpo
+    assert "Confirmar conclusão" in corpo
+    assert "Devolver para revisão" in corpo
+    assert "Arquivo corrigido" in corpo  # devolver aceita anexar num passo
 
 
 def test_situacao_badge_na_pagina_do_marco(client, orientacao, orientando):
@@ -296,23 +272,24 @@ def _versoes_sem_parecer_ids(orientador):
         return {v.id for v in painel.pendencias()["versoes_sem_parecer"]}
 
 
-def test_nova_versao_como_devolucao_devolve_e_sai_dos_pareceres(
-    client, orientacao, orientador
-):
+def test_devolver_com_arquivo_pela_rota(client, orientacao, orientador):
+    """A porta única: devolver anexa o arquivo corrigido ao documento-alvo,
+    carimba-o como devolução e move o marco — tudo num passo."""
     marco = _marco(orientacao, sinalizado=True)
     doc = _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
     login(client, "orientador@teste.br")
     resp = client.post(
-        f"/orientacoes/{orientacao.id}/documentos/{doc.id}",
-        data={"arquivo": pdf_falso("anot.pdf"), "comentario": "corrigir",
-              "natureza": "devolucao"},
+        f"/orientacoes/{orientacao.id}/cronograma/{marco.id}/devolver",
+        data={"nota": "revise o cap. 2", "documento_id": str(doc.id),
+              "arquivo": pdf_falso("anotado.pdf")},
         content_type="multipart/form-data",
         follow_redirects=True,
     )
     assert resp.status_code == 200
     db.session.expire(marco)
     assert marco.aguardando == "orientando_revisao"
-    nova = doc.versoes.first()
+    assert marco.nota_devolucao == "revise o cap. 2"
+    nova = doc.versoes.first()  # a versão anexada, carimbada devolução
     assert nova.eh_devolucao is True
     assert nova.id not in _versoes_sem_parecer_ids(orientador)
 
@@ -375,20 +352,19 @@ def test_orientando_nova_versao_nao_vira_devolucao(client, orientacao, orientand
     assert doc.versoes.first().eh_devolucao is False
 
 
-def test_classificar_versao_como_devolucao(client, orientacao, orientador, orientando):
-    # versão da orientanda (aparece em pareceres); classificar como devolução a remove
-    doc = _documento_com_v1(orientacao, _marco(orientacao), enviado_por=orientacao.orientando_id)
+def test_classificar_nao_aceita_devolucao(client, orientacao, orientador, orientando):
+    """O seletor reclassifica só o eixo de parecer (registro/entrega); "devolução"
+    não é opção dele — devolver é ação da tarefa."""
+    doc = _documento_com_v1(orientacao, _marco(orientacao), enviado_por=orientacao.orientador_id)
     versao = doc.versoes.first()
     login(client, "orientador@teste.br")
-    assert versao.id in _versoes_sem_parecer_ids(orientador)
     client.post(
         f"/orientacoes/{orientacao.id}/documentos/{doc.id}/versoes/{versao.id}/classificar",
-        data={"natureza": "devolucao"},
+        data={"natureza": "devolucao"},  # valor forjado, fora das choices
         follow_redirects=True,
     )
     db.session.expire(versao)
-    assert versao.natureza == "devolucao"
-    assert versao.id not in _versoes_sem_parecer_ids(orientador)
+    assert versao.eh_devolucao is False  # não aceitou a devolução pelo seletor
 
 
 def test_classificar_negado_ao_orientando(client, orientacao, orientando):
@@ -471,7 +447,7 @@ def test_devolver_preserva_entrega_registrada_em_nome_da_aluna(app, orientacao):
         orientacao, marco, enviado_por=orientacao.orientador_id, em_nome=True
     )
 
-    servico_cronograma.devolver_para_revisao(marco, "corrija")
+    servico_cronograma.devolver_entrega(marco, "corrija")
     db.session.commit()
 
     assert entrega.versoes.first().eh_devolucao is False  # entrega dela, intacta
@@ -482,20 +458,19 @@ def test_devolver_no_mesmo_ciclo_nao_repete(app, orientacao):
     """Devolvida a entrega, o upload seguinte não devolve de novo (não há
     entrega sinalizada) — e por isso não mexe na nota já escrita."""
     marco = _marco(orientacao, sinalizado=True)
-    servico_cronograma.devolver_para_revisao(marco, "Refazer a análise do cap. 3")
+    servico_cronograma.devolver_entrega(marco, "Refazer a análise do cap. 3")
     db.session.commit()
-    assert servico_cronograma.devolver_para_revisao(marco, "") is False
+    assert servico_cronograma.devolver_entrega(marco, "") is False
     assert marco.nota_devolucao == "Refazer a análise do cap. 3"
 
 
-def test_reenvio_do_orientando_encerra_a_nota(client, orientacao, orientando):
-    """Quem fecha o ciclo da devolução é o reenvio: a nota do orientador
-    descrevia o que corrigir e não pode reaparecer sob a devolução seguinte."""
+def test_reenvio_preserva_a_nota_para_o_orientador_decidir(client, orientacao, orientando):
+    """A nota NÃO é apagada no reenvio: é o registro da última devolução, e o
+    orientador precisa dela ao decidir confirmar ou devolver de novo."""
     marco = _marco(orientacao, sinalizado=True)
     _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
-    servico_cronograma.devolver_para_revisao(marco, "Refazer a análise do cap. 3")
+    servico_cronograma.devolver_entrega(marco, "Refazer a análise do cap. 3")
     db.session.commit()
-    assert marco.nota_devolucao == "Refazer a análise do cap. 3"
 
     login(client, "orientando@teste.br")  # ela corrige e sinaliza de novo
     client.post(
@@ -504,11 +479,24 @@ def test_reenvio_do_orientando_encerra_a_nota(client, orientacao, orientando):
         follow_redirects=True,
     )
     db.session.expire(marco)
-    assert marco.nota_devolucao is None  # ciclo encerrado
+    assert marco.aguardando == "orientador"
+    assert marco.nota_devolucao == "Refazer a análise do cap. 3"  # segue disponível
 
-    servico_cronograma.devolver_para_revisao(marco)  # devolução nova, sem nota
+
+def test_nova_devolucao_sobrescreve_nota_e_data(app, orientacao):
+    """Toda devolução grava a nota do ato (nota e data juntas): nunca se vê nota
+    velha sob data nova. Devolver sem nota zera."""
+    marco = _marco(orientacao, sinalizado=True)
+    _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
+    servico_cronograma.devolver_entrega(marco, "Refazer a análise do cap. 3")
     db.session.commit()
-    assert marco.nota_devolucao is None  # não ressuscita a do ciclo anterior
+    assert marco.nota_devolucao == "Refazer a análise do cap. 3"
+
+    marco.conclusao_sinalizada = True  # aluna reenvia e sinaliza
+    db.session.commit()
+    servico_cronograma.devolver_entrega(marco, "")  # devolve de novo, sem nota
+    db.session.commit()
+    assert marco.nota_devolucao is None  # a nota do ciclo anterior não sobrevive
 
 
 def test_devolver_nao_carimba_versao_alheia(app, orientacao):
@@ -516,7 +504,7 @@ def test_devolver_nao_carimba_versao_alheia(app, orientacao):
     tarefa não pode virar "devolução" e perder o link de parecer."""
     marco = _marco(orientacao, sinalizado=True)
     ata = _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientador_id)
-    servico_cronograma.devolver_para_revisao(marco, "corrija")
+    servico_cronograma.devolver_entrega(marco, "corrija")
     db.session.commit()
     assert ata.versoes.first().eh_devolucao is False
     assert ata.versoes.first().natureza == "registro"
@@ -526,7 +514,7 @@ def test_devolver_recusa_marco_sem_entrega(app, orientacao):
     """Marco vazio: nada a devolver — evita anunciar à aluna a devolução de
     algo que ela não entregou."""
     marco = _marco(orientacao)  # sem sinal e sem arquivo
-    assert servico_cronograma.devolver_para_revisao(marco, "x") is False
+    assert servico_cronograma.devolver_entrega(marco, "x") is False
     assert marco.devolvido_em is None
 
 
@@ -535,7 +523,7 @@ def test_devolver_aceita_entrega_nao_sinalizada(app, orientacao):
     tela não oferece outro caminho para pedir correções."""
     marco = _marco(orientacao)  # não sinalizado, mas COM entrega
     _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
-    assert servico_cronograma.devolver_para_revisao(marco, "corrija") is True
+    assert servico_cronograma.devolver_entrega(marco, "corrija") is True
     assert marco.aguardando == "orientando_revisao"
 
 
@@ -566,77 +554,37 @@ def test_coorientador_nao_ve_a_opcao_de_devolucao(client, app, orientacao, orien
         assert 'value="devolucao"' not in corpo  # devolver, não
 
 
-def test_coorientador_nao_devolve_pelo_upload(client, app, orientacao, orientador):
-    """O /devolver responde 403 ao coorientador; os dois caminhos de upload não
-    podem ser a porta dos fundos para o mesmo ato — e, recusando, precisam
-    dizer por quê em vez de engolir o arquivo."""
+def test_coorientador_nao_devolve(client, app, orientacao, orientador):
+    """Devolver é do orientador principal: a rota /devolver responde 403 ao
+    coorientador, e a tarefa não se move."""
     _coorientador(orientacao)
     marco = _marco(orientacao, sinalizado=True)
-    doc = _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
     login(client, "co@teste.br")
-
-    antes = VersaoDocumento.query.count()
     resp = client.post(
-        f"/orientacoes/{orientacao.id}/documentos/{doc.id}",
-        data={"arquivo": pdf_falso("co.pdf"), "natureza": "devolucao"},
-        content_type="multipart/form-data",
-        follow_redirects=True,
+        f"/orientacoes/{orientacao.id}/cronograma/{marco.id}/devolver",
+        data={"nota": "x"},
     )
-    assert resp.status_code == 200
-    assert "cabe ao orientador principal" in resp.data.decode()  # erro em pt
-    assert VersaoDocumento.query.count() == antes  # nada gravado
-
-    docs_antes = Documento.query.count()
-    resp = client.post(
-        f"/orientacoes/{orientacao.id}/cronograma/{marco.id}/anexar",
-        data={"titulo": "Correções", "arquivo": pdf_falso("co2.pdf"),
-              "natureza": "devolucao"},
-        content_type="multipart/form-data",
-        follow_redirects=True,
-    )
-    assert Documento.query.count() == docs_antes  # nada criado
-    assert "cabe ao orientador principal" in resp.data.decode()
-
+    assert resp.status_code == 403
     db.session.expire(marco)
-    assert marco.conclusao_sinalizada is True  # a tarefa não foi devolvida
+    assert marco.conclusao_sinalizada is True  # nada mudou
     assert marco.devolvido_em is None
 
 
-def test_painel_nao_marca_entrega_registrada_em_nome_da_aluna(
-    app, client, orientacao, orientador
-):
-    """O selo "versão do orientador — revisar?" não pode cair sobre a entrega
-    registrada em nome da orientanda: mandaria devolver o que se deve confirmar."""
-    from app.services import painel
-
-    registrada = _marco(orientacao, sinalizado=True)
-    _documento_com_v1(
-        orientacao, registrada, enviado_por=orientacao.orientador_id, em_nome=True
-    )
-    suspeito = _marco(orientacao, sinalizado=True)
-    _documento_com_v1(orientacao, suspeito, enviado_por=orientacao.orientador_id)
-
-    with client.application.test_request_context():
-        from flask_login import login_user
-
-        login_user(orientador)
-        pend = painel.pendencias()
-    assert registrada.id not in pend["entregas_a_confirmar_revisao"]
-    assert suspeito.id in pend["entregas_a_confirmar_revisao"]
-
-
-def test_devolucao_em_marco_vazio_avisa(client, orientacao, orientador):
-    """Declarar devolução num documento sem tarefa ligada não devolve nada — e
-    a tela precisa dizer isso, não deixar o orientador achar que devolveu."""
+def test_devolver_marco_sem_entrega_da_aluna_avisa(client, orientacao, orientador):
+    """Devolver um marco sem entrega da orientanda (só o orientador mexeu) não
+    devolve nada — e a tela diz por quê, em vez de anunciar à aluna algo que ela
+    não entregou."""
+    marco = _marco(orientacao)  # não sinalizado
+    _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientador_id)
     login(client, "orientador@teste.br")
     resp = client.post(
-        f"/orientacoes/{orientacao.id}/documentos/novo",
-        data={"titulo": "Correções soltas", "marco_id": 0,
-              "arquivo": pdf_falso("corr.pdf"), "natureza": "devolucao"},
-        content_type="multipart/form-data",
+        f"/orientacoes/{orientacao.id}/cronograma/{marco.id}/devolver",
+        data={"nota": "corrija"},
         follow_redirects=True,
     )
-    assert "não está ligado a tarefa alguma" in resp.data.decode()
+    assert "ainda não tem entrega da orientanda" in resp.data.decode()
+    db.session.expire(marco)
+    assert marco.devolvido_em is None
 
 
 def test_rotulo_de_entrega_registrada_na_tarefa(client, orientacao, orientador):
@@ -655,7 +603,7 @@ def test_rotulo_de_entrega_registrada_na_tarefa(client, orientacao, orientador):
 
 def test_card_de_devolucao_some_em_marco_concluido(client, orientacao, orientador):
     marco = _marco(orientacao, sinalizado=True)
-    servico_cronograma.devolver_para_revisao(marco, "Refazer a seção 3.2")
+    servico_cronograma.devolver_entrega(marco, "Refazer a seção 3.2")
     db.session.commit()
     login(client, "orientador@teste.br")
     corpo = client.get(
@@ -695,15 +643,15 @@ def test_salvar_versao_vazia_recusa(app, orientacao, orientador):
 
 
 def test_nova_versao_so_comentario_pela_rota(client, orientacao, orientador):
-    """O caso do usuário: devolução cujo conteúdo é todo textual. Sem arquivo,
-    devolve a tarefa e não pede parecer."""
+    """Versão só com comentário (arquivo opcional): o upload grava a versão e não
+    devolve nada (devolver é ação da tarefa)."""
     marco = _marco(orientacao, sinalizado=True)
     doc = _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
     login(client, "orientador@teste.br")
     resp = client.post(
         f"/orientacoes/{orientacao.id}/documentos/{doc.id}",
         data={"comentario": "Retorno textual: revise os pontos 1 a 5.",
-              "natureza": "devolucao"},
+              "natureza": "registro"},
         content_type="multipart/form-data",
         follow_redirects=True,
     )
@@ -712,8 +660,24 @@ def test_nova_versao_so_comentario_pela_rota(client, orientacao, orientador):
     assert nova.tem_arquivo is False
     assert nova.comentario.startswith("Retorno textual")
     db.session.expire(marco)
-    assert marco.aguardando == "orientando_revisao"  # devolução devolveu a tarefa
-    assert nova.id not in _versoes_sem_parecer_ids(orientador)
+    assert marco.conclusao_sinalizada is True  # o upload não devolveu a tarefa
+    assert marco.devolvido_em is None
+
+
+def test_devolver_so_com_nota_pela_rota(client, orientacao, orientador):
+    """Devolver só com a nota (sem arquivo): a tarefa volta e a nota aparece."""
+    marco = _marco(orientacao, sinalizado=True)
+    _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
+    login(client, "orientador@teste.br")
+    resp = client.post(
+        f"/orientacoes/{orientacao.id}/cronograma/{marco.id}/devolver",
+        data={"nota": "Revise os pontos 1 a 5."},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    db.session.expire(marco)
+    assert marco.aguardando == "orientando_revisao"
+    assert marco.nota_devolucao == "Revise os pontos 1 a 5."
 
 
 def test_versao_vazia_recusada_pela_rota(client, orientacao, orientador):
@@ -775,3 +739,65 @@ def test_emitir_parecer_nao_lista_versao_so_comentario(client, orientacao, orien
 def test_csrf_sem_limite_de_tempo(app):
     # token válido pela sessão inteira, não 1 h — evita "CSRF token expired"
     assert app.config.get("WTF_CSRF_TIME_LIMIT") is None
+
+
+# ============ redesenho da devolução (porta única) ============
+
+
+def test_pode_devolver_exige_entrega_da_orientanda(app, orientacao):
+    """A precondição vazia corrigida: o upload do próprio orientador não conta —
+    só entrega da orientanda (sinalizada ou não) habilita devolver."""
+    marco = _marco(orientacao)  # nem sinalizado, nem entregue
+    assert servico_cronograma.pode_devolver(marco) is False
+    _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientador_id)
+    db.session.expire(marco)
+    assert servico_cronograma.pode_devolver(marco) is False  # só o orientador mexeu
+    _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
+    db.session.expire(marco)
+    assert servico_cronograma.pode_devolver(marco) is True  # agora há entrega dela
+
+
+def test_devolver_entrega_carimba_a_versao_passada(app, orientacao):
+    """`devolver_entrega(versao=v)` carimba v como devolução, num ato só."""
+    marco = _marco(orientacao, sinalizado=True)
+    doc = _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
+    v = doc.versoes.first()
+    assert servico_cronograma.devolver_entrega(marco, "x", versao=v) is True
+    db.session.commit()
+    assert v.eh_devolucao is True
+    assert marco.aguardando == "orientando_revisao"
+
+
+def test_ultima_versao_desempata_por_id(app, orientacao):
+    """Duas versões no mesmo instante: a 'última' é sempre a de maior id, nos dois
+    lados (modelo e painel), para não divergirem."""
+    from datetime import datetime
+
+    from app.models.cronograma import ultima_versao
+
+    marco = _marco(orientacao)
+    doc = _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
+    v1 = doc.versoes.first()
+    instante = datetime(2026, 9, 1, 12, 0, 0)
+    v1.enviado_em = instante
+    v2 = VersaoDocumento(
+        documento_id=doc.id, numero_versao=2, nome_original="b.pdf",
+        nome_fisico=f"{doc.id:032x}b.pdf", tamanho_bytes=10, mimetype="application/pdf",
+        enviado_por=orientacao.orientador_id, enviado_em=instante,
+    )
+    db.session.add(v2)
+    db.session.commit()
+    escolhida = ultima_versao([(doc, v1), (doc, v2)])
+    assert escolhida.id == max(v1.id, v2.id) == v2.id
+
+
+def test_upload_nao_oferece_devolucao(client, orientacao, orientador):
+    """O envio de versão não tem mais a opção 'devolução' — é eixo binário."""
+    marco = _marco(orientacao)
+    doc = _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
+    login(client, "orientador@teste.br")
+    corpo = client.get(
+        f"/orientacoes/{orientacao.id}/documentos/{doc.id}"
+    ).data.decode()
+    assert 'value="registro"' in corpo and 'value="entrega"' in corpo
+    assert 'value="devolucao"' not in corpo

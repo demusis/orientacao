@@ -97,47 +97,11 @@ def _com_orientando(consulta):
     )
 
 
-def _marcos_com_registro_do_orientador(ids_marcos: list[int]) -> set[int]:
-    """Ids, entre os marcos dados, cuja entrega mais recente é um registro do
-    orientador — nem enviada pela orientanda, nem registrada em nome dela.
-
-    Uma consulta para todos. A "mais recente" é escolhida por data **e id**,
-    como em `Marco.ultima_entrega`: comparar só com `max(enviado_em)` casaria as
-    duas linhas de um empate de instante, e o marco entraria no conjunto por
-    causa da versão do orientador ainda que a da orientanda fosse a vigente."""
-    if not ids_marcos:
-        return set()
-    mais_recente = (
-        select(VersaoDocumento.id)
-        .join(Documento, Documento.id == VersaoDocumento.documento_id)
-        .where(Documento.marco_id == Marco.id)
-        .order_by(VersaoDocumento.enviado_em.desc(), VersaoDocumento.id.desc())
-        .limit(1)
-        .correlate(Marco)
-        .scalar_subquery()
-    )
-    return set(
-        db.session.execute(
-            select(Marco.id)
-            .join(Documento, Documento.marco_id == Marco.id)
-            .join(VersaoDocumento, VersaoDocumento.documento_id == Documento.id)
-            .join(Orientacao, Orientacao.id == Marco.orientacao_id)
-            .where(
-                Marco.id.in_(ids_marcos),
-                VersaoDocumento.id == mais_recente,
-                VersaoDocumento.enviado_por != Orientacao.orientando_id,
-                VersaoDocumento.em_nome_do_orientando.is_(False),
-            )
-        ).scalars()
-    )
-
-
 def pendencias() -> dict:
     ids = _ids_visiveis()
     if not ids:
         return {
             "entregas_a_confirmar": [],
-            "entregas_a_confirmar_revisao": set(),
             "tarefas_abertas": [],
             "reunioes_sem_ata": [],
             "atas_rascunho": [],
@@ -156,16 +120,6 @@ def pendencias() -> dict:
         )
         .order_by(Marco.data_prevista)
         .all()
-    )
-    # Dentre as que aguardam confirmação, aquelas cuja versão mais recente é um
-    # registro do orientador: provável devolução não formalizada. A entrega que
-    # ele registrou EM NOME da orientanda não conta — é entrega dela, e marcá-la
-    # mandaria devolver o que se deve confirmar.
-    #
-    # Em uma consulta só: percorrer `marco.ultima_entrega` em Python custava uma
-    # ida ao banco por documento de cada marco (`Documento.versoes` é dynamic).
-    entregas_a_confirmar_revisao = _marcos_com_registro_do_orientador(
-        [m.id for m in entregas_a_confirmar]
     )
 
     # ainda não entregue; as atrasadas vêm primeiro por ordem de prazo
@@ -239,7 +193,6 @@ def pendencias() -> dict:
 
     return {
         "entregas_a_confirmar": entregas_a_confirmar,
-        "entregas_a_confirmar_revisao": entregas_a_confirmar_revisao,
         "tarefas_abertas": tarefas_abertas,
         "reunioes_sem_ata": reunioes_sem_ata,
         "atas_rascunho": atas_rascunho,

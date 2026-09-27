@@ -56,12 +56,17 @@ class SinalizarForm(FlaskForm):
 
 
 class DevolverForm(FlaskForm):
-    """Devolução da entrega ao orientando pelo orientador, com uma nota opcional
-    dizendo o que corrigir."""
+    """Devolução da entrega ao orientando — a porta única. Nota do que corrigir,
+    e, opcionalmente, o arquivo corrigido anexado a um documento do marco, tudo
+    num passo. As choices de `documento_id` são preenchidas na rota."""
 
     nota = TextAreaField(
         "O que precisa corrigir (opcional)", validators=[Optional(), Length(max=2000)]
     )
+    documento_id = SelectField(
+        "Anexar o arquivo corrigido a", coerce=int, validators=[Optional()]
+    )
+    arquivo = FileField("Arquivo corrigido (opcional)", validators=[Optional()])
     submit = SubmitField("Devolver para revisão")
 
 
@@ -69,7 +74,10 @@ class AnexoMarcoForm(FlaskForm):
     """Anexo de documento diretamente pela página da tarefa. Cria um documento
     ligado ao marco, reaproveitando o armazenamento de versões."""
 
-    titulo = StringField("Título do documento", validators=[DataRequired(), Length(max=255)])
+    titulo = StringField(
+        "Título do documento",
+        validators=[DataRequired("Informe o título do documento."), Length(max=255)],
+    )
     arquivo = FileField("Arquivo", validators=[exigir_arquivo_ou_comentario])
     comentario = TextAreaField("Comentário", validators=[Optional()])
     natureza = campo_natureza()

@@ -137,6 +137,11 @@ nav details.menu > .submenu button.link:hover { background: #eef2f6; }
 .versao-arquivo { margin: .4rem 0 0; font-size: .9rem; }
 .versao-comentario { margin: .5rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .versao-acoes { margin-top: .6rem; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+/* "Conferir a entrega": as duas saídas (confirmar / devolver) lado a lado, para
+   a decisão do orientador ficar visível de uma vez. */
+.decisao { display: flex; flex-wrap: wrap; gap: 1rem; }
+.decisao-opcao { flex: 1 1 16rem; border: 1px solid var(--borda); border-radius: 4px; padding: .8rem; background: #fff; }
+.decisao-opcao h4 { margin: 0 0 .3rem; }
 .paginacao { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; margin: 1rem 0 2rem; }
 .paginacao a, .paginacao strong, .paginacao span { padding: .3rem .6rem; border: 1px solid var(--borda); border-radius: 4px; background: #fff; font-size: .9rem; line-height: 1; }
 .paginacao a { color: var(--azul); text-decoration: none; }
