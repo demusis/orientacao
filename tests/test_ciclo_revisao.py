@@ -291,7 +291,49 @@ def test_devolver_com_arquivo_pela_rota(client, orientacao, orientador):
     assert marco.nota_devolucao == "revise o cap. 2"
     nova = doc.versoes.first()  # a versão anexada, carimbada devolução
     assert nova.eh_devolucao is True
+    assert nova.comentario is None  # a nota vive na tarefa, não se duplica aqui
     assert nova.id not in _versoes_sem_parecer_ids(orientador)
+
+
+def test_devolver_com_arquivo_sem_documento_avisa(client, orientacao, orientador):
+    """Marco sinalizado sem documento: um arquivo anexado não tem onde ir —
+    avisa e devolve só com a nota, em vez de descartar o arquivo em silêncio."""
+    marco = _marco(orientacao, sinalizado=True)  # sinalizado, SEM documentos
+    login(client, "orientador@teste.br")
+    antes = VersaoDocumento.query.count()
+    resp = client.post(
+        f"/orientacoes/{orientacao.id}/cronograma/{marco.id}/devolver",
+        data={"nota": "corrija", "arquivo": pdf_falso("x.pdf")},
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+    assert "não foi anexado" in resp.data.decode()
+    assert VersaoDocumento.query.count() == antes  # nada gravado
+    db.session.expire(marco)
+    assert marco.aguardando == "orientando_revisao"  # devolveu só com a nota
+    assert marco.nota_devolucao == "corrija"
+
+
+def test_versao_devolucao_nao_tem_seletor_de_reclassificar(client, orientacao, orientador):
+    """O seletor registro/entrega não aparece para uma versão-devolução: não pode
+    representá-la como 'registro' e, num Aplicar, apagar a etiqueta."""
+    marco = _marco(orientacao, sinalizado=True)
+    doc = _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
+    v1 = doc.versoes.first()
+    login(client, "orientador@teste.br")
+    client.post(
+        f"/orientacoes/{orientacao.id}/cronograma/{marco.id}/devolver",
+        data={"nota": "x", "documento_id": str(doc.id), "arquivo": pdf_falso("c.pdf")},
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+    v2 = doc.versoes.first()  # a devolução carimbada
+    assert v2.eh_devolucao is True
+    corpo = client.get(
+        f"/orientacoes/{orientacao.id}/documentos/{doc.id}"
+    ).data.decode()
+    assert f"/versoes/{v2.id}/classificar" not in corpo  # devolução: sem seletor
+    assert f"/versoes/{v1.id}/classificar" in corpo  # entrega da aluna: com seletor
 
 
 def test_upload_do_orientador_nao_pede_parecer(client, orientacao, orientador):

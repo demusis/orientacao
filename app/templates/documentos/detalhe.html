@@ -30,9 +30,12 @@
       {% endif %}
     </p>
     {% if v.comentario %}<p class="versao-comentario">{{ v.comentario }}</p>{% endif %}
-    {% if is_principal %}
+    {# versão-devolução é do orientador, classificada pelo ciclo da tarefa: não
+       recebe o seletor de parecer (que só distingue registro/entrega) nem o
+       "Emitir parecer" — evita representá-la como "registro" e apagar a etiqueta #}
+    {% if is_principal and not v.eh_devolucao %}
     <div class="versao-acoes acoes">
-      {% if v.tem_arquivo and not v.eh_devolucao %}
+      {% if v.tem_arquivo %}
       <a href="{{ url_for('atas.emitir_parecer', orientacao_id=orientacao.id, versao=v.id) }}">Emitir parecer</a>
       {% endif %}
       <form method="post" action="{{ url_for('documentos.classificar_versao', orientacao_id=orientacao.id, documento_id=documento.id, versao_id=v.id) }}">

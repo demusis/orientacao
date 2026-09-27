@@ -112,13 +112,18 @@ def detalhe(orientacao_id: int, marco_id: int):
     # uma passada pelas entregas serve a tabela e o default do documento-alvo:
     # cada leitura de `versao_atual` vai ao banco (relação dynamic)
     entregas = marco.entregas
-    # o form de devolver aceita anexar o arquivo corrigido; oferece os documentos
-    # do marco como alvo, com o da última entrega já selecionado
+    # o form de devolver aceita anexar o arquivo corrigido a um documento do
+    # marco. Sem documentos, não há onde anexar: some o campo de arquivo, para
+    # não oferecer um upload que seria descartado (devolve-se só com a nota).
     devolver_form = DevolverForm()
-    devolver_form.documento_id.choices = [(d.id, d.titulo) for d, _ in entregas]
-    ultima = marco.ultima_entrega
-    if ultima is not None:
-        devolver_form.documento_id.data = ultima.documento_id
+    if entregas:
+        devolver_form.documento_id.choices = [(d.id, d.titulo) for d, _ in entregas]
+        ultima = marco.ultima_entrega
+        if ultima is not None:
+            devolver_form.documento_id.data = ultima.documento_id
+    else:
+        del devolver_form.documento_id
+        del devolver_form.arquivo
     return render_template(
         "cronogramas/detalhe.html",
         orientacao=orientacao,
@@ -268,21 +273,30 @@ def devolver_para_revisao(orientacao_id: int, marco_id: int):
             url_for("cronogramas.detalhe", orientacao_id=orientacao.id, marco_id=marco.id)
         )
     versao = None
-    if form.arquivo.data and form.documento_id.data:
-        documento = db.session.get(Documento, form.documento_id.data)
-        if documento is None or documento.marco_id != marco.id:
-            abort(404)
-        try:
-            versao = salvar_versao(
-                documento, form.arquivo.data, current_user, form.nota.data,
+    if form.arquivo.data:
+        # arquivo sem documento-alvo (marco sem documentos) não pode ser anexado:
+        # avisa em vez de descartar em silêncio, e devolve só com a nota
+        if not form.documento_id.data:
+            flash(
+                "O arquivo não foi anexado: a tarefa não tem documento para recebê-lo. "
+                "Anexe-o pela aba Documentos; a devolução seguiu só com a nota.",
+                "warning",
             )
-        except UploadInvalido as exc:
-            db.session.rollback()
-            flash(str(exc), "danger")
-            return redirect(
-                url_for("cronogramas.detalhe", orientacao_id=orientacao.id, marco_id=marco.id)
-            )
-        db.session.flush()
+        else:
+            documento = db.session.get(Documento, form.documento_id.data)
+            if documento is None or documento.marco_id != marco.id:
+                abort(404)
+            try:
+                # o arquivo é a versão corrigida; a nota vive na tarefa
+                # (marco.nota_devolucao), não se duplica no comentário da versão
+                versao = salvar_versao(documento, form.arquivo.data, current_user)
+            except UploadInvalido as exc:
+                db.session.rollback()
+                flash(str(exc), "danger")
+                return redirect(
+                    url_for("cronogramas.detalhe", orientacao_id=orientacao.id, marco_id=marco.id)
+                )
+            db.session.flush()
     servico_cronograma.devolver_entrega(marco, form.nota.data, versao=versao)
     db.session.commit()
     flash("Entrega devolvida para revisão do orientando.", "success")
