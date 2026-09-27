@@ -132,6 +132,23 @@ def register_erros(app: Flask) -> None:
             "tente novamente em instantes.",
         ), 500
 
+    # Token de CSRF inválido/vencido: em vez do "Bad Request — The CSRF token
+    # has expired." cru e em inglês, uma página em português orientando a
+    # recarregar. Com WTF_CSRF_TIME_LIMIT=None o token vale a sessão inteira, mas
+    # isto ainda cobre a sessão de 12 h vencida e a troca de SECRET_KEY.
+    from flask_wtf.csrf import CSRFError
+
+    @app.errorhandler(CSRFError)
+    def erro_csrf(erro):
+        return render_template(
+            "erros/erro.html",
+            codigo=400,
+            titulo="Sessão expirada",
+            mensagem="Sua sessão expirou ou a página ficou aberta tempo demais. "
+            "Recarregue a página e envie de novo (copie antes o texto que digitou, "
+            "para não perdê-lo).",
+        ), 400
+
 
 # Endpoints que a conta com senha provisória ainda alcança. São o mínimo para
 # que a troca seja possível e para que o usuário possa desistir: a própria tela

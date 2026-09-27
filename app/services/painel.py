@@ -230,6 +230,8 @@ def pendencias() -> dict:
                 VersaoDocumento.em_nome_do_orientando.is_(True),
             ),
             VersaoDocumento.eh_devolucao.is_(False),
+            # versão só comentário não tem o que avaliar
+            VersaoDocumento.nome_fisico.isnot(None),
         )
         .order_by(VersaoDocumento.enviado_em.desc())
         .all()

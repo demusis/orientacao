@@ -128,6 +128,15 @@ nav details.menu > .submenu button.link:hover { background: #eef2f6; }
 .badge-risco-medio { background: #fff3cd; color: #664d03; }
 .badge-risco-alto { background: #f8d7da; color: #842029; }
 .acoes form { display: inline; }
+/* Histórico de versões em linha do tempo: cada versão é um bloco, com o
+   comentário em largura inteira — acomoda texto longo e versão sem arquivo. */
+.versoes { display: flex; flex-direction: column; gap: .8rem; margin: .5rem 0 1.5rem; }
+.versao-item { border: 1px solid var(--borda); border-left: 3px solid var(--azul); border-radius: 4px; padding: .7rem .9rem; background: #fff; }
+.versao-cab { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem; }
+.versao-meta { color: #666; font-size: .88rem; }
+.versao-arquivo { margin: .4rem 0 0; font-size: .9rem; }
+.versao-comentario { margin: .5rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.versao-acoes { margin-top: .6rem; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
 .paginacao { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; margin: 1rem 0 2rem; }
 .paginacao a, .paginacao strong, .paginacao span { padding: .3rem .6rem; border: 1px solid var(--borda); border-radius: 4px; background: #fff; font-size: .9rem; line-height: 1; }
 .paginacao a { color: var(--azul); text-decoration: none; }

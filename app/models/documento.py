@@ -42,10 +42,13 @@ class VersaoDocumento(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     documento_id = db.Column(db.Integer, db.ForeignKey("documento.id"), nullable=False)
     numero_versao = db.Column(db.Integer, nullable=False)
-    nome_original = db.Column(db.String(255), nullable=False)
-    nome_fisico = db.Column(db.String(64), unique=True, nullable=False)
-    tamanho_bytes = db.Column(db.Integer, nullable=False)
-    mimetype = db.Column(db.String(100), nullable=False)
+    # colunas de arquivo opcionais: uma versão pode ser só comentário (retorno
+    # todo textual), sem arquivo anexado. nome_fisico segue unique — SQLite
+    # admite múltiplos NULL sob unique.
+    nome_original = db.Column(db.String(255), nullable=True)
+    nome_fisico = db.Column(db.String(64), unique=True, nullable=True)
+    tamanho_bytes = db.Column(db.Integer, nullable=True)
+    mimetype = db.Column(db.String(100), nullable=True)
     enviado_por = db.Column(db.Integer, db.ForeignKey("usuario.id"), nullable=False)
     enviado_em = db.Column(
         db.DateTime, nullable=False, default=lambda: datetime.now(UTC)
@@ -63,6 +66,12 @@ class VersaoDocumento(db.Model):
 
     documento = db.relationship("Documento", back_populates="versoes")
     remetente = db.relationship("Usuario", foreign_keys=[enviado_por])
+
+    @property
+    def tem_arquivo(self) -> bool:
+        """A versão carrega um arquivo? Falso quando é só comentário. Governa o
+        link de baixar, a coluna de arquivo e a elegibilidade a parecer."""
+        return bool(self.nome_fisico)
 
     @property
     def natureza(self) -> str:

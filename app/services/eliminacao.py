@@ -153,7 +153,8 @@ def _apagar_vinculo_do_titular(
     # documentos e suas versões (coleta os arquivos físicos)
     for documento in list(orientacao.documentos):
         for versao in list(documento.versoes):
-            arquivos.append(versao.nome_fisico)
+            if versao.nome_fisico:  # versão só comentário não tem arquivo
+                arquivos.append(versao.nome_fisico)
             db.session.delete(versao)
         db.session.delete(documento)
     # marcos: limpa antes a associação com atas de grupo que sobrevivem

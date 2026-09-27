@@ -3,9 +3,12 @@ atribuição de autoria das versões. Cobre o cenário que motivou a mudança �
 orientador devolve a v2 com anotações e a tarefa deve voltar ao orientando."""
 from datetime import date
 
+import pytest
+
 from app.extensions import db
 from app.models import Documento, LogAuditoria, Marco, VersaoDocumento
 from app.services import cronogramas as servico_cronograma
+from app.services.uploads import UploadInvalido, salvar_versao
 from tests.conftest import login, pdf_falso
 
 
@@ -668,3 +671,107 @@ def test_card_de_devolucao_some_em_marco_concluido(client, orientacao, orientado
         f"/orientacoes/{orientacao.id}/cronograma/{marco.id}"
     ).data.decode()
     assert "Devolvido para revisão" not in corpo  # não contradiz "Concluído"
+
+
+# ============ versão só com comentário (arquivo opcional) ============
+
+
+def test_salvar_versao_so_comentario(app, orientacao, orientador):
+    marco = _marco(orientacao)
+    doc = _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
+    v = salvar_versao(doc, None, orientador, comentario="Todo o retorno está aqui.")
+    db.session.commit()
+    assert v.tem_arquivo is False
+    assert v.nome_fisico is None and v.tamanho_bytes is None
+    assert v.comentario == "Todo o retorno está aqui."
+    assert v.numero_versao == 2  # segue a numeração
+
+
+def test_salvar_versao_vazia_recusa(app, orientacao, orientador):
+    marco = _marco(orientacao)
+    doc = _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
+    with pytest.raises(UploadInvalido):
+        salvar_versao(doc, None, orientador, comentario="   ")
+
+
+def test_nova_versao_so_comentario_pela_rota(client, orientacao, orientador):
+    """O caso do usuário: devolução cujo conteúdo é todo textual. Sem arquivo,
+    devolve a tarefa e não pede parecer."""
+    marco = _marco(orientacao, sinalizado=True)
+    doc = _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
+    login(client, "orientador@teste.br")
+    resp = client.post(
+        f"/orientacoes/{orientacao.id}/documentos/{doc.id}",
+        data={"comentario": "Retorno textual: revise os pontos 1 a 5.",
+              "natureza": "devolucao"},
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    nova = doc.versoes.first()
+    assert nova.tem_arquivo is False
+    assert nova.comentario.startswith("Retorno textual")
+    db.session.expire(marco)
+    assert marco.aguardando == "orientando_revisao"  # devolução devolveu a tarefa
+    assert nova.id not in _versoes_sem_parecer_ids(orientador)
+
+
+def test_versao_vazia_recusada_pela_rota(client, orientacao, orientador):
+    marco = _marco(orientacao)
+    doc = _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
+    login(client, "orientador@teste.br")
+    antes = VersaoDocumento.query.count()
+    resp = client.post(
+        f"/orientacoes/{orientacao.id}/documentos/{doc.id}",
+        data={"comentario": "", "natureza": "registro"},
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+    assert "Envie um arquivo ou escreva um comentário" in resp.data.decode()
+    assert VersaoDocumento.query.count() == antes  # nada gravado
+
+
+def test_orientanda_versao_so_comentario_nao_pede_parecer(
+    client, orientacao, orientando, orientador
+):
+    marco = _marco(orientacao)
+    doc = _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
+    login(client, "orientando@teste.br")
+    client.post(
+        f"/orientacoes/{orientacao.id}/documentos/{doc.id}",
+        data={"comentario": "Professor, uma dúvida antes de eu revisar."},
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+    nova = doc.versoes.first()
+    assert nova.tem_arquivo is False
+    assert nova.id not in _versoes_sem_parecer_ids(orientador)
+
+
+def test_download_de_versao_so_comentario_404(client, orientacao, orientador):
+    marco = _marco(orientacao)
+    doc = _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
+    v = salvar_versao(doc, None, orientador, comentario="texto")
+    db.session.commit()
+    login(client, "orientador@teste.br")
+    resp = client.get(
+        f"/orientacoes/{orientacao.id}/documentos/{doc.id}/versoes/{v.id}/download"
+    )
+    assert resp.status_code == 404
+
+
+def test_emitir_parecer_nao_lista_versao_so_comentario(client, orientacao, orientador):
+    marco = _marco(orientacao)
+    doc = _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
+    v1 = doc.versoes.first()
+    so_comentario = salvar_versao(doc, None, orientador, comentario="texto")
+    db.session.commit()
+    login(client, "orientador@teste.br")
+    corpo = client.get(f"/orientacoes/{orientacao.id}/pareceres/novo").data.decode()
+    assert f'value="{v1.id}"' in corpo  # a versão com arquivo pode ser avaliada
+    assert f'value="{so_comentario.id}"' not in corpo  # a só-comentário, não
+
+
+def test_csrf_sem_limite_de_tempo(app):
+    # token válido pela sessão inteira, não 1 h — evita "CSRF token expired"
+    assert app.config.get("WTF_CSRF_TIME_LIMIT") is None

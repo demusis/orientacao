@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from flask_wtf.file import FileField, FileRequired
+from flask_wtf.file import FileField
 from wtforms import (
     RadioField,
     SelectField,
@@ -8,6 +8,15 @@ from wtforms import (
     TextAreaField,
 )
 from wtforms.validators import DataRequired, Length, Optional, ValidationError
+
+
+def exigir_arquivo_ou_comentario(form, field):
+    """Uma versão precisa de arquivo OU comentário — nunca vazia. O arquivo
+    deixou de ser obrigatório (retorno pode ser todo textual), mas os dois em
+    branco não criam versão alguma. Validador do campo de arquivo, cruzando com
+    `comentario`; reusado pelo anexo de marco."""
+    if not field.data and not (form.comentario.data or "").strip():
+        raise ValidationError("Envie um arquivo ou escreva um comentário.")
 
 # O que é esta versão, quando quem envia NÃO é a orientanda. O formulário só
 # mostra o campo a gestores; a rota o ignora para a orientanda, cuja versão é
@@ -73,14 +82,14 @@ def flags_da_natureza(natureza: str) -> tuple[bool, bool]:
 class NovoDocumentoForm(FlaskForm):
     titulo = StringField("Título", validators=[DataRequired(), Length(max=255)])
     marco_id = SelectField("Marco associado", coerce=int, validators=[Optional()])
-    arquivo = FileField("Arquivo", validators=[FileRequired()])
+    arquivo = FileField("Arquivo", validators=[exigir_arquivo_ou_comentario])
     comentario = TextAreaField("Comentário", validators=[Optional()])
     natureza = campo_natureza()
     submit = SubmitField("Enviar")
 
 
 class NovaVersaoForm(FlaskForm):
-    arquivo = FileField("Arquivo", validators=[FileRequired()])
+    arquivo = FileField("Arquivo", validators=[exigir_arquivo_ou_comentario])
     comentario = TextAreaField("Comentário", validators=[Optional()])
     natureza = campo_natureza()
     submit = SubmitField("Enviar nova versão")

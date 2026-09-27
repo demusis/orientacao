@@ -163,7 +163,8 @@ def anexar(orientacao_id: int, marco_id: int):
         db.session.flush()
         try:
             versao = salvar_versao(
-                documento, form.arquivo.data, current_user, form.comentario.data,
+                documento, form.arquivo.data or None, current_user,
+                form.comentario.data,
                 eh_devolucao=eh_devolucao, em_nome_do_orientando=em_nome,
             )
         except UploadInvalido as exc:

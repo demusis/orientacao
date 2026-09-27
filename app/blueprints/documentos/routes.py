@@ -71,7 +71,8 @@ def criar(orientacao_id: int):
         db.session.flush()
         try:
             versao = salvar_versao(
-                documento, form.arquivo.data, current_user, form.comentario.data,
+                documento, form.arquivo.data or None, current_user,
+                form.comentario.data,
                 eh_devolucao=eh_devolucao, em_nome_do_orientando=em_nome,
             )
         except UploadInvalido as exc:
@@ -123,7 +124,8 @@ def detalhe(orientacao_id: int, documento_id: int):
         )
         try:
             versao = salvar_versao(
-                documento, form.arquivo.data, current_user, form.comentario.data,
+                documento, form.arquivo.data or None, current_user,
+                form.comentario.data,
                 eh_devolucao=eh_devolucao, em_nome_do_orientando=em_nome,
             )
         except UploadInvalido as exc:
@@ -220,6 +222,8 @@ def download(orientacao_id: int, documento_id: int, versao_id: int):
     versao = db.session.get(VersaoDocumento, versao_id)
     if versao is None or versao.documento_id != documento.id:
         abort(404)
+    if not versao.tem_arquivo:
+        abort(404)  # versão só comentário: não há arquivo a baixar
     auditoria.registrar(
         "download_versao", "versao_documento", versao.id, {"documento_id": documento.id}
     )

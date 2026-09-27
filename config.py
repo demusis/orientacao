@@ -20,6 +20,12 @@ class Config:
     # Sessão expira em 12 h de inatividade; sem isto vale o padrão do Flask, 31
     # dias, longo demais para um sistema com dados pessoais.
     PERMANENT_SESSION_LIFETIME = timedelta(hours=12)
+    # Token de CSRF vale o tempo da sessão, não o padrão de 1 h do Flask-WTF: com
+    # o padrão, uma página aberta há mais de uma hora — ou um comentário longo
+    # composto devagar — falhava com "CSRF token expired" embora a sessão (12 h)
+    # seguisse válida. O token continua atrelado à sessão e à SECRET_KEY; só o
+    # limite de tempo sai.
+    WTF_CSRF_TIME_LIMIT = None
     # Janela e teto do limite de tentativas de autenticação (login e recuperação
     # de senha), contadas por origem na própria trilha de auditoria.
     LOGIN_JANELA_MINUTOS = 15
