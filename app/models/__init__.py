@@ -2,7 +2,12 @@ from app.models.ata import Ata, AtaParticipacao, Parecer, Reagendamento
 from app.models.auditoria import LogAuditoria
 from app.models.configuracao import ConfiguracaoEmail, ConfiguracaoRisco
 from app.models.cronograma import Marco
-from app.models.documento import Documento, ModeloDocumento, VersaoDocumento
+from app.models.documento import (
+    AnexoVersao,
+    Documento,
+    ModeloDocumento,
+    VersaoDocumento,
+)
 from app.models.orientacao import EventoVinculo, Orientacao, OrientacaoOrientador
 from app.models.user import Usuario
 
@@ -14,6 +19,7 @@ __all__ = [
     "EventoVinculo",
     "OrientacaoOrientador",
     "Marco",
+    "AnexoVersao",
     "Documento",
     "ModeloDocumento",
     "VersaoDocumento",

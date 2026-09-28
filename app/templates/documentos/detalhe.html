@@ -21,14 +21,19 @@
         {%- if v.em_nome_do_orientando %} (em nome da orientanda){% endif %}
         · {{ v.enviado_em.strftime('%Y-%m-%d %H:%M') }}</span>
     </div>
-    <p class="versao-arquivo">
-      {% if v.tem_arquivo %}
-      Arquivo: {{ v.nome_original }} ({{ (v.tamanho_bytes / 1024) | round(1) }} KB) ·
-      <a href="{{ url_for('documentos.download', orientacao_id=orientacao.id, documento_id=documento.id, versao_id=v.id) }}">Baixar</a>
-      {% else %}
-      <em>Sem arquivo — comentário</em>
-      {% endif %}
-    </p>
+    {% if v.tem_arquivo %}
+    {# o principal primeiro — é o texto que o parecer avalia —, depois os anexos #}
+    <ul class="versao-arquivos">
+      <li>{% if v.anexos %}<strong>Principal:</strong> {% else %}Arquivo: {% endif %}{{ v.nome_original }} ({{ (v.tamanho_bytes / 1024) | round(1) }} KB) ·
+        <a href="{{ url_for('documentos.download', orientacao_id=orientacao.id, documento_id=documento.id, versao_id=v.id) }}">Baixar</a></li>
+      {% for a in v.anexos %}
+      <li>Anexo: {{ a.nome_original }} ({{ (a.tamanho_bytes / 1024) | round(1) }} KB) ·
+        <a href="{{ url_for('documentos.download_anexo', orientacao_id=orientacao.id, documento_id=documento.id, versao_id=v.id, anexo_id=a.id) }}">Baixar</a></li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="versao-arquivo"><em>Sem arquivo — comentário</em></p>
+    {% endif %}
     {% if v.comentario %}<p class="versao-comentario">{{ v.comentario }}</p>{% endif %}
     {# versão-devolução é do orientador, classificada pelo ciclo da tarefa: não
        recebe o seletor de parecer (que só distingue registro/entrega) nem o

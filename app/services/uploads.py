@@ -7,7 +7,7 @@ from sqlalchemy import event, func
 from werkzeug.utils import secure_filename
 
 from app.extensions import db
-from app.models import Documento, VersaoDocumento
+from app.models import AnexoVersao, Documento, VersaoDocumento
 
 # Assinaturas mínimas por extensão. .docx/.odt/.zip são contêineres ZIP ("PK").
 ASSINATURAS = {
@@ -73,38 +73,84 @@ def validar_arquivo(storage) -> str:
     return ext
 
 
+# Teto por versão. O limite de bytes já vem de MAX_CONTENT_LENGTH (a requisição
+# inteira); este evita a versão com dezenas de arquivos que ninguém vai abrir.
+MAX_ARQUIVOS_POR_VERSAO = 10
+
+
+def _como_lista(storage) -> list:
+    """Aceita `None`, um arquivo ou uma lista (campo de múltiplos arquivos) e
+    devolve só os arquivos de fato enviados."""
+    if storage is None:
+        return []
+    if isinstance(storage, (list, tuple)):
+        return [s for s in storage if s]
+    return [storage] if storage else []
+
+
+def _gravar(storage, ext: str) -> dict:
+    """Grava um arquivo já validado e devolve as colunas de armazenamento."""
+    nome_fisico = f"{uuid.uuid4().hex}.{ext}"
+    pasta = current_app.config["UPLOAD_FOLDER"]
+    os.makedirs(pasta, exist_ok=True)
+    caminho = os.path.join(pasta, nome_fisico)
+    storage.save(caminho)
+    # O arquivo vai a disco antes de a linha ser confirmada. Rastreia-o na
+    # sessão para que um rollback posterior — colisão de numeração na UNIQUE
+    # ao dar flush, ou "database is locked" no commit — não o deixe órfão na
+    # pasta de uploads (que o backup ainda incluiria). A remoção fica nos
+    # eventos de sessão abaixo, que cobrem todos os chamadores.
+    db.session.info.setdefault("uploads_novos", []).append(caminho)
+    return {
+        "nome_original": secure_filename(storage.filename),
+        "nome_fisico": nome_fisico,
+        "tamanho_bytes": os.path.getsize(caminho),
+        "mimetype": storage.mimetype or "application/octet-stream",
+    }
+
+
 def salvar_versao(
     documento: Documento, storage, usuario, comentario: str | None = None,
     eh_devolucao: bool = False, em_nome_do_orientando: bool = False,
+    anexos=None,
 ):
-    """Cria a próxima versão do documento. `storage` é o arquivo enviado ou
+    """Cria a próxima versão do documento. `storage` é o arquivo principal ou
     `None` — neste caso a versão é só comentário (retorno todo textual), e as
-    colunas de arquivo ficam vazias. Versão sem arquivo E sem comentário não faz
-    sentido: é `UploadInvalido`. A constraint UNIQUE(documento_id, numero_versao)
-    é a salvaguarda final contra numeração concorrente."""
+    colunas de arquivo ficam vazias. `anexos` são os arquivos que acompanham o
+    principal (lista, opcional), gravados como `AnexoVersao`. Versão sem arquivo
+    E sem comentário não faz sentido: é `UploadInvalido`. A constraint
+    UNIQUE(documento_id, numero_versao) é a salvaguarda final contra numeração
+    concorrente."""
+    principal_enviado = _como_lista(storage)[:1]
+    extras = _como_lista(anexos)
+    if extras and not principal_enviado:
+        raise UploadInvalido(
+            "Os anexos acompanham um arquivo principal: envie-o também."
+        )
+    arquivos = principal_enviado + extras
     tem_comentario = bool((comentario or "").strip())
-    if storage is None and not tem_comentario:
+    if not arquivos and not tem_comentario:
         raise UploadInvalido("A versão precisa de um arquivo ou de um comentário.")
+    if len(arquivos) > MAX_ARQUIVOS_POR_VERSAO:
+        raise UploadInvalido(
+            f"Envie no máximo {MAX_ARQUIVOS_POR_VERSAO} arquivos por versão "
+            "(o principal e os anexos)."
+        )
 
-    nome_original = nome_fisico = mimetype = None
-    tamanho = None
-    if storage is not None:
-        ext = validar_arquivo(storage)
-        nome_fisico = f"{uuid.uuid4().hex}.{ext}"
+    # valida TODOS antes de gravar qualquer um: um arquivo recusado no meio do
+    # lote não pode deixar os anteriores gravados
+    extensoes = []
+    for arquivo in arquivos:
+        try:
+            extensoes.append(validar_arquivo(arquivo))
+        except UploadInvalido as exc:
+            if len(arquivos) == 1:
+                raise
+            nome = secure_filename(arquivo.filename or "") or "arquivo sem nome"
+            raise UploadInvalido(f"{nome}: {exc}") from exc
 
-        pasta = current_app.config["UPLOAD_FOLDER"]
-        os.makedirs(pasta, exist_ok=True)
-        caminho = os.path.join(pasta, nome_fisico)
-        storage.save(caminho)
-        # O arquivo vai a disco antes de a linha ser confirmada. Rastreia-o na
-        # sessão para que um rollback posterior — colisão de numeração na UNIQUE
-        # ao dar flush, ou "database is locked" no commit — não o deixe órfão na
-        # pasta de uploads (que o backup ainda incluiria). A remoção fica nos
-        # eventos de sessão abaixo, que cobrem todos os chamadores.
-        db.session.info.setdefault("uploads_novos", []).append(caminho)
-        nome_original = secure_filename(storage.filename)
-        tamanho = os.path.getsize(caminho)
-        mimetype = storage.mimetype or "application/octet-stream"
+    gravados = [_gravar(a, ext) for a, ext in zip(arquivos, extensoes, strict=True)]
+    principal = gravados[0] if gravados else {}
 
     proxima = (
         db.session.query(func.coalesce(func.max(VersaoDocumento.numero_versao), 0))
@@ -115,15 +161,16 @@ def salvar_versao(
     versao = VersaoDocumento(
         documento_id=documento.id,
         numero_versao=proxima,
-        nome_original=nome_original,
-        nome_fisico=nome_fisico,
-        tamanho_bytes=tamanho,
-        mimetype=mimetype,
+        nome_original=principal.get("nome_original"),
+        nome_fisico=principal.get("nome_fisico"),
+        tamanho_bytes=principal.get("tamanho_bytes"),
+        mimetype=principal.get("mimetype"),
         enviado_por=usuario.id,
         comentario=comentario,
         eh_devolucao=eh_devolucao,
         em_nome_do_orientando=em_nome_do_orientando,
     )
+    versao.anexos = [AnexoVersao(**colunas) for colunas in gravados[1:]]
     db.session.add(versao)
     return versao
 

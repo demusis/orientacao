@@ -39,6 +39,7 @@ ORDEM_TABELAS = [
     "marco",
     "documento",
     "versao_documento",
+    "anexo_versao",
     "modelo_documento",
     "ata",
     "ata_orientacao",
@@ -56,7 +57,8 @@ ORDEM_TABELAS = [
 # truncado, e aceitá-lo apagaria a tabela em silêncio. (ata_marco — os marcos
 # discutidos em cada reunião — passou a ser incluída em 23/07/2026; antes disso,
 # backup e migração a deixavam de fora, perdendo essa ligação em silêncio.)
-TABELAS_OPCIONAIS_NA_RESTAURACAO = {"ata_marco"}
+# (anexo_versao — arquivos adicionais de uma versão — nasceu em 28/09/2026.)
+TABELAS_OPCIONAIS_NA_RESTAURACAO = {"ata_marco", "anexo_versao"}
 
 # `configuracao_email` está deliberadamente FORA da lista acima, por dois
 # motivos que se somam:

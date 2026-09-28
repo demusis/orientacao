@@ -14,6 +14,13 @@
     {{ avaliada.nome_original }} ·
     <a href="{{ url_for('documentos.download', orientacao_id=orientacao.id, documento_id=avaliada.documento_id, versao_id=avaliada.id) }}">Baixar arquivo</a>
   </small></p>
+  {% if avaliada.anexos %}
+  <p><small>Anexos:
+    {% for a in avaliada.anexos %}
+    <a href="{{ url_for('documentos.download_anexo', orientacao_id=orientacao.id, documento_id=avaliada.documento_id, versao_id=avaliada.id, anexo_id=a.id) }}">{{ a.nome_original }}</a>{% if not loop.last %} · {% endif %}
+    {% endfor %}
+  </small></p>
+  {% endif %}
   {% if parecer_existente %}
   <p class="flash flash-warning">Esta versão <strong>já recebeu parecer</strong>
   em {{ parecer_existente.emitido_em.strftime('%d/%m/%Y') }}
