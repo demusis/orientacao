@@ -48,3 +48,14 @@ desbloqueia registrada na justificativa).
 | 2026-09-21 | Traduzir as mensagens de formulário do WTForms (app inteiro) | adiado | Feito nos formulários tocados pelo redesenho (`DevolverForm`, `AnexoMarcoForm`, natureza). O restante do app ainda pode exibir "This field is required."; desbloqueia quando se decidir entre `message=` caso a caso ou `Meta.locales`/flask-babel. |
 | 2026-09-21 | CSRF expirava em 1 h com sessão de 12 h | aceito — **concluído** | `WTF_CSRF_TIME_LIMIT = None` (o token passa a valer a sessão) mais `errorhandler(CSRFError)` em português. Causava rejeição de formulário longo — relatada no envio de presenças/deliberações. PR #21. |
 | 2026-09-21 | "database is locked" transitório no SQLite | aceito — **concluído** | `PRAGMA busy_timeout=15000` e `journal_mode=WAL` num listener de conexão. O backup é exportação lógica das tabelas, não cópia do `.db`, então o WAL não o afeta. PR #22. |
+
+## Ciclo de 2026-09-28
+
+| Data | Achado | Decisão | Justificativa |
+|---|---|---|---|
+| 2026-09-28 | O-1 / P-1 — nenhum backup recente fora do servidor (3º ciclo) | aceito — **rotina semestral** | Encerra o adiamento sem condição de 21/07. O administrador baixa o pacote em `/admin/backup` a cada semestre e o guarda fora do PythonAnywhere. **Critério de verificação no próximo ciclo:** existir `geracao_backup` na trilha nos últimos 6 meses; a ausência reabre o achado. Risco assumido: até seis meses de trilha, atas e pareceres sem segunda cópia. |
+| 2026-09-28 | O-2 / P-2 — `deploy-credenciais.txt` com a senha do admin em texto claro, em pasta sincronizada pelo Google Drive | recusado — **mantido como está** | Decisão do responsável. Não volta como proposta; reabre só com evidência nova (ex.: acesso indevido, compartilhamento da pasta, ou o arquivo passar a ser versionado). |
+| 2026-09-28 | U-2 / P-3 — 11 de 16 marcos em aberto atrasados | constatado — **atrasos reais** | Confirmado pelo responsável: as datas estão corretas e o atraso é dos orientandos. Descarta a hipótese de datas irreais; os avisos diários são legítimos. Nenhuma alteração. |
+| 2026-09-28 | U-3 / P-4 — 7 de 14 contas ativas nunca acessaram | aceito — **reenviar convites** | Reenvio pela "Senha temporária" da tela de usuários, que gera nova senha e a manda por e-mail. Próximo ciclo compara `nunca_acessaram`. |
+| 2026-09-28 | U-4 / P-5 — 2 de 9 vínculos ativos sem marco | recusado neste ciclo | O responsável cadastrará o cronograma desses vínculos por conta própria. Não é defeito do sistema; o próximo ciclo apenas relê `ativos_sem_marco`. |
+| 2026-09-28 | F-1 / P-6 — `versoes_correntes_sem_parecer` com regra diferente da do Painel | aceito | O indicador passa a reutilizar a regra do Painel (só entrega da orientanda, sem devolução, com arquivo), para que o número do ciclo seja o que o orientador vê na tela. |
