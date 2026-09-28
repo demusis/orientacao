@@ -10,10 +10,8 @@ relacionamento é `lazy="dynamic"`.
 Devolve ainda `proximas_reunioes`, que é agenda e não pendência, e por isso não
 entra no total: reunião marcada para a semana que vem não está parada esperando
 ninguém."""
-from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
-from app.extensions import db
 from app.models import (
     Ata,
     AtaParticipacao,
@@ -21,9 +19,9 @@ from app.models import (
     Documento,
     Marco,
     Orientacao,
-    Parecer,
     VersaoDocumento,
 )
+from app.services.pareceres import criterios_aguardando_parecer
 from app.services.rbac import orientacoes_do_usuario
 from app.services.tempo import hoje_local
 
@@ -157,35 +155,13 @@ def pendencias() -> dict:
         (a for a in rascunhos if a.agendada), key=lambda a: a.data_reuniao
     )
 
-    # apenas a versão corrente de cada documento: versões antigas sem parecer
-    # não são pendência, foram superadas por outra versão
-    com_parecer = select(Parecer.versao_documento_id).where(
-        Parecer.versao_documento_id.isnot(None)
-    )
-    versao_corrente = (
-        select(db.func.max(VersaoDocumento.numero_versao))
-        .where(VersaoDocumento.documento_id == Documento.id)
-        .correlate(Documento)
-        .scalar_subquery()
-    )
     versoes_sem_parecer = (
         VersaoDocumento.query.join(Documento, Documento.id == VersaoDocumento.documento_id)
         .join(Orientacao, Orientacao.id == Documento.orientacao_id)
         .options(joinedload(VersaoDocumento.documento).joinedload(Documento.orientacao))
         .filter(
             Documento.orientacao_id.in_(ids),
-            VersaoDocumento.numero_versao == versao_corrente,
-            VersaoDocumento.id.notin_(com_parecer),
-            # parecer é a avaliação da entrega da orientanda: entra a versão que
-            # ela enviou — ou que o orientador registrou EM NOME dela. O upload
-            # comum do orientador nunca cobra o parecer dele próprio.
-            db.or_(
-                VersaoDocumento.enviado_por == Orientacao.orientando_id,
-                VersaoDocumento.em_nome_do_orientando.is_(True),
-            ),
-            VersaoDocumento.eh_devolucao.is_(False),
-            # versão só comentário não tem o que avaliar
-            VersaoDocumento.nome_fisico.isnot(None),
+            *criterios_aguardando_parecer(),
         )
         .order_by(VersaoDocumento.enviado_em.desc())
         .all()

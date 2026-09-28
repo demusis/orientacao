@@ -24,6 +24,7 @@ from app.models import (
     Usuario,
     VersaoDocumento,
 )
+from app.services.pareceres import criterios_aguardando_parecer
 from app.services.tempo import hoje_local
 
 # Limiares em dias. Reunidos aqui para que o relatório possa citá-los.
@@ -162,16 +163,9 @@ def fluxo_de_marcos() -> dict:
 
 
 def documentos() -> dict:
-    """Versão corrente sem parecer é trabalho entregue à espera de avaliação."""
-    com_parecer = select(Parecer.versao_documento_id).where(
-        Parecer.versao_documento_id.isnot(None)
-    )
-    versao_corrente = (
-        select(func.max(VersaoDocumento.numero_versao))
-        .where(VersaoDocumento.documento_id == Documento.id)
-        .correlate(Documento)
-        .scalar_subquery()
-    )
+    """Versão corrente sem parecer é trabalho entregue à espera de avaliação —
+    contada pela mesma regra do Painel (`services/pareceres.py`), para que o
+    número do ciclo seja o que o orientador vê na tela."""
     return {
         "documentos": _contar(select(func.count()).select_from(Documento)),
         "versoes": _contar(select(func.count()).select_from(VersaoDocumento)),
@@ -180,10 +174,8 @@ def documentos() -> dict:
             select(func.count())
             .select_from(VersaoDocumento)
             .join(Documento, Documento.id == VersaoDocumento.documento_id)
-            .where(
-                VersaoDocumento.numero_versao == versao_corrente,
-                VersaoDocumento.id.notin_(com_parecer),
-            )
+            .join(Orientacao, Orientacao.id == Documento.orientacao_id)
+            .where(*criterios_aguardando_parecer())
         ),
     }
 

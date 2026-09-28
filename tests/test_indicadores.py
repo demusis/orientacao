@@ -94,7 +94,7 @@ def test_fluxo_separa_atraso_de_espera_por_confirmacao(app, orientacao):
 
 def test_versao_superada_nao_conta_como_sem_parecer(client, orientacao, orientador):
     """Mesma regra do painel: pendência é a versão corrente, não o histórico."""
-    login(client, "orientador@teste.br")
+    login(client, "orientando@teste.br")
     client.post(
         f"/orientacoes/{orientacao.id}/documentos/novo",
         data={
@@ -206,3 +206,55 @@ def test_coletar_funciona_fora_de_requisicao(app, orientacao, orientador):
     import json
 
     assert json.dumps(snapshot, ensure_ascii=False, default=str)
+
+
+def test_sem_parecer_segue_a_regra_do_painel(client, orientacao, orientador):
+    """O indicador conta o que o Painel mostra: o upload do próprio orientador,
+    a devolução e a versão só comentário não pedem parecer. Antes o indicador
+    contava toda versão corrente sem parecer e o número do ciclo divergia da
+    tela (avaliação de 2026-09-28, F-1)."""
+    from app.services.painel import pendencias
+
+    # orientador: registro dele e uma versão só comentário — nenhum pede parecer
+    login(client, "orientador@teste.br")
+    client.post(
+        f"/orientacoes/{orientacao.id}/documentos/novo",
+        data={"titulo": "Notas do orientador", "marco_id": 0,
+              "arquivo": pdf_falso("notas.pdf"), "comentario": ""},
+        content_type="multipart/form-data",
+    )
+    client.post(
+        f"/orientacoes/{orientacao.id}/documentos/novo",
+        data={"titulo": "Só comentário", "marco_id": 0, "comentario": "Leia X."},
+        content_type="multipart/form-data",
+    )
+    assert indicadores.documentos()["versoes_correntes_sem_parecer"] == 0
+    client.post("/auth/logout")
+
+    # orientanda: a entrega dela pede parecer
+    login(client, "orientando@teste.br")
+    client.post(
+        f"/orientacoes/{orientacao.id}/documentos/novo",
+        data={"titulo": "Capítulo 1", "marco_id": 0,
+              "arquivo": pdf_falso("cap1.pdf"), "comentario": ""},
+        content_type="multipart/form-data",
+    )
+    client.post("/auth/logout")
+    assert indicadores.documentos()["versoes_correntes_sem_parecer"] == 1
+
+    # a versão corrente carimbada como devolução deixa de pedir parecer
+    cap = Documento.query.filter_by(titulo="Capítulo 1").one()
+    cap.versao_atual.eh_devolucao = True
+    db.session.commit()
+    assert indicadores.documentos()["versoes_correntes_sem_parecer"] == 0
+    cap.versao_atual.eh_devolucao = False
+    db.session.commit()
+
+    # e o número é o mesmo que o Painel do orientador exibe
+    with client.application.test_request_context():
+        from flask_login import login_user
+
+        login_user(orientador)
+        assert len(pendencias()["versoes_sem_parecer"]) == (
+            indicadores.documentos()["versoes_correntes_sem_parecer"]
+        ) == 1
