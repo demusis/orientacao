@@ -39,10 +39,10 @@ from app.models import (
     Documento,
     Marco,
     Orientacao,
-    Parecer,
     VersaoDocumento,
 )
 from app.services import email as email_service
+from app.services.pareceres import criterios_aguardando_parecer
 from app.services.tempo import agora as tempo_agora
 from app.services.tempo import agora_local, hoje_local
 
@@ -436,16 +436,7 @@ def versoes_sem_parecer(destino: dict, hoje=None) -> None:
     """Ao orientador: versão corrente entregue e ainda sem parecer.
 
     Só a versão corrente conta — versão superada por outra deixou de ser
-    pendência, mesmo critério de `services/painel.py`."""
-    com_parecer = select(Parecer.versao_documento_id).where(
-        Parecer.versao_documento_id.isnot(None)
-    )
-    versao_corrente = (
-        select(db.func.max(VersaoDocumento.numero_versao))
-        .where(VersaoDocumento.documento_id == Documento.id)
-        .correlate(Documento)
-        .scalar_subquery()
-    )
+    pendência. A regra é a de `services/pareceres.py`, a mesma do Painel."""
     itens = (
         VersaoDocumento.query.join(
             Documento, Documento.id == VersaoDocumento.documento_id
@@ -461,17 +452,7 @@ def versoes_sem_parecer(destino: dict, hoje=None) -> None:
         )
         .filter(
             Orientacao.status == "ativa",
-            VersaoDocumento.numero_versao == versao_corrente,
-            VersaoDocumento.id.notin_(com_parecer),
-            # só a entrega da orientanda pede parecer — enviada por ela ou
-            # registrada em nome dela pelo orientador (ver painel.py)
-            db.or_(
-                VersaoDocumento.enviado_por == Orientacao.orientando_id,
-                VersaoDocumento.em_nome_do_orientando.is_(True),
-            ),
-            VersaoDocumento.eh_devolucao.is_(False),
-            # versão só comentário não tem o que avaliar
-            VersaoDocumento.nome_fisico.isnot(None),
+            *criterios_aguardando_parecer(),
         )
         .order_by(VersaoDocumento.enviado_em)
         .all()
