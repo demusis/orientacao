@@ -179,7 +179,9 @@ def senha_temporaria(usuario_id: int):
             flash(str(exc), "danger")
             return redirect(url_for("admin.listar_usuarios"))
         db.session.commit()
-        enviado = credenciais.enviar(usuario, senha, "reposicao")
+        # quem nunca entrou recebe o convite de novo, não um aviso de reposição
+        evento = "reenvio" if usuario.ultimo_acesso is None else "reposicao"
+        enviado = credenciais.enviar(usuario, senha, evento)
         db.session.commit()
         if not enviado:
             return _tela_da_senha(usuario, senha)
