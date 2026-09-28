@@ -37,6 +37,18 @@ EVENTOS = {
             "Sua conta no ARIADNE foi criada. Abaixo estão os dados de acesso."
         ),
     },
+    # conta criada e nunca acessada: o convite se perdeu ou foi esquecido. É a
+    # mesma reposição por baixo (senha nova, a anterior morre), mas o titular
+    # nunca teve senha própria, e "o administrador repôs a sua senha" o faria
+    # suspeitar de acesso indevido que não houve
+    "reenvio": {
+        "assunto": "Lembrete: seu acesso ao ARIADNE",
+        "abertura": (
+            "Sua conta no ARIADNE foi criada, mas ainda não foi usada. "
+            "Reenviamos os dados de acesso com uma senha nova: a da mensagem "
+            "anterior deixou de valer."
+        ),
+    },
     "reposicao": {
         "assunto": "Nova senha de acesso ao ARIADNE",
         "abertura": (

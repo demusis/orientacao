@@ -349,6 +349,41 @@ def test_botao_some_para_conta_desativada_e_para_a_propria(
     assert f"/admin/usuarios/{admin.id}/senha-temporaria" not in pagina
 
 
+def test_reenviar_senha_a_quem_nunca_entrou(client, admin, orientando, smtp):
+    """Conta nunca acessada: o botão é "Reenviar senha" e o e-mail vai como
+    lembrete do convite, não como aviso de reposição — o titular nunca teve
+    senha própria, e "o administrador repôs a sua senha" o faria suspeitar de
+    acesso indevido que não houve."""
+    assert orientando.ultimo_acesso is None
+    login(client, "admin@teste.br")
+    pagina = client.get("/admin/usuarios").data.decode()
+    assert "Reenviar senha</button>" in pagina
+    assert "nunca" in pagina  # coluna Último acesso
+
+    client.post(f"/admin/usuarios/{orientando.id}/senha-temporaria")
+    assert smtp[0][1] == credenciais.assunto("reenvio")
+    assert "ainda não foi usada" in smtp[0][2]
+    assert "repôs a senha" not in smtp[0][2]
+    senha = _senha_do_corpo(smtp[0][2])
+    assert orientando.verificar_senha(senha) and orientando.senha_provisoria
+    registro = LogAuditoria.query.filter_by(acao="envio_credenciais").one()
+    assert '"reenvio"' in registro.dados_json
+
+
+def test_quem_ja_entrou_recebe_reposicao(client, admin, orientando, smtp):
+    from datetime import datetime
+
+    orientando.ultimo_acesso = datetime(2026, 9, 1, 10, 0)
+    db.session.commit()
+    login(client, "admin@teste.br")
+    pagina = client.get("/admin/usuarios").data.decode()
+    assert "01/09/2026" in pagina
+    assert "Reenviar senha</button>" not in pagina  # o admin não tem botão; o orientando já entrou
+
+    client.post(f"/admin/usuarios/{orientando.id}/senha-temporaria")
+    assert smtp[0][1] == credenciais.assunto("reposicao")
+
+
 def test_evento_de_credencial_desconhecido_e_recusado(app, orientando):
     with pytest.raises(ValueError):
         credenciais.enviar(orientando, "x", "inventado")
