@@ -124,6 +124,7 @@ def detalhe(orientacao_id: int, marco_id: int):
     else:
         del devolver_form.documento_id
         del devolver_form.arquivo
+        del devolver_form.anexos
     return render_template(
         "cronogramas/detalhe.html",
         orientacao=orientacao,
@@ -162,6 +163,7 @@ def anexar(orientacao_id: int, marco_id: int):
             versao = salvar_versao(
                 documento, form.arquivo.data or None, current_user,
                 form.comentario.data, em_nome_do_orientando=em_nome,
+                anexos=form.anexos.data,
             )
         except UploadInvalido as exc:
             db.session.rollback()
@@ -170,7 +172,7 @@ def anexar(orientacao_id: int, marco_id: int):
             auditoria.registrar(
                 "criacao_documento", "documento", documento.id,
                 {"titulo": documento.titulo, "arquivo": versao.nome_original,
-                 "origem": "marco", "marco_id": marco.id, "natureza": versao.natureza},
+                 "anexos": len(versao.anexos), "origem": "marco", "marco_id": marco.id, "natureza": versao.natureza},
             )
             db.session.commit()
             flash("Documento anexado à tarefa (versão 1).", "success")
@@ -273,13 +275,22 @@ def devolver_para_revisao(orientacao_id: int, marco_id: int):
             url_for("cronogramas.detalhe", orientacao_id=orientacao.id, marco_id=marco.id)
         )
     versao = None
+    if form.anexos.data and not form.arquivo.data:
+        flash(
+            "Os anexos acompanham o arquivo corrigido: envie-o também. "
+            "Nada foi devolvido.",
+            "danger",
+        )
+        return redirect(
+            url_for("cronogramas.detalhe", orientacao_id=orientacao.id, marco_id=marco.id)
+        )
     if form.arquivo.data:
         # arquivo sem documento-alvo (marco sem documentos) não pode ser anexado:
         # avisa em vez de descartar em silêncio, e devolve só com a nota
         if not form.documento_id.data:
             flash(
-                "O arquivo não foi anexado: a tarefa não tem documento para recebê-lo. "
-                "Anexe-o pela aba Documentos; a devolução seguiu só com a nota.",
+                "Os arquivos não foram anexados: a tarefa não tem documento para recebê-los. "
+                "Anexe-os pela aba Documentos; a devolução seguiu só com a nota.",
                 "warning",
             )
         else:
@@ -289,7 +300,10 @@ def devolver_para_revisao(orientacao_id: int, marco_id: int):
             try:
                 # o arquivo é a versão corrigida; a nota vive na tarefa
                 # (marco.nota_devolucao), não se duplica no comentário da versão
-                versao = salvar_versao(documento, form.arquivo.data, current_user)
+                versao = salvar_versao(
+                    documento, form.arquivo.data, current_user,
+                    anexos=form.anexos.data,
+                )
             except UploadInvalido as exc:
                 db.session.rollback()
                 flash(str(exc), "danger")

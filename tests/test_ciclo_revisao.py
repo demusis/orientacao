@@ -307,7 +307,7 @@ def test_devolver_com_arquivo_sem_documento_avisa(client, orientacao, orientador
         content_type="multipart/form-data",
         follow_redirects=True,
     )
-    assert "não foi anexado" in resp.data.decode()
+    assert "não foram anexados" in resp.data.decode()
     assert VersaoDocumento.query.count() == antes  # nada gravado
     db.session.expire(marco)
     assert marco.aguardando == "orientando_revisao"  # devolveu só com a nota

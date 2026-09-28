@@ -135,6 +135,7 @@ nav details.menu > .submenu button.link:hover { background: #eef2f6; }
 .versao-cab { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem; }
 .versao-meta { color: #666; font-size: .88rem; }
 .versao-arquivo { margin: .4rem 0 0; font-size: .9rem; }
+.versao-arquivos { margin: .4rem 0 0; padding-left: 1.2rem; font-size: .9rem; overflow-wrap: anywhere; }
 .versao-comentario { margin: .5rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .versao-acoes { margin-top: .6rem; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
 /* "Conferir a entrega": as duas saídas (confirmar / devolver) lado a lado, para

@@ -66,6 +66,15 @@ class VersaoDocumento(db.Model):
 
     documento = db.relationship("Documento", back_populates="versoes")
     remetente = db.relationship("Usuario", foreign_keys=[enviado_por])
+    # arquivos além do principal (planilha, figuras, carta...). O principal
+    # segue nas colunas acima — é o texto que o parecer avalia —, e por isso
+    # tudo que já dependia de `nome_fisico` continua valendo sem mudança.
+    anexos = db.relationship(
+        "AnexoVersao",
+        back_populates="versao",
+        order_by="AnexoVersao.id",
+        cascade="all, delete-orphan",
+    )
 
     @property
     def tem_arquivo(self) -> bool:
@@ -85,8 +94,37 @@ class VersaoDocumento(db.Model):
             return "entrega"
         return "registro"
 
+    @property
+    def quantidade_arquivos(self) -> int:
+        return (1 if self.tem_arquivo else 0) + len(self.anexos)
+
     def __repr__(self) -> str:
         return f"<VersaoDocumento doc={self.documento_id} v{self.numero_versao}>"
+
+
+class AnexoVersao(db.Model):
+    """Arquivo adicional de uma versão de documento.
+
+    Uma entrega costuma ser o texto e seus acompanhantes (dados, figuras, carta
+    de encaminhamento). O primeiro arquivo enviado fica em `VersaoDocumento` —
+    o principal —, os demais aqui. Sem principal não há anexo: a versão só
+    comentário não tem arquivo algum. Mesmo armazenamento das versões."""
+
+    __tablename__ = "anexo_versao"
+
+    id = db.Column(db.Integer, primary_key=True)
+    versao_id = db.Column(
+        db.Integer, db.ForeignKey("versao_documento.id"), nullable=False
+    )
+    nome_original = db.Column(db.String(255), nullable=False)
+    nome_fisico = db.Column(db.String(64), unique=True, nullable=False)
+    tamanho_bytes = db.Column(db.Integer, nullable=False)
+    mimetype = db.Column(db.String(100), nullable=False)
+
+    versao = db.relationship("VersaoDocumento", back_populates="anexos")
+
+    def __repr__(self) -> str:
+        return f"<AnexoVersao {self.id} versao={self.versao_id}>"
 
 
 class ModeloDocumento(db.Model):

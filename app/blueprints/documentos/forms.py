@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from flask_wtf.file import FileField
+from flask_wtf.file import FileField, MultipleFileField
 from wtforms import (
     RadioField,
     SelectField,
@@ -15,8 +15,25 @@ def exigir_arquivo_ou_comentario(form, field):
     deixou de ser obrigatório (retorno pode ser todo textual), mas os dois em
     branco não criam versão alguma. Validador do campo de arquivo, cruzando com
     `comentario`; reusado pelo anexo de marco."""
+    anexos = getattr(form, "anexos", None)
+    if not field.data and anexos is not None and anexos.data:
+        raise ValidationError(
+            "Os anexos acompanham um arquivo principal: envie-o também."
+        )
     if not field.data and not (form.comentario.data or "").strip():
         raise ValidationError("Envie um arquivo ou escreva um comentário.")
+
+
+def campo_anexos() -> MultipleFileField:
+    """Arquivos que acompanham o principal (dados, figuras, carta). Campo à
+    parte, e não um único campo múltiplo: a ordem em que o navegador entrega os
+    arquivos não é controlável, e o principal — o texto que o parecer avalia —
+    precisa ser escolha explícita de quem envia."""
+    return MultipleFileField(
+        "Anexos (opcional)",
+        description="Arquivos que acompanham o principal: planilha, figuras, "
+        "carta. Pode selecionar vários de uma vez.",
+    )
 
 # De quem é este arquivo, quando quem envia NÃO é a orientanda. O formulário só
 # mostra o campo a gestores; a rota o ignora para a orientanda, cuja versão é
@@ -62,14 +79,20 @@ class NovoDocumentoForm(FlaskForm):
         validators=[DataRequired("Informe o título do documento."), Length(max=255)],
     )
     marco_id = SelectField("Marco associado", coerce=int, validators=[Optional()])
-    arquivo = FileField("Arquivo", validators=[exigir_arquivo_ou_comentario])
+    arquivo = FileField(
+        "Arquivo principal", validators=[exigir_arquivo_ou_comentario]
+    )
+    anexos = campo_anexos()
     comentario = TextAreaField("Comentário", validators=[Optional()])
     natureza = campo_natureza()
     submit = SubmitField("Enviar")
 
 
 class NovaVersaoForm(FlaskForm):
-    arquivo = FileField("Arquivo", validators=[exigir_arquivo_ou_comentario])
+    arquivo = FileField(
+        "Arquivo principal", validators=[exigir_arquivo_ou_comentario]
+    )
+    anexos = campo_anexos()
     comentario = TextAreaField("Comentário", validators=[Optional()])
     natureza = campo_natureza()
     submit = SubmitField("Enviar nova versão")

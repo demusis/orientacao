@@ -10,6 +10,7 @@ from wtforms import (
 from wtforms.validators import DataRequired, Length, Optional
 
 from app.blueprints.documentos.forms import (
+    campo_anexos,
     campo_natureza,
     exigir_arquivo_ou_comentario,
 )
@@ -67,6 +68,7 @@ class DevolverForm(FlaskForm):
         "Anexar o arquivo corrigido a", coerce=int, validators=[Optional()]
     )
     arquivo = FileField("Arquivo corrigido (opcional)", validators=[Optional()])
+    anexos = campo_anexos()
     submit = SubmitField("Devolver para revisão")
 
 
@@ -78,7 +80,10 @@ class AnexoMarcoForm(FlaskForm):
         "Título do documento",
         validators=[DataRequired("Informe o título do documento."), Length(max=255)],
     )
-    arquivo = FileField("Arquivo", validators=[exigir_arquivo_ou_comentario])
+    arquivo = FileField(
+        "Arquivo principal", validators=[exigir_arquivo_ou_comentario]
+    )
+    anexos = campo_anexos()
     comentario = TextAreaField("Comentário", validators=[Optional()])
     natureza = campo_natureza()
     submit = SubmitField("Anexar documento")

@@ -17,7 +17,7 @@ from app.blueprints.documentos.forms import (
     eh_entrega_da_orientanda,
 )
 from app.extensions import db
-from app.models import Documento, ModeloDocumento, VersaoDocumento
+from app.models import AnexoVersao, Documento, ModeloDocumento, VersaoDocumento
 from app.services import auditoria
 from app.services.rbac import manda_no_cronograma, orientacao_autorizada
 from app.services.uploads import UploadInvalido, salvar_versao
@@ -67,6 +67,7 @@ def criar(orientacao_id: int):
             versao = salvar_versao(
                 documento, form.arquivo.data or None, current_user,
                 form.comentario.data, em_nome_do_orientando=em_nome,
+                anexos=form.anexos.data,
             )
         except UploadInvalido as exc:
             db.session.rollback()
@@ -77,7 +78,7 @@ def criar(orientacao_id: int):
                 "documento",
                 documento.id,
                 {"titulo": documento.titulo, "arquivo": versao.nome_original,
-                 "natureza": versao.natureza},
+                 "anexos": len(versao.anexos), "natureza": versao.natureza},
             )
             db.session.commit()
             flash("Documento enviado (versão 1).", "success")
@@ -105,6 +106,7 @@ def detalhe(orientacao_id: int, documento_id: int):
             versao = salvar_versao(
                 documento, form.arquivo.data or None, current_user,
                 form.comentario.data, em_nome_do_orientando=em_nome,
+                anexos=form.anexos.data,
             )
         except UploadInvalido as exc:
             db.session.rollback()
@@ -116,7 +118,7 @@ def detalhe(orientacao_id: int, documento_id: int):
                 "versao_documento",
                 versao.id,
                 {"documento_id": documento.id, "versao": versao.numero_versao,
-                 "natureza": versao.natureza},
+                 "anexos": len(versao.anexos), "natureza": versao.natureza},
             )
             db.session.commit()
             flash(f"Versão {versao.numero_versao} enviada.", "success")
@@ -188,4 +190,34 @@ def download(orientacao_id: int, documento_id: int, versao_id: int):
         as_attachment=True,
         download_name=versao.nome_original,
         mimetype=versao.mimetype,
+    )
+
+
+@bp.route(
+    "/<int:documento_id>/versoes/<int:versao_id>/anexos/<int:anexo_id>/download"
+)
+@login_required
+def download_anexo(orientacao_id: int, documento_id: int, versao_id: int, anexo_id: int):
+    """Mesmo controle de acesso do download da versão: o anexo só é alcançável
+    pela cadeia orientação → documento → versão, cada elo conferido."""
+    orientacao = orientacao_autorizada(orientacao_id)
+    documento = _documento_da_orientacao(orientacao, documento_id)
+    anexo = db.session.get(AnexoVersao, anexo_id)
+    if (
+        anexo is None
+        or anexo.versao_id != versao_id
+        or anexo.versao.documento_id != documento.id
+    ):
+        abort(404)
+    auditoria.registrar(
+        "download_versao", "versao_documento", versao_id,
+        {"documento_id": documento.id, "anexo_id": anexo.id},
+    )
+    db.session.commit()
+    return send_from_directory(
+        current_app.config["UPLOAD_FOLDER"],
+        anexo.nome_fisico,
+        as_attachment=True,
+        download_name=anexo.nome_original,
+        mimetype=anexo.mimetype,
     )
