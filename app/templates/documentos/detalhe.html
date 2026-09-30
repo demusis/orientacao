@@ -37,12 +37,15 @@
     {% if v.comentario %}<p class="versao-comentario">{{ v.comentario }}</p>{% endif %}
     {# versão-devolução é do orientador, classificada pelo ciclo da tarefa: não
        recebe o seletor de parecer (que só distingue registro/entrega) nem o
-       "Emitir parecer" — evita representá-la como "registro" e apagar a etiqueta #}
+       "Emitir parecer" — evita representá-la como "registro" e apagar a etiqueta.
+       O seletor "De quem é" só aparece no upload do orientador: o que a
+       orientanda envia é entrega dela, sem pergunta. #}
     {% if is_principal and not v.eh_devolucao %}
     <div class="versao-acoes acoes">
       {% if v.tem_arquivo %}
       <a href="{{ url_for('atas.emitir_parecer', orientacao_id=orientacao.id, versao=v.id) }}">Emitir parecer</a>
       {% endif %}
+      {% if not v.enviada_pela_orientanda %}
       <form method="post" action="{{ url_for('documentos.classificar_versao', orientacao_id=orientacao.id, documento_id=documento.id, versao_id=v.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label>De quem é:
@@ -53,6 +56,7 @@
         </select></label>
         <button type="submit">Aplicar</button>
       </form>
+      {% endif %}
     </div>
     {% endif %}
   </div>

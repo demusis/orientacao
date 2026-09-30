@@ -150,6 +150,15 @@ def classificar_versao(orientacao_id: int, documento_id: int, versao_id: int):
     versao = db.session.get(VersaoDocumento, versao_id)
     if versao is None or versao.documento_id != documento.id:
         abort(404)
+    if versao.enviada_pela_orientanda:
+        flash(
+            "Esta versão foi enviada pela orientanda: é entrega dela, não há o que "
+            "classificar.",
+            "info",
+        )
+        return redirect(
+            url_for("documentos.detalhe", orientacao_id=orientacao.id, documento_id=documento.id)
+        )
     form = ClassificarVersaoForm()
     if form.validate_on_submit():
         versao.em_nome_do_orientando = eh_entrega_da_orientanda(form.natureza.data)

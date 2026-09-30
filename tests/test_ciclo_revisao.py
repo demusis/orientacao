@@ -333,7 +333,9 @@ def test_versao_devolucao_nao_tem_seletor_de_reclassificar(client, orientacao, o
         f"/orientacoes/{orientacao.id}/documentos/{doc.id}"
     ).data.decode()
     assert f"/versoes/{v2.id}/classificar" not in corpo  # devolução: sem seletor
-    assert f"/versoes/{v1.id}/classificar" in corpo  # entrega da aluna: com seletor
+    # a entrega da aluna também não tem seletor: o que ela envia é dela, sem
+    # pergunta (antes aparecia, e o usuário apontou a incoerência)
+    assert f"/versoes/{v1.id}/classificar" not in corpo
 
 
 def test_upload_do_orientador_nao_pede_parecer(client, orientacao, orientador):
@@ -843,3 +845,44 @@ def test_upload_nao_oferece_devolucao(client, orientacao, orientador):
     ).data.decode()
     assert 'value="registro"' in corpo and 'value="entrega"' in corpo
     assert 'value="devolucao"' not in corpo
+
+
+def test_versao_da_orientanda_nao_tem_seletor_e_leva_etiqueta(client, orientacao, orientador):
+    """O que a orientanda envia é entrega dela: a página do orientador mostra a
+    etiqueta e o "Emitir parecer", sem o seletor "De quem é" — a pergunta só faz
+    sentido para o upload do próprio orientador."""
+    marco = _marco(orientacao)
+    doc = _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
+    versao = doc.versoes.first()
+    assert versao.enviada_pela_orientanda
+    assert versao.natureza == "entrega"
+
+    login(client, "orientador@teste.br")
+    corpo = client.get(f"/orientacoes/{orientacao.id}/documentos/{doc.id}").data.decode()
+    assert "entrega da orientanda" in corpo
+    assert "Emitir parecer" in corpo
+    assert 'name="natureza"' not in corpo.split("Enviar nova versão")[0]
+
+
+def test_versao_do_orientador_mantem_o_seletor(client, orientacao, orientador):
+    marco = _marco(orientacao)
+    doc = _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientador_id)
+    login(client, "orientador@teste.br")
+    corpo = client.get(f"/orientacoes/{orientacao.id}/documentos/{doc.id}").data.decode()
+    assert 'name="natureza"' in corpo.split("Enviar nova versão")[0]
+
+
+def test_classificar_recusa_versao_da_orientanda(client, orientacao, orientador):
+    marco = _marco(orientacao)
+    doc = _documento_com_v1(orientacao, marco, enviado_por=orientacao.orientando_id)
+    versao = doc.versoes.first()
+    login(client, "orientador@teste.br")
+    resp = client.post(
+        f"/orientacoes/{orientacao.id}/documentos/{doc.id}/versoes/{versao.id}/classificar",
+        data={"natureza": "entrega"},
+        follow_redirects=True,
+    )
+    assert "é entrega dela" in resp.data.decode()
+    db.session.expire(versao)
+    assert versao.em_nome_do_orientando is False
+    assert LogAuditoria.query.filter_by(acao="classificacao_versao").count() == 0

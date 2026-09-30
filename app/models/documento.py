@@ -83,14 +83,31 @@ class VersaoDocumento(db.Model):
         return bool(self.nome_fisico)
 
     @property
+    def enviada_pela_orientanda(self) -> bool:
+        """A própria orientanda enviou esta versão? Então é entrega dela, sem
+        pergunta: "de quem é" só faz sentido para o upload do orientador.
+
+        Lida também antes do flush (auditoria logo após `salvar_versao`),
+        quando só `documento_id` está preenchido: busca o documento pela chave."""
+        documento = self.documento
+        if documento is None and self.documento_id is not None:
+            documento = db.session.get(Documento, self.documento_id)
+        return (
+            documento is not None
+            and self.enviado_por == documento.orientacao.orientando_id
+        )
+
+    @property
     def natureza(self) -> str:
         """O que a versão é, em uma palavra: "devolucao" (correções do
         orientador), "entrega" (da orientanda — enviada por ela ou registrada em
         nome dela) ou "registro" (qualquer outro upload do orientador). É o
-        vocabulário do formulário de envio e das etiquetas."""
+        vocabulário do formulário de envio e das etiquetas. Olhar só
+        `em_nome_do_orientando` deixava a entrega autêntica dela como
+        "registro", sem a etiqueta que a substituta recebia."""
         if self.eh_devolucao:
             return "devolucao"
-        if self.em_nome_do_orientando:
+        if self.em_nome_do_orientando or self.enviada_pela_orientanda:
             return "entrega"
         return "registro"
 
