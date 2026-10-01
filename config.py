@@ -9,7 +9,13 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     MAX_CONTENT_LENGTH = 20 * 1024 * 1024  # 20 MB
     UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", os.path.join(BASE_DIR, "uploads"))
-    ALLOWED_EXTENSIONS = {"pdf", "doc", "docx", "odt", "txt", "zip"}
+    # planilhas e imagens entram como anexos de uma entrega (dados, figuras).
+    # SVG fica de fora de propósito: é XML que pode carregar script.
+    ALLOWED_EXTENSIONS = {
+        "pdf", "doc", "docx", "odt", "txt", "zip",
+        "xlsx", "xls", "ods", "csv",
+        "png", "jpg", "jpeg",
+    }
     # Número de proxies reversos confiáveis à frente da aplicação. Zero desativa
     # a leitura de X-Forwarded-For: sem proxy, o cabeçalho é forjável pelo
     # cliente e registrar seu conteúdo como origem falsearia a auditoria.

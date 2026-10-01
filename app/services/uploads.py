@@ -9,14 +9,25 @@ from werkzeug.utils import secure_filename
 from app.extensions import db
 from app.models import AnexoVersao, Documento, VersaoDocumento
 
-# Assinaturas mínimas por extensão. .docx/.odt/.zip são contêineres ZIP ("PK").
+# Assinaturas mínimas por extensão. .docx/.odt/.xlsx/.ods/.zip são contêineres
+# ZIP ("PK"); .doc/.xls, OLE2.
+_ZIP = [b"PK\x03\x04"]
+_OLE2 = [b"\xd0\xcf\x11\xe0"]
+_JPEG = [b"\xff\xd8\xff"]
 ASSINATURAS = {
     "pdf": [b"%PDF"],
-    "docx": [b"PK\x03\x04"],
-    "odt": [b"PK\x03\x04"],
-    "zip": [b"PK\x03\x04"],
-    "doc": [b"\xd0\xcf\x11\xe0"],  # OLE2
+    "docx": _ZIP,
+    "odt": _ZIP,
+    "xlsx": _ZIP,
+    "ods": _ZIP,
+    "zip": _ZIP,
+    "doc": _OLE2,
+    "xls": _OLE2,
+    "png": [b"\x89PNG\r\n\x1a\n"],
+    "jpg": _JPEG,
+    "jpeg": _JPEG,
     "txt": None,  # texto plano: sem assinatura verificável
+    "csv": None,  # idem
 }
 
 
