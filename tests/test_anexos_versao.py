@@ -223,3 +223,40 @@ def test_devolver_com_anexos_sem_arquivo_corrigido_nao_devolve(client, orientaca
     db.session.expire(marco)
     assert marco.aguardando == "orientador"
     assert doc.versoes.count() == 1
+
+
+def test_planilhas_e_imagens_aceitas_como_anexos(client, orientacao, orientando):
+    """Dados e figuras acompanham a entrega: planilha e imagem entram, cada uma
+    conferida pela assinatura do conteúdo."""
+    login(client, "orientando@teste.br")
+    _criar(client, orientacao, pdf_falso("texto.pdf"), [
+        (io.BytesIO(b"PK\x03\x04 planilha"), "dados.xlsx"),
+        (io.BytesIO(b"PK\x03\x04 planilha"), "dados.ods"),
+        (io.BytesIO(b"\xd0\xcf\x11\xe0 antiga"), "dados.xls"),
+        (io.BytesIO(b"a;b\n1;2\n"), "dados.csv"),
+        (io.BytesIO(b"\x89PNG\r\n\x1a\n imagem"), "figura.png"),
+        (io.BytesIO(b"\xff\xd8\xff\xe0 foto"), "foto.jpg"),
+        (io.BytesIO(b"\xff\xd8\xff\xe1 foto"), "foto2.jpeg"),
+    ])
+    versao = Documento.query.one().versao_atual
+    assert sorted(a.nome_original for a in versao.anexos) == sorted([
+        "dados.xlsx", "dados.ods", "dados.xls", "dados.csv",
+        "figura.png", "foto.jpg", "foto2.jpeg",
+    ])
+
+
+def test_imagem_com_conteudo_falso_e_recusada(client, app, orientacao, orientando):
+    login(client, "orientando@teste.br")
+    resp = _criar(client, orientacao, pdf_falso("texto.pdf"),
+                  [(io.BytesIO(b"MZ executavel"), "figura.png")])
+    assert "não corresponde" in resp.data.decode()
+    assert Documento.query.count() == 0
+
+
+def test_svg_continua_recusado(client, orientacao, orientando):
+    """SVG é XML que pode carregar script: fica de fora de propósito."""
+    login(client, "orientando@teste.br")
+    resp = _criar(client, orientacao, pdf_falso("texto.pdf"),
+                  [(io.BytesIO(b"<svg onload='x'/>"), "figura.svg")])
+    assert "não permitida" in resp.data.decode()
+    assert Documento.query.count() == 0
