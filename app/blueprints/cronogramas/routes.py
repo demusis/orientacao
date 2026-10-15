@@ -3,15 +3,17 @@ from flask_login import current_user, login_required
 
 from app.blueprints.cronogramas import bp
 from app.blueprints.cronogramas.forms import (
-    AnexoMarcoForm,
+    NOVO_DOCUMENTO,
     ConfirmacaoForm,
     DevolverForm,
-    MarcoForm,
+    EntregaTarefaForm,
+    MarcoIndividualForm,
     SinalizarForm,
 )
 from app.blueprints.documentos.forms import eh_entrega_da_orientanda
 from app.extensions import db
 from app.models import Documento, Marco
+from app.models.cronograma import ultima_versao
 from app.services import auditoria
 from app.services import cronogramas as servico_cronograma
 from app.services.rbac import manda_no_cronograma, orientacao_autorizada
@@ -38,13 +40,32 @@ def listar(orientacao_id: int):
     )
 
 
+def _escolhas_texto_base(form, orientacao) -> None:
+    """Os documentos do vínculo, para a tarefa de revisão apontar o texto."""
+    form.documento_base_id.choices = [(0, "(nenhum)")] + [
+        (d.id, d.titulo)
+        for d in orientacao.documentos.order_by(Documento.titulo).all()
+    ]
+
+
+def _aplicar_entrega_esperada(marco, form) -> None:
+    """Grava o que a tarefa espera; o texto-base só vale na revisão."""
+    marco.entrega_esperada = form.entrega_esperada.data or None
+    marco.documento_base_id = (
+        (form.documento_base_id.data or None)
+        if marco.entrega_esperada == "revisao"
+        else None
+    )
+
+
 @bp.route("/novo", methods=["GET", "POST"])
 @login_required
 def criar(orientacao_id: int):
     orientacao = orientacao_autorizada(orientacao_id)
     if not manda_no_cronograma(orientacao):
         abort(403)
-    form = MarcoForm()
+    form = MarcoIndividualForm()
+    _escolhas_texto_base(form, orientacao)
     if form.validate_on_submit():
         marco = Marco(
             orientacao_id=orientacao.id,
@@ -54,6 +75,7 @@ def criar(orientacao_id: int):
             data_prevista=form.data_prevista.data,
             etapa=form.etapa.data,
         )
+        _aplicar_entrega_esperada(marco, form)
         db.session.add(marco)
         db.session.flush()
         auditoria.registrar("criacao_marco", "marco", marco.id, {"titulo": marco.titulo})
@@ -98,27 +120,59 @@ def semear_padrao(orientacao_id: int):
     return redirect(url_for("cronogramas.listar", orientacao_id=orientacao.id))
 
 
+def _escolhas_destino(docs) -> list[tuple[str, str]]:
+    """Para onde vai o envio pela tarefa: nova versão de cada documento da
+    tarefa, ou um documento novo."""
+    escolhas = []
+    for d in docs:
+        atual = d.versao_atual
+        rotulo = f"Nova versão de: {d.titulo}"
+        if atual is not None:
+            rotulo += f" (hoje na v{atual.numero_versao})"
+        escolhas.append((str(d.id), rotulo))
+    escolhas.append((NOVO_DOCUMENTO, "Documento novo"))
+    return escolhas
+
+
+def _destino_padrao(marco, docs, ultima) -> str:
+    """O destino que já vem marcado: na revisão, o texto-base; havendo
+    entrega, o documento da última (corrigir é nova versão dele); senão, um
+    documento novo."""
+    if marco.entrega_esperada == "revisao" and marco.documento_base is not None:
+        return str(marco.documento_base.id)
+    if ultima is not None:
+        return str(ultima.documento_id)
+    return str(docs[0].id) if docs else NOVO_DOCUMENTO
+
+
 @bp.route("/<int:marco_id>")
 @login_required
 def detalhe(orientacao_id: int, marco_id: int):
-    """Página da tarefa: reúne descrição, entregas e reuniões ligadas, a nota do
-    orientando, e as ações (anexar, sinalizar, confirmar) conforme o papel."""
+    """Página da tarefa, organizada pelo **próximo passo**: no topo, a única ação
+    que cabe a quem está vendo (entregar, corrigir, conferir); abaixo, o
+    histórico (devolução anterior, nota, entregas, reuniões)."""
     orientacao = orientacao_autorizada(orientacao_id)
     marco = _marco_da_orientacao(orientacao, marco_id)
-    anexo_form = AnexoMarcoForm(titulo=marco.titulo)
-    # a versão da orientanda é sempre entrega dela: o campo some para ela
+    # uma passada pelas entregas serve a tabela, o destino padrão e o
+    # documento-alvo da devolução: cada `versao_atual` vai ao banco
+    docs = marco.documentos_da_tarefa
+    entregas = [(d, d.versao_atual) for d in docs]
+    ultima = ultima_versao(entregas)
+
+    entrega_form = EntregaTarefaForm()
+    entrega_form.destino.choices = _escolhas_destino(docs)
+    entrega_form.destino.data = _destino_padrao(marco, docs, ultima)
+    entrega_form.titulo.data = marco.titulo
     if current_user.id == orientacao.orientando_id:
-        del anexo_form.natureza
-    # uma passada pelas entregas serve a tabela e o default do documento-alvo:
-    # cada leitura de `versao_atual` vai ao banco (relação dynamic)
-    entregas = marco.entregas
-    # o form de devolver aceita anexar o arquivo corrigido a um documento do
-    # marco. Sem documentos, não há onde anexar: some o campo de arquivo, para
-    # não oferecer um upload que seria descartado (devolve-se só com a nota).
+        del entrega_form.natureza  # o que a orientanda envia é sempre dela
+    if not servico_cronograma.pode_sinalizar(marco, current_user):
+        del entrega_form.sinalizar
+
+    # o form de devolver aceita anexar o arquivo corrigido a um documento da
+    # tarefa. Sem documentos, não há onde anexar: somem os campos de arquivo.
     devolver_form = DevolverForm()
-    if entregas:
-        devolver_form.documento_id.choices = [(d.id, d.titulo) for d, _ in entregas]
-        ultima = marco.ultima_entrega
+    if docs:
+        devolver_form.documento_id.choices = [(d.id, d.titulo) for d in docs]
         if ultima is not None:
             devolver_form.documento_id.data = ultima.documento_id
     else:
@@ -130,7 +184,8 @@ def detalhe(orientacao_id: int, marco_id: int):
         orientacao=orientacao,
         marco=marco,
         entregas=entregas,
-        anexo_form=anexo_form,
+        ultima=ultima,
+        entrega_form=entrega_form,
         sinalizar_form=SinalizarForm(),
         confirmacao_form=ConfirmacaoForm(),
         devolver_form=devolver_form,
@@ -140,49 +195,84 @@ def detalhe(orientacao_id: int, marco_id: int):
 @bp.route("/<int:marco_id>/anexar", methods=["POST"])
 @login_required
 def anexar(orientacao_id: int, marco_id: int):
-    """Anexa um documento à tarefa: cria um documento ligado ao marco e grava a
-    versão 1. Disponível a qualquer participante do vínculo, como em documentos."""
+    """Envio pela tarefa: nova versão de um documento da tarefa ou documento
+    novo ligado a ela — e, para a orientanda, a opção de já avisar o orientador
+    (sinalizar) no mesmo ato. Disponível a qualquer participante do vínculo."""
     orientacao = orientacao_autorizada(orientacao_id)
     marco = _marco_da_orientacao(orientacao, marco_id)
-    form = AnexoMarcoForm()
+    voltar = redirect(
+        url_for("cronogramas.detalhe", orientacao_id=orientacao.id, marco_id=marco.id)
+    )
+    if marco.status == "concluido":
+        flash("A tarefa está concluída; não recebe novos envios.", "warning")
+        return voltar
+    docs = marco.documentos_da_tarefa
+    form = EntregaTarefaForm()
+    form.destino.choices = _escolhas_destino(docs)
+    if form.destino.data is None and not docs:
+        form.destino.data = NOVO_DOCUMENTO  # sem documentos, só há um destino
     eh_gestor = current_user.id != orientacao.orientando_id
     if not eh_gestor:
         del form.natureza
-    if form.validate_on_submit():
-        # o anexo só grava a versão — devolver é ação da tarefa (o botão abaixo)
-        em_nome = eh_gestor and eh_entrega_da_orientanda(form.natureza.data)
+    sinaliza_possivel = servico_cronograma.pode_sinalizar(marco, current_user)
+    if not sinaliza_possivel:
+        del form.sinalizar
+    if not form.validate_on_submit():
+        for erros in form.errors.values():
+            for erro in erros:
+                flash(erro, "danger")
+        return voltar
+
+    em_nome = eh_gestor and eh_entrega_da_orientanda(form.natureza.data)
+    novo = form.destino.data == NOVO_DOCUMENTO
+    if novo:
         documento = Documento(
             orientacao_id=orientacao.id,
             marco_id=marco.id,
-            titulo=form.titulo.data,
+            titulo=form.titulo.data.strip(),
             criado_por=current_user.id,
         )
         db.session.add(documento)
         db.session.flush()
-        try:
-            versao = salvar_versao(
-                documento, form.arquivo.data or None, current_user,
-                form.comentario.data, em_nome_do_orientando=em_nome,
-                anexos=form.anexos.data,
-            )
-        except UploadInvalido as exc:
-            db.session.rollback()
-            flash(str(exc), "danger")
-        else:
-            auditoria.registrar(
-                "criacao_documento", "documento", documento.id,
-                {"titulo": documento.titulo, "arquivo": versao.nome_original,
-                 "anexos": len(versao.anexos), "origem": "marco", "marco_id": marco.id, "natureza": versao.natureza},
-            )
-            db.session.commit()
-            flash("Documento anexado à tarefa (versão 1).", "success")
     else:
-        for erros in form.errors.values():
-            for erro in erros:
-                flash(erro, "danger")
-    return redirect(
-        url_for("cronogramas.detalhe", orientacao_id=orientacao.id, marco_id=marco.id)
-    )
+        documento = next((d for d in docs if str(d.id) == form.destino.data), None)
+        if documento is None:
+            abort(404)
+    try:
+        versao = salvar_versao(
+            documento, form.arquivo.data or None, current_user,
+            form.comentario.data, em_nome_do_orientando=em_nome,
+            anexos=form.anexos.data,
+        )
+    except UploadInvalido as exc:
+        db.session.rollback()
+        flash(str(exc), "danger")
+        return voltar
+    db.session.flush()
+    dados = {"anexos": len(versao.anexos), "origem": "marco", "marco_id": marco.id,
+             "natureza": versao.natureza}
+    if novo:
+        auditoria.registrar(
+            "criacao_documento", "documento", documento.id,
+            {"titulo": documento.titulo, "arquivo": versao.nome_original, **dados},
+        )
+    else:
+        auditoria.registrar(
+            "nova_versao_documento", "versao_documento", versao.id,
+            {"documento_id": documento.id, "versao": versao.numero_versao, **dados},
+        )
+    sinalizou = sinaliza_possivel and form.sinalizar.data
+    if sinalizou:
+        servico_cronograma.sinalizar_conclusao(marco)
+    db.session.commit()
+    if novo:
+        msg = f'Documento "{documento.titulo}" criado (versão 1).'
+    else:
+        msg = f'Versão {versao.numero_versao} de "{documento.titulo}" enviada.'
+    if sinalizou:
+        msg += " O orientador foi avisado para conferir."
+    flash(msg, "success")
+    return voltar
 
 
 @bp.route("/<int:marco_id>/editar", methods=["GET", "POST"])
@@ -192,9 +282,15 @@ def editar(orientacao_id: int, marco_id: int):
     if not manda_no_cronograma(orientacao):
         abort(403)
     marco = _marco_da_orientacao(orientacao, marco_id)
-    form = MarcoForm(obj=marco)
+    form = MarcoIndividualForm(obj=marco)
+    _escolhas_texto_base(form, orientacao)
+    if not form.is_submitted():
+        form.entrega_esperada.data = marco.entrega_esperada or ""
+        form.documento_base_id.data = marco.documento_base_id or 0
     if form.validate_on_submit():
-        form.populate_obj(marco)
+        for campo in ("titulo", "tipo", "descricao", "data_prevista", "etapa"):
+            setattr(marco, campo, getattr(form, campo).data)
+        _aplicar_entrega_esperada(marco, form)
         auditoria.registrar("edicao_marco", "marco", marco.id)
         db.session.commit()
         flash("Marco atualizado.", "success")
@@ -212,19 +308,7 @@ def sinalizar_conclusao(orientacao_id: int, marco_id: int):
     marco = _marco_da_orientacao(orientacao, marco_id)
     form = SinalizarForm()
     if form.validate_on_submit() and marco.status != "concluido":
-        marco.conclusao_sinalizada = True
-        marco.status = "em_andamento"
-        # a nota_devolucao NÃO é apagada aqui: ela é o registro da última
-        # devolução, e o orientador precisa dela ao decidir confirmar ou devolver
-        # de novo. A relevância na tela vem de `aguardando`; a próxima devolução
-        # a sobrescreve (nota e data juntas), então nunca há nota velha sob data
-        # nova.
-        if form.nota.data:
-            marco.nota_conclusao = form.nota.data
-        auditoria.registrar(
-            "sinalizacao_conclusao_marco", "marco", marco.id,
-            {"com_nota": bool(form.nota.data)},
-        )
+        servico_cronograma.sinalizar_conclusao(marco, form.nota.data)
         db.session.commit()
         flash("Conclusão sinalizada; aguardando confirmação do orientador.", "info")
     return redirect(
@@ -259,7 +343,8 @@ def devolver_para_revisao(orientacao_id: int, marco_id: int):
         abort(403)
     marco = _marco_da_orientacao(orientacao, marco_id)
     form = DevolverForm()
-    form.documento_id.choices = [(d.id, d.titulo) for d in marco.documentos]
+    docs = marco.documentos_da_tarefa
+    form.documento_id.choices = [(d.id, d.titulo) for d in docs]
     if not form.validate_on_submit():
         for erros in form.errors.values():
             for erro in erros:
@@ -294,8 +379,8 @@ def devolver_para_revisao(orientacao_id: int, marco_id: int):
                 "warning",
             )
         else:
-            documento = db.session.get(Documento, form.documento_id.data)
-            if documento is None or documento.marco_id != marco.id:
+            documento = next((d for d in docs if d.id == form.documento_id.data), None)
+            if documento is None:
                 abort(404)
             try:
                 # o arquivo é a versão corrigida; a nota vive na tarefa

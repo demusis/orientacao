@@ -1,4 +1,6 @@
 
+from datetime import UTC, datetime
+
 from app.extensions import db
 
 STATUS_MARCO = ("pendente", "em_andamento", "concluido")
@@ -53,6 +55,19 @@ ETAPA_MARCO_LABEL = {
 }
 
 
+# O que a tarefa espera como resultado — a pergunta que a aluna faz ao abri-la.
+# Guia a página da tarefa (o "próximo passo") e o Painel; não muda permissão nem
+# o ciclo de conclusão. NULL = não especificado (tarefas anteriores ao campo e o
+# cronograma-padrão, cujas tarefas são períodos mais que produtos).
+ENTREGAS_ESPERADAS = ("documento", "revisao", "ato")
+
+ENTREGA_ESPERADA_LABEL = {
+    "documento": "Entregar um documento",
+    "revisao": "Revisar um texto",
+    "ato": "Sem arquivo (só o ato)",
+}
+
+
 def ultima_versao(entregas):
     """A versão mais recente de uma lista `(documento, versão)`, ou None.
 
@@ -90,6 +105,17 @@ class Marco(db.Model):
     nota_devolucao = db.Column(db.Text, nullable=True)
     # UUID hex comum aos marcos criados por uma mesma tarefa em grupo
     grupo_id = db.Column(db.String(32), nullable=True, index=True)
+    entrega_esperada = db.Column(db.String(20), nullable=True)
+    # o texto a revisar, na tarefa de revisão. Sem chave estrangeira de propósito:
+    # documento já aponta para marco (marco_id), e a volta criaria um ciclo de
+    # FKs entre as duas tabelas — o SQLite não as impõe de todo modo, e a
+    # exclusão de documento confere esta ligação em código.
+    documento_base_id = db.Column(db.Integer, nullable=True)
+    # quando a tarefa foi criada: na revisão, só conta como entrega a versão do
+    # texto-base enviada depois disso. NULL nas tarefas anteriores ao campo.
+    criado_em = db.Column(
+        db.DateTime, nullable=True, default=lambda: datetime.now(UTC)
+    )
 
     orientacao = db.relationship("Orientacao", back_populates="marcos")
     # entregas feitas para esta etapa (Documento.marco_id) e reuniões que a
@@ -97,6 +123,11 @@ class Marco(db.Model):
     documentos = db.relationship("Documento", back_populates="marco")
     atas = db.relationship(
         "Ata", secondary="ata_marco", order_by="Ata.data_reuniao", viewonly=True
+    )
+    documento_base = db.relationship(
+        "Documento",
+        primaryjoin="foreign(Marco.documento_base_id) == Documento.id",
+        viewonly=True,
     )
 
     @property
@@ -115,6 +146,33 @@ class Marco(db.Model):
         return "orientando"  # em elaboração / a iniciar
 
     @property
+    def documentos_da_tarefa(self) -> list:
+        """Os documentos ligados à tarefa e, na revisão, o texto-base (que pode
+        pertencer a outra tarefa: revisar é nova versão do mesmo documento, não
+        um documento paralelo)."""
+        docs = list(self.documentos)
+        base = self.documento_base
+        if base is not None and base not in docs:
+            docs.append(base)
+        return docs
+
+    def _conta_para_a_tarefa(self, versao) -> bool:
+        """Versão do texto-base que não é da tarefa (é de outra) só conta se
+        enviada depois de a tarefa existir — senão a revisão nasceria
+        "entregue" pelas versões antigas."""
+        if versao.documento.marco_id == self.id:
+            return True
+        if self.criado_em is None:
+            return False
+        enviado = versao.enviado_em
+        criado = self.criado_em
+        if enviado.tzinfo is None and criado.tzinfo is not None:
+            criado = criado.replace(tzinfo=None)
+        elif enviado.tzinfo is not None and criado.tzinfo is None:
+            enviado = enviado.replace(tzinfo=None)
+        return enviado >= criado
+
+    @property
     def entregas(self):
         """`(documento, versão corrente)` de cada entrega ligada — a versão é
         None no documento ainda sem versão. Uma leitura de `versao_atual` por
@@ -123,7 +181,7 @@ class Marco(db.Model):
         Quem precisa da lista e da última numa mesma tela deve guardar o
         resultado e passá-lo a `ultima_versao`, em vez de chamar as duas
         propriedades — ver `cronogramas.detalhe`."""
-        return [(d, d.versao_atual) for d in self.documentos]
+        return [(d, d.versao_atual) for d in self.documentos_da_tarefa]
 
     @property
     def ultima_entrega(self):
@@ -139,8 +197,9 @@ class Marco(db.Model):
         `devolver_entrega` (ver services/cronogramas.py)."""
         orientando_id = self.orientacao.orientando_id
         return any(
-            v.enviado_por == orientando_id or v.em_nome_do_orientando
-            for doc in self.documentos
+            (v.enviado_por == orientando_id or v.em_nome_do_orientando)
+            and self._conta_para_a_tarefa(v)
+            for doc in self.documentos_da_tarefa
             for v in doc.versoes
         )
 

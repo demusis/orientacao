@@ -15,7 +15,10 @@ from app.models import Marco
 from app.services import auditoria
 
 
-def criar_tarefa(vinculos, *, titulo, tipo, descricao, data_prevista, etapa, ata=None):
+def criar_tarefa(
+    vinculos, *, titulo, tipo, descricao, data_prevista, etapa, ata=None,
+    entrega_esperada=None,
+):
     """Cria um marco por vínculo e devolve a lista.
 
     `ata`, quando informada, liga cada marco à reunião que o originou: a tarefa
@@ -35,6 +38,7 @@ def criar_tarefa(vinculos, *, titulo, tipo, descricao, data_prevista, etapa, ata
             data_prevista=data_prevista,
             etapa=etapa,
             grupo_id=grupo_id,
+            entrega_esperada=entrega_esperada or None,
         )
         db.session.add(marco)
         criados.append(marco)

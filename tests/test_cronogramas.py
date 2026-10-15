@@ -201,7 +201,7 @@ def test_pagina_da_tarefa_renderiza_e_o_titulo_linka(client, orientacao, orienta
     # a página abre e traz as seções
     pagina = client.get(f"/orientacoes/{orientacao.id}/cronograma/{marco.id}").data.decode()
     assert "Qualificação" in pagina
-    assert "Anexar documento" in pagina
+    assert "Próximo passo" in pagina  # a página abre pela ação de quem a vê
     assert "Entregas ligadas" in pagina
 
 

@@ -84,6 +84,34 @@ def confirmar_conclusao(marco: Marco) -> bool:
     return True
 
 
+def pode_sinalizar(marco: Marco, usuario) -> bool:
+    """A orientanda pode sinalizar a conclusão agora? Só ela, e só com a tarefa
+    aberta e ainda não sinalizada."""
+    return (
+        usuario.id == marco.orientacao.orientando_id
+        and marco.status != "concluido"
+        and not marco.conclusao_sinalizada
+    )
+
+
+def sinalizar_conclusao(marco: Marco, nota: str | None = None) -> None:
+    """A orientanda avisa que terminou; a vez passa ao orientador. Ponto único,
+    usado pelo botão "Sinalizar conclusão" e pelo envio pela tarefa que já
+    sinaliza no mesmo ato. Não faz commit.
+
+    A `nota_devolucao` NÃO é apagada: é o registro da última devolução, e o
+    orientador precisa dela ao decidir confirmar ou devolver de novo. A
+    relevância na tela vem de `aguardando`; a próxima devolução a sobrescreve
+    (nota e data juntas)."""
+    marco.conclusao_sinalizada = True
+    marco.status = "em_andamento"
+    if nota:
+        marco.nota_conclusao = nota
+    auditoria.registrar(
+        "sinalizacao_conclusao_marco", "marco", marco.id, {"com_nota": bool(nota)}
+    )
+
+
 def pode_devolver(marco: Marco) -> bool:
     """Há o que devolver? Só quando o marco não está concluído E existe entrega
     da **orientanda** (sinalizada, ou ao menos uma versão dela). O upload do

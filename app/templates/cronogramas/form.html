@@ -5,7 +5,11 @@
 {% block content %}
 {{ nav_modulos(orientacao, 'cronograma') }}
 <div class="card">
-  <h1>Marco do projeto {{ orientacao.titulo_projeto }}</h1>
+  <h1>Tarefa do projeto {{ orientacao.titulo_projeto }}</h1>
+  <p><small>Diga o que a tarefa espera: <strong>um documento</strong> (texto novo),
+  <strong>revisar um texto</strong> que já está no sistema (escolha qual — a orientanda
+  envia a revisão como nova versão dele) ou <strong>sem arquivo</strong> (só o ato, como
+  uma inscrição). É o que a página da tarefa vai mostrar a ela como próximo passo.</small></p>
   {{ render_form(form) }}
 </div>
 {% endblock %}

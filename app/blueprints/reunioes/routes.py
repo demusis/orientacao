@@ -277,6 +277,7 @@ def criar_tarefa_derivada(ata_id: int):
             data_prevista=form.data_prevista.data,
             etapa=form.etapa.data,
             ata=ata,
+            entrega_esperada=form.entrega_esperada.data,
         )
         db.session.commit()
         flash(
@@ -302,9 +303,12 @@ def editar_tarefa_grupo(grupo_id: str):
     conclui, outro não."""
     marcos = _marcos_do_grupo(grupo_id)
     form = MarcoForm(obj=marcos[0])  # todos compartilham o conteúdo
+    if not form.is_submitted() and marcos[0].entrega_esperada is None:
+        form.entrega_esperada.data = ""
     if form.validate_on_submit():
         for m in marcos:
             m.titulo = form.titulo.data
+            m.entrega_esperada = form.entrega_esperada.data or None
             m.tipo = form.tipo.data
             m.descricao = form.descricao.data
             m.data_prevista = form.data_prevista.data
@@ -436,6 +440,7 @@ def criar_tarefa_grupo():
             descricao=form.descricao.data,
             data_prevista=form.data_prevista.data,
             etapa=form.etapa.data,
+            entrega_esperada=form.entrega_esperada.data,
         )
         db.session.commit()
         flash(

@@ -17,7 +17,7 @@ não uma edição do histórico: por isso as travas abaixo.
   entrega enquanto o orientador decide deixaria o ciclo sem objeto.
 """
 from app.extensions import db
-from app.models import Parecer, VersaoDocumento
+from app.models import Marco, Parecer, VersaoDocumento
 from app.services import auditoria
 
 
@@ -43,6 +43,13 @@ def motivo_bloqueio_exclusao(versao: VersaoDocumento, usuario) -> str | None:
     if versao.eh_devolucao:
         return (
             "Esta versão é a devolução registrada na tarefa e não pode ser excluída."
+        )
+    if apaga_o_documento(versao) and db.session.query(
+        Marco.query.filter_by(documento_base_id=versao.documento_id).exists()
+    ).scalar():
+        return (
+            "Este documento é o texto a revisar de uma tarefa; a única versão dele "
+            "não pode ser excluída."
         )
     marco = _tarefa(versao)
     if marco is not None:

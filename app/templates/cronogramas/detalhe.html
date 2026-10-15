@@ -6,7 +6,9 @@
 {{ nav_modulos(orientacao, 'cronograma') }}
 {% set is_orientando = current_user.id == orientacao.orientando_id %}
 {% set is_gestor = current_user.id == orientacao.orientador_id or current_user.papel == 'admin' %}
-{# `entregas` vem da rota, numa passada só #}
+{% set acao_envio = url_for('cronogramas.anexar', orientacao_id=orientacao.id, marco_id=marco.id) %}
+{# A página responde primeiro "o que eu faço agora?" (cartão Próximo passo, uma
+   só ação para quem está vendo) e só depois "o que já aconteceu" (histórico). #}
 
 <div class="card">
   <h1>{{ marco.titulo }} <span class="badge">{{ TIPO_MARCO_LABEL[marco.tipo] }}</span></h1>
@@ -21,13 +23,123 @@
     {% if marco.grupo_id %}<span class="badge">grupo</span>{% endif %}
   </p>
   <p><strong>Situação:</strong> {{ situacao_marco(marco) }}</p>
+  {% if marco.entrega_esperada %}
+  <p><strong>O que esta tarefa espera:</strong> {{ ENTREGA_ESPERADA_LABEL[marco.entrega_esperada] }}
+    {%- if marco.entrega_esperada == 'revisao' and marco.documento_base %} —
+    <a href="{{ url_for('documentos.detalhe', orientacao_id=orientacao.id, documento_id=marco.documento_base.id) }}">{{ marco.documento_base.titulo }}</a>
+    {%- endif %}</p>
+  {% endif %}
   {% if marco.descricao %}<p>{{ marco.descricao }}</p>{% endif %}
+  {% if is_gestor %}<p><small><a href="{{ url_for('cronogramas.editar', orientacao_id=orientacao.id, marco_id=marco.id) }}">Editar tarefa</a></small></p>{% endif %}
 </div>
 
-{# Card da devolução, dirigido por `aguardando` (a relevância vem do estado, não
-   de mutar o dado): ativo enquanto a orientanda corrige; contexto quando ela
-   reenviou e a vez é do orientador; histórico quando concluído. #}
-{% if marco.devolvido_em %}
+{# ---------------------------------------------------------------- próximo passo #}
+<div class="card proximo-passo">
+{% if marco.status == 'concluido' %}
+  <h2>Tarefa concluída</h2>
+  <p>Concluída em {{ marco.data_conclusao }}. Não há nada a fazer aqui; o histórico
+  fica abaixo.</p>
+
+{% elif is_orientando %}
+  {% if marco.aguardando == 'orientador' %}
+  <h2>Próximo passo — Aguardar o orientador</h2>
+  <p>Você sinalizou a conclusão. O orientador vai conferir e confirmar ou devolver
+  com o que corrigir.</p>
+  <details>
+    <summary>Enviar outra versão mesmo assim</summary>
+    {{ render_form(entrega_form, action=acao_envio, enctype='multipart/form-data') }}
+  </details>
+
+  {% elif marco.aguardando == 'orientando_revisao' %}
+  <h2>Próximo passo — Corrigir e reenviar</h2>
+  <p><small>Devolvido em {{ marco.devolvido_em.strftime('%d/%m/%Y %H:%M') }} (UTC).</small></p>
+  {% if marco.nota_devolucao %}
+  <p><strong>O que corrigir:</strong> {{ marco.nota_devolucao }}</p>
+  {% else %}
+  <p><small>Sem nota escrita — as correções podem estar no arquivo devolvido (veja as
+  entregas abaixo); na dúvida, procure o orientador.</small></p>
+  {% endif %}
+  <p><small>Envie a versão corrigida como <strong>nova versão</strong> do mesmo
+  documento (já vem marcado) e deixe marcado o aviso ao orientador.</small></p>
+  {{ render_form(entrega_form, action=acao_envio, enctype='multipart/form-data') }}
+
+  {% elif marco.entrega_esperada == 'ato' %}
+  <h2>Próximo passo — Concluir e avisar</h2>
+  <p><small>Esta tarefa não pede arquivo. Ao terminar, sinalize para o orientador
+  confirmar; a nota é opcional.</small></p>
+  {{ render_form(sinalizar_form, action=url_for('cronogramas.sinalizar_conclusao', orientacao_id=orientacao.id, marco_id=marco.id)) }}
+  <details>
+    <summary>Anexar um arquivo mesmo assim</summary>
+    {{ render_form(entrega_form, action=acao_envio, enctype='multipart/form-data') }}
+  </details>
+
+  {% else %}
+  <h2>Próximo passo — {% if marco.entrega_esperada == 'revisao' %}Revisar e enviar{% else %}Entregar{% endif %}</h2>
+  {% if marco.entrega_esperada == 'revisao' and marco.documento_base %}
+  <p><small>Baixe a versão atual de <strong>{{ marco.documento_base.titulo }}</strong>,
+  revise e envie como <strong>nova versão</strong> (já vem marcado).</small></p>
+  {% else %}
+  <p><small>Envie o trabalho desta tarefa. Se ele já existe como documento, escolha
+  <em>nova versão</em>; só use <em>documento novo</em> para um texto que ainda não está
+  no sistema.</small></p>
+  {% endif %}
+  {{ render_form(entrega_form, action=acao_envio, enctype='multipart/form-data') }}
+  <details>
+    <summary>Sinalizar a conclusão sem enviar arquivo</summary>
+    {{ render_form(sinalizar_form, action=url_for('cronogramas.sinalizar_conclusao', orientacao_id=orientacao.id, marco_id=marco.id)) }}
+  </details>
+  {% endif %}
+
+{% elif is_gestor %}
+  {% if marco.aguardando == 'orientador' %}
+  {# a vez é do orientador: conferir a entrega sinalizada e decidir #}
+  <h2>Próximo passo — Conferir a entrega</h2>
+  <p><small>A orientanda sinalizou a conclusão{% if ultima %} — última versão:
+  <a href="{{ url_for('documentos.detalhe', orientacao_id=orientacao.id, documento_id=ultima.documento_id) }}">{{ ultima.documento.titulo }} v{{ ultima.numero_versao }}</a>,
+  em {{ ultima.enviado_em.strftime('%d/%m/%Y') }}{% endif %}. Confira o material e
+  escolha um dos dois caminhos.</small></p>
+  <div class="decisao">
+    <div class="decisao-opcao">
+      <h4>Está bom — encerrar</h4>
+      <p><small>Confirma a conclusão e fecha a tarefa.</small></p>
+      <form method="post" action="{{ url_for('cronogramas.confirmar_conclusao', orientacao_id=orientacao.id, marco_id=marco.id) }}">
+        {{ confirmacao_form.hidden_tag() }}
+        <button type="submit">Confirmar conclusão</button>
+      </form>
+    </div>
+    <div class="decisao-opcao">
+      <h4>Precisa corrigir — devolver</h4>
+      <p><small>Escreva o que ajustar e, se quiser, anexe já o arquivo corrigido:
+      a tarefa volta para a orientanda revisar, num passo só.</small></p>
+      {{ render_form(devolver_form, action=url_for('cronogramas.devolver_para_revisao', orientacao_id=orientacao.id, marco_id=marco.id), enctype='multipart/form-data') }}
+    </div>
+  </div>
+  {% else %}
+  <h2>Aguardando o orientando</h2>
+  <p><small>{% if marco.aguardando == 'orientando_revisao' %}Devolvido — aguardando a
+  orientanda corrigir e reenviar. Quando ela sinalizar de novo, a decisão de confirmar
+  ou devolver aparece aqui.{% else %}A orientanda ainda não entregou nem sinalizou a
+  conclusão.{% endif %}</small></p>
+  {% endif %}
+  <details>
+    <summary>Enviar um arquivo para esta tarefa</summary>
+    {{ render_form(entrega_form, action=acao_envio, enctype='multipart/form-data') }}
+  </details>
+
+{% else %}
+  <h2>Acompanhamento</h2>
+  <p>{{ situacao_marco(marco) }}</p>
+  <details>
+    <summary>Enviar um arquivo para esta tarefa</summary>
+    {{ render_form(entrega_form, action=acao_envio, enctype='multipart/form-data') }}
+  </details>
+{% endif %}
+</div>
+
+{# ---------------------------------------------------------------- histórico #}
+{# a devolução ATIVA já está no Próximo passo da orientanda; aqui fica como
+   contexto (vez do orientador) ou histórico (concluída), e para os demais #}
+{% if marco.devolvido_em and not (is_orientando and marco.aguardando == 'orientando_revisao') %}
 <div class="card">
   {% if marco.aguardando == 'orientando_revisao' %}
   <h2>Devolvido para revisão</h2>
@@ -39,15 +151,6 @@
   <p><small>Devolvido em {{ marco.devolvido_em.strftime('%d/%m/%Y %H:%M') }} (UTC).</small></p>
   {% if marco.nota_devolucao %}
   <p><strong>O que corrigir:</strong> {{ marco.nota_devolucao }}</p>
-  {% elif marco.aguardando == 'orientando_revisao' %}
-  <p><small>Sem nota escrita — as correções podem estar no arquivo devolvido, na aba
-  <a href="{{ url_for('documentos.listar', orientacao_id=orientacao.id) }}">Documentos</a>;
-  na dúvida, procure o orientador.</small></p>
-  {% endif %}
-  {% if marco.aguardando == 'orientando_revisao' and is_orientando %}
-  <p><small>Corrija o material, envie uma nova versão na aba
-  <a href="{{ url_for('documentos.listar', orientacao_id=orientacao.id) }}">Documentos</a>
-  e sinalize a conclusão de novo.</small></p>
   {% endif %}
 </div>
 {% endif %}
@@ -66,8 +169,8 @@
     <tr><th>Documento</th><th>Versão atual</th><th>Enviada por</th><th>Enviada em</th><th></th></tr>
     {% for d, va in entregas %}
     <tr>
-      <td>{{ d.titulo }}</td>
-      <td>{% if va %}v{{ va.numero_versao }}{% if va.eh_devolucao %} <span class="badge">devolução</span>{% elif va.em_nome_do_orientando %} <span class="badge">entrega da orientanda</span>{% endif %}{% if not va.tem_arquivo %} <small>· comentário</small>{% elif va.anexos %} <small>· {{ va.quantidade_arquivos }} arquivos</small>{% endif %}{% else %}sem versão{% endif %}</td>
+      <td>{{ d.titulo }}{% if marco.documento_base and d.id == marco.documento_base.id %} <small>(texto a revisar)</small>{% endif %}</td>
+      <td>{% if va %}v{{ va.numero_versao }}{% if va.eh_devolucao %} <span class="badge">devolução</span>{% elif va.natureza == 'entrega' %} <span class="badge">entrega da orientanda</span>{% endif %}{% if not va.tem_arquivo %} <small>· comentário</small>{% elif va.anexos %} <small>· {{ va.quantidade_arquivos }} arquivos</small>{% endif %}{% else %}sem versão{% endif %}</td>
       <td>{% if va %}{{ va.remetente.nome }}
         {%- if va.em_nome_do_orientando %} <small>(em nome da orientanda)</small>
         {%- elif va.enviado_por == orientacao.orientando_id %} <small>(orientando)</small>
@@ -91,65 +194,6 @@
       <span class="badge">{{ a.status }}</span></li>
     {% endfor %}
   </ul>
-</div>
-{% endif %}
-
-<div class="card">
-  <h2>Anexar documento</h2>
-  <p><small>Opcional. Envie um arquivo como entrega desta tarefa; ele fica
-  ligado a este marco. Para enviar novas versões depois, abra o documento na aba
-  <a href="{{ url_for('documentos.listar', orientacao_id=orientacao.id) }}">Documentos</a>
-  do vínculo.</small></p>
-  {{ render_form(anexo_form, action=url_for('cronogramas.anexar', orientacao_id=orientacao.id, marco_id=marco.id), enctype='multipart/form-data') }}
-</div>
-
-{% if is_orientando and marco.status != 'concluido' and not marco.conclusao_sinalizada %}
-<div class="card">
-  <h2>Sinalizar conclusão</h2>
-  <p><small>Ao concluir o trabalho, sinalize para o orientador confirmar. Você
-  pode acrescentar uma nota (opcional).</small></p>
-  {{ render_form(sinalizar_form, action=url_for('cronogramas.sinalizar_conclusao', orientacao_id=orientacao.id, marco_id=marco.id)) }}
-</div>
-{% endif %}
-
-{% if is_gestor %}
-<div class="card">
-  <h2>Ações do orientador</h2>
-  <p><a href="{{ url_for('cronogramas.editar', orientacao_id=orientacao.id, marco_id=marco.id) }}">Editar marco</a></p>
-
-  {% if marco.status == 'concluido' %}
-  <p><small>Marco concluído. Não há nada a fazer aqui.</small></p>
-
-  {% elif marco.aguardando == 'orientador' %}
-  {# a vez é do orientador: conferir a entrega sinalizada e decidir #}
-  <h3>Conferir a entrega</h3>
-  <p><small>A orientanda sinalizou a conclusão. Confira o material e escolha um
-  dos dois caminhos.</small></p>
-
-  <div class="decisao">
-    <div class="decisao-opcao">
-      <h4>Está bom — encerrar</h4>
-      <p><small>Confirma a conclusão e fecha o marco.</small></p>
-      <form method="post" action="{{ url_for('cronogramas.confirmar_conclusao', orientacao_id=orientacao.id, marco_id=marco.id) }}">
-        {{ confirmacao_form.hidden_tag() }}
-        <button type="submit">Confirmar conclusão</button>
-      </form>
-    </div>
-    <div class="decisao-opcao">
-      <h4>Precisa corrigir — devolver</h4>
-      <p><small>Escreva o que ajustar e, se quiser, anexe já o arquivo corrigido:
-      a tarefa volta para a orientanda revisar, num passo só.</small></p>
-      {{ render_form(devolver_form, action=url_for('cronogramas.devolver_para_revisao', orientacao_id=orientacao.id, marco_id=marco.id), enctype='multipart/form-data') }}
-    </div>
-  </div>
-
-  {% elif marco.aguardando == 'orientando_revisao' %}
-  <p><small>Devolvido — aguardando a orientanda corrigir e reenviar. Quando ela
-  sinalizar de novo, a decisão de confirmar ou devolver volta para cá.</small></p>
-
-  {% else %}
-  <p><small>Aguardando a orientanda entregar e sinalizar a conclusão.</small></p>
-  {% endif %}
 </div>
 {% endif %}
 {% endblock %}

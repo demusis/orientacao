@@ -225,3 +225,10 @@ dl dd { margin: .2rem 0 0 0; }
 /* Endereço da sala virtual exibido por extenso: precisa quebrar dentro da
    coluna, porque link de videoconferência costuma ser longo e sem espaços */
 .link-reuniao { word-break: break-all; }
+
+/* Página da tarefa: o "próximo passo" vem destacado no topo; ações secundárias
+   ficam recolhidas em <details> (HTML puro, compatível com a CSP sem script). */
+.proximo-passo { border-left: 4px solid var(--azul); }
+.proximo-passo details { margin-top: .8rem; }
+.proximo-passo details > summary { cursor: pointer; color: var(--azul); }
+.proximo-passo details[open] > summary { margin-bottom: .5rem; }
