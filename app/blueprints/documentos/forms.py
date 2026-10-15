@@ -103,3 +103,11 @@ class ClassificarVersaoForm(FlaskForm):
 
     natureza = SelectField("Natureza", choices=NATUREZA_CHOICES)
     submit = SubmitField("Aplicar")
+
+
+class ExcluirVersaoForm(FlaskForm):
+    """Confirmação da exclusão de versão enviada por engano (página própria, sem
+    JavaScript: o passo intermediário é o que dá ao usuário a chance de ver o que
+    vai sumir antes de confirmar)."""
+
+    submit = SubmitField("Excluir definitivamente")

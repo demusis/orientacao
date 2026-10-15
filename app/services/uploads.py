@@ -56,6 +56,22 @@ def remover_do_disco(caminhos) -> list[str]:
     return presos
 
 
+def avisar_arquivos_presos(nomes: list[str], acao: str) -> None:
+    """Aviso único dos arquivos que resistiram à remoção pós-commit (a política
+    de tolerância mora em `remover_do_disco`; a metade que fala com o usuário,
+    aqui). Operação certificada como completa com dado pessoal ainda no disco é
+    retenção silenciosa — não pode ficar só no log."""
+    if nomes:
+        from flask import flash
+
+        flash(
+            f"Atenção: {len(nomes)} arquivo(s) não puderam ser removidos e "
+            f"permanecem no disco: {', '.join(nomes)}. Remova-os manualmente "
+            f"para concluir {acao}.",
+            "danger",
+        )
+
+
 def _extensao(nome: str) -> str:
     return nome.rsplit(".", 1)[-1].lower() if "." in nome else ""
 

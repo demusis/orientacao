@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% from "_macros.html" import nav_modulos %}
+{% block title %}Excluir versão · ARIADNE{% endblock %}
+{% block voltar %}<a class="voltar" href="{{ voltar }}">{{ documento.titulo }}</a>{% endblock %}
+{% block content %}
+{{ nav_modulos(orientacao, 'documentos') }}
+<div class="card">
+  <h1>Excluir versão enviada por engano</h1>
+  <p>Você está prestes a excluir a <strong>versão {{ versao.numero_versao }}</strong>
+  de <strong>{{ documento.titulo }}</strong>, enviada por {{ versao.remetente.nome }}
+  em {{ versao.enviado_em.strftime('%d/%m/%Y %H:%M') }}.</p>
+  {% if versao.tem_arquivo %}
+  <p>Arquivos que serão apagados:</p>
+  <ul>
+    <li>{{ versao.nome_original }}</li>
+    {% for a in versao.anexos %}<li>{{ a.nome_original }} (anexo)</li>{% endfor %}
+  </ul>
+  {% else %}
+  <p>É uma versão só de comentário, sem arquivo.</p>
+  {% endif %}
+  {% if leva_documento %}
+  <p class="flash flash-warning">Esta é a <strong>única versão</strong>: o documento
+  inteiro deixa de existir e sai da tarefa a que estava ligado.</p>
+  {% else %}
+  <p>A versão anterior volta a ser a atual do documento.</p>
+  {% endif %}
+  <p><strong>Não há como desfazer.</strong> A exclusão fica registrada na auditoria.</p>
+  <form method="post">
+    {{ form.hidden_tag() }}
+    {{ form.submit() }}
+    <a href="{{ voltar }}">Cancelar</a>
+  </form>
+</div>
+{% endblock %}

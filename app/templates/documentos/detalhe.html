@@ -35,6 +35,9 @@
     <p class="versao-arquivo"><em>Sem arquivo — comentário</em></p>
     {% endif %}
     {% if v.comentario %}<p class="versao-comentario">{{ v.comentario }}</p>{% endif %}
+    {% if v.id == excluivel_id %}
+    <p class="versao-excluir"><small><a href="{{ url_for('documentos.excluir_versao', orientacao_id=orientacao.id, documento_id=documento.id, versao_id=v.id) }}">Excluir esta versão (enviada por engano)</a></small></p>
+    {% endif %}
     {# versão-devolução é do orientador, classificada pelo ciclo da tarefa: não
        recebe o seletor de parecer (que só distingue registro/entrega) nem o
        "Emitir parecer" — evita representá-la como "registro" e apagar a etiqueta.

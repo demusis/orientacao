@@ -1,9 +1,12 @@
+import os
+
 from flask import (
     abort,
     current_app,
     flash,
     redirect,
     render_template,
+    request,
     send_from_directory,
     url_for,
 )
@@ -12,6 +15,7 @@ from flask_login import current_user, login_required
 from app.blueprints.documentos import bp
 from app.blueprints.documentos.forms import (
     ClassificarVersaoForm,
+    ExcluirVersaoForm,
     NovaVersaoForm,
     NovoDocumentoForm,
     eh_entrega_da_orientanda,
@@ -19,8 +23,14 @@ from app.blueprints.documentos.forms import (
 from app.extensions import db
 from app.models import AnexoVersao, Documento, ModeloDocumento, VersaoDocumento
 from app.services import auditoria
+from app.services import documentos as servico_documentos
 from app.services.rbac import manda_no_cronograma, orientacao_autorizada
-from app.services.uploads import UploadInvalido, salvar_versao
+from app.services.uploads import (
+    UploadInvalido,
+    avisar_arquivos_presos,
+    remover_do_disco,
+    salvar_versao,
+)
 
 
 def _documento_da_orientacao(orientacao, documento_id: int) -> Documento:
@@ -129,9 +139,19 @@ def detalhe(orientacao_id: int, documento_id: int):
                     documento_id=documento.id,
                 )
             )
+    # só a versão mais recente pode ser excluída; o link aparece quando as
+    # travas a admitem para quem está vendo
+    atual = documento.versao_atual
+    excluivel_id = (
+        atual.id
+        if atual is not None
+        and servico_documentos.motivo_bloqueio_exclusao(atual, current_user) is None
+        else None
+    )
     return render_template(
         "documentos/detalhe.html", orientacao=orientacao, documento=documento,
         form=form, eh_gestor=eh_gestor, classificar_form=ClassificarVersaoForm(),
+        excluivel_id=excluivel_id,
     )
 
 
@@ -229,4 +249,48 @@ def download_anexo(orientacao_id: int, documento_id: int, versao_id: int, anexo_
         as_attachment=True,
         download_name=anexo.nome_original,
         mimetype=anexo.mimetype,
+    )
+
+
+@bp.route(
+    "/<int:documento_id>/versoes/<int:versao_id>/excluir", methods=["GET", "POST"]
+)
+@login_required
+def excluir_versao(orientacao_id: int, documento_id: int, versao_id: int):
+    """Exclui a versão enviada por engano. GET mostra o que vai sumir (a versão,
+    os arquivos, e o documento inteiro quando ela é a única); POST exclui. As
+    travas moram em `services/documentos.py` e são revalidadas aqui."""
+    orientacao = orientacao_autorizada(orientacao_id)
+    documento = _documento_da_orientacao(orientacao, documento_id)
+    versao = db.session.get(VersaoDocumento, versao_id)
+    if versao is None or versao.documento_id != documento.id:
+        abort(404)
+    voltar = url_for(
+        "documentos.detalhe", orientacao_id=orientacao.id, documento_id=documento.id
+    )
+    motivo = servico_documentos.motivo_bloqueio_exclusao(versao, current_user)
+    if motivo:
+        if request.method == "POST":
+            servico_documentos.registrar_recusa(versao, motivo)
+            db.session.commit()
+        flash(motivo, "danger")
+        return redirect(voltar)
+
+    form = ExcluirVersaoForm()
+    leva_documento = servico_documentos.apaga_o_documento(versao)
+    if form.validate_on_submit():
+        numero, titulo = versao.numero_versao, documento.titulo
+        arquivos = servico_documentos.excluir_versao(versao, current_user)
+        db.session.commit()
+        pasta = current_app.config["UPLOAD_FOLDER"]
+        presos = remover_do_disco([os.path.join(pasta, nome) for nome in arquivos])
+        avisar_arquivos_presos(presos, "a exclusão")
+        if leva_documento:
+            flash(f"Documento \"{titulo}\" excluído (era a única versão).", "success")
+            return redirect(url_for("documentos.listar", orientacao_id=orientacao.id))
+        flash(f"Versão {numero} excluída.", "success")
+        return redirect(voltar)
+    return render_template(
+        "documentos/excluir_versao.html", orientacao=orientacao, documento=documento,
+        versao=versao, form=form, leva_documento=leva_documento, voltar=voltar,
     )

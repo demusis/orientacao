@@ -410,8 +410,9 @@
     {% if current_user.papel in ('orientador', 'orientando') %}<span class="badge badge-papel">seu papel</span>{% endif %}
   </h2>
   <p>O repositório guarda cada trabalho como um <strong>documento</strong> com
-  <strong>versões numeradas</strong> (v1, v2, …). Versões nunca são substituídas nem
-  apagadas: o histórico integral fica preservado.</p>
+  <strong>versões numeradas</strong> (v1, v2, …). Versões não são substituídas: o
+  histórico fica preservado. A única exceção é o <strong>envio por engano</strong> (ver a
+  pergunta "Enviei a versão errada…" ao fim desta página).</p>
   <h3>6.1 Enviar um documento novo</h3>
   <ol>
     <li>Na orientação, acesse <em>Documentos → + Novo documento</em>.</li>
@@ -690,7 +691,13 @@
     utilize <code>zip</code>.</dd>
 
     <dt>Enviei a versão errada de um documento. Posso apagá-la?</dt>
-    <dd>Não. Versões são permanentes. Envie a versão correta com um comentário
+    <dd>Se foi engano (arquivo errado, cadastro em duplicata), abra o documento e use
+    <em>Excluir esta versão (enviada por engano)</em>, abaixo da versão. Uma página mostra
+    o que será apagado antes de confirmar. Vale só para quem enviou (ou o administrador),
+    só para a <strong>versão mais recente</strong>, e não vale se ela já recebeu parecer,
+    se é a devolução do orientador, se a tarefa foi concluída, ou se a entrega da
+    orientanda está aguardando o orientador conferir. Sendo a única versão, o documento
+    inteiro é excluído. Fora desses casos, envie a versão correta com um comentário
     indicando que a anterior deve ser desconsiderada.</dd>
 
     <dt>Preciso corrigir uma ata finalizada.</dt>

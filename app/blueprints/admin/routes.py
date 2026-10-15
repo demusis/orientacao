@@ -51,7 +51,7 @@ from app.services import modelos as modelos_service
 from app.services import uploads as uploads_service
 from app.services import usuarios as usuarios_service
 from app.services.rbac import role_required
-from app.services.uploads import UploadInvalido
+from app.services.uploads import UploadInvalido, avisar_arquivos_presos
 from app.services.usuarios import GestaoUsuarioInvalida
 
 
@@ -128,20 +128,6 @@ def _sentinela_intocavel(usuario) -> bool:
         )
         return True
     return False
-
-
-def _avisar_arquivos_presos(nomes: list[str], acao: str) -> None:
-    """Aviso único dos arquivos que resistiram à remoção pós-commit (a política
-    de tolerância mora em `uploads.remover_do_disco`; a metade que fala com o
-    usuário, aqui). Operação certificada como completa com dado pessoal ainda
-    no disco é retenção silenciosa — não pode ficar só no log."""
-    if nomes:
-        flash(
-            f"Atenção: {len(nomes)} arquivo(s) não puderam ser removidos e "
-            f"permanecem no disco: {', '.join(nomes)}. Remova-os manualmente "
-            f"para concluir {acao}.",
-            "danger",
-        )
 
 
 def _tela_da_senha(usuario, senha: str):
@@ -247,7 +233,7 @@ def eliminar_usuario(usuario_id: int):
                 "registro(s) anonimizado(s).",
                 "success",
             )
-            _avisar_arquivos_presos(presos, "a eliminação")
+            avisar_arquivos_presos(presos, "a eliminação")
             return redirect(url_for("admin.listar_usuarios"))
         except GestaoUsuarioInvalida as exc:
             db.session.commit()  # persiste o log da recusa
@@ -722,7 +708,7 @@ def expurgar_base():
             "removido(s). Apenas a sua conta foi preservada.",
             "success",
         )
-        _avisar_arquivos_presos(resultado["arquivos_presos"], "o expurgo")
+        avisar_arquivos_presos(resultado["arquivos_presos"], "o expurgo")
         return redirect(url_for("admin.backup"))
     for erros in form.errors.values():
         for erro in erros:
@@ -831,5 +817,5 @@ def excluir_modelo(modelo_id: int):
     # arquivo só depois do banco confirmado (ver docstring de excluir_modelo)
     presos = uploads_service.remover_do_disco([caminho])
     flash("Modelo excluído.", "success")
-    _avisar_arquivos_presos(presos, "a exclusão do modelo")
+    avisar_arquivos_presos(presos, "a exclusão do modelo")
     return redirect(url_for("admin.gerir_modelos"))
