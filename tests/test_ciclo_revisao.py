@@ -146,7 +146,7 @@ def test_nova_versao_do_orientando_nao_devolve(client, orientacao, orientando):
 # --- painel e avisos ---
 
 
-def test_painel_move_devolvido_para_tarefas_abertas(app, client, orientacao, orientador):
+def test_painel_move_devolvido_para_tarefas_devolvidas(app, client, orientacao, orientador):
     from app.services import painel
 
     marco = _marco(orientacao, sinalizado=True)
@@ -160,9 +160,10 @@ def test_painel_move_devolvido_para_tarefas_abertas(app, client, orientacao, ori
         login_user(orientador)
         pend = painel.pendencias()
     ids_confirmar = [m.id for m in pend["entregas_a_confirmar"]]
-    ids_abertas = [m.id for m in pend["tarefas_abertas"]]
+    ids_devolvidas = [m.id for m in pend["tarefas_devolvidas"]]
     assert marco.id not in ids_confirmar  # saiu da lista de confirmações
-    assert marco.id in ids_abertas
+    assert marco.id in ids_devolvidas
+    assert marco.id not in [m.id for m in pend["tarefas_a_fazer"]]
 
 
 def test_aviso_de_marco_devolvido_vai_ao_orientando(app, orientacao, orientando):

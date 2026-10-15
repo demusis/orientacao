@@ -30,7 +30,7 @@ def test_entrega_sinalizada_aparece_para_orientador_e_orientando(
     pagina = client.get("/dashboard").data.decode()
     assert "aguardando sua confirmação" in pagina
     assert "Capítulo entregue" in pagina
-    assert "Tarefas em aberto" in pagina
+    assert "Tarefas a fazer" in pagina
     assert "Ainda por fazer" in pagina
 
     client.post("/auth/logout")

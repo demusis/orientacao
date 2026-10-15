@@ -21,7 +21,7 @@ from app.blueprints.documentos.forms import (
     eh_entrega_da_orientanda,
 )
 from app.extensions import db
-from app.models import AnexoVersao, Documento, ModeloDocumento, VersaoDocumento
+from app.models import AnexoVersao, Documento, Marco, ModeloDocumento, VersaoDocumento
 from app.services import auditoria
 from app.services import documentos as servico_documentos
 from app.services.rbac import manda_no_cronograma, orientacao_autorizada
@@ -148,10 +148,14 @@ def detalhe(orientacao_id: int, documento_id: int):
         and servico_documentos.motivo_bloqueio_exclusao(atual, current_user) is None
         else None
     )
+    # tarefas de revisão que apontam este documento como o texto a revisar
+    tarefas_de_revisao = Marco.query.filter_by(
+        documento_base_id=documento.id, orientacao_id=orientacao.id
+    ).all()
     return render_template(
         "documentos/detalhe.html", orientacao=orientacao, documento=documento,
         form=form, eh_gestor=eh_gestor, classificar_form=ClassificarVersaoForm(),
-        excluivel_id=excluivel_id,
+        excluivel_id=excluivel_id, tarefas_de_revisao=tarefas_de_revisao,
     )
 
 

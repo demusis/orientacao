@@ -1,11 +1,22 @@
 {% extends "base.html" %}
-{% from "_macros.html" import nav_modulos, render_form %}
+{% from "_macros.html" import nav_modulos, render_form, situacao_marco %}
 {% block title %}{{ documento.titulo }} · ARIADNE{% endblock %}
 {% block voltar %}<a class="voltar" href="{{ url_for('documentos.listar', orientacao_id=orientacao.id) }}">Documentos</a>{% endblock %}
 {% block content %}
 {{ nav_modulos(orientacao, 'documentos') }}
 {% set is_principal = current_user.id == orientacao.orientador_id or current_user.papel == 'admin' %}
 <h1>{{ documento.titulo }}</h1>
+{% if documento.marco or tarefas_de_revisao %}
+<p class="documento-tarefa">
+  {% if documento.marco %}<strong>Tarefa:</strong>
+  <a href="{{ url_for('cronogramas.detalhe', orientacao_id=orientacao.id, marco_id=documento.marco.id) }}">{{ documento.marco.titulo }}</a>
+  {{ situacao_marco(documento.marco, curto=True) }}{% endif %}
+  {% for t in tarefas_de_revisao %}
+  {% if loop.first %}{% if documento.marco %}<br>{% endif %}<strong>Texto a revisar em:</strong>{% endif %}
+  <a href="{{ url_for('cronogramas.detalhe', orientacao_id=orientacao.id, marco_id=t.id) }}">{{ t.titulo }}</a>{% if not loop.last %} · {% endif %}
+  {% endfor %}
+</p>
+{% endif %}
 <h2>Histórico de versões</h2>
 {# linha do tempo: cada versão é um bloco — cabeçalho com metadados e o
    comentário em largura inteira abaixo, para acomodar texto longo e versão sem

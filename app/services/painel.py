@@ -100,7 +100,8 @@ def pendencias() -> dict:
     if not ids:
         return {
             "entregas_a_confirmar": [],
-            "tarefas_abertas": [],
+            "tarefas_a_fazer": [],
+            "tarefas_devolvidas": [],
             "reunioes_sem_ata": [],
             "atas_rascunho": [],
             "versoes_sem_parecer": [],
@@ -120,8 +121,11 @@ def pendencias() -> dict:
         .all()
     )
 
-    # ainda não entregue; as atrasadas vêm primeiro por ordem de prazo
-    tarefas_abertas = (
+    # ainda não entregue, partido em duas filas que pedem coisas diferentes:
+    # a fazer (primeira entrega) e devolvidas (corrigir e reenviar). Juntas, a
+    # devolução — que tem nota e urgência própria — se perdia entre as demais.
+    # As atrasadas vêm primeiro, por ordem de prazo.
+    abertas = (
         _com_orientando(Marco.query)
         .filter(
             Marco.orientacao_id.in_(ids),
@@ -131,6 +135,8 @@ def pendencias() -> dict:
         .order_by(Marco.data_prevista)
         .all()
     )
+    tarefas_devolvidas = [m for m in abertas if m.aguardando == "orientando_revisao"]
+    tarefas_a_fazer = [m for m in abertas if m.aguardando == "orientando"]
 
     # Toda reunião em rascunho dos vínculos visíveis, partida em seguida por
     # estado. Uma consulta só: filtrar "já realizada" em SQL exigiria comparar
@@ -169,7 +175,8 @@ def pendencias() -> dict:
 
     return {
         "entregas_a_confirmar": entregas_a_confirmar,
-        "tarefas_abertas": tarefas_abertas,
+        "tarefas_a_fazer": tarefas_a_fazer,
+        "tarefas_devolvidas": tarefas_devolvidas,
         "reunioes_sem_ata": reunioes_sem_ata,
         "atas_rascunho": atas_rascunho,
         "versoes_sem_parecer": versoes_sem_parecer,
@@ -178,7 +185,8 @@ def pendencias() -> dict:
         "proximas_reunioes": proximas_reunioes,
         "total": (
             len(entregas_a_confirmar)
-            + len(tarefas_abertas)
+            + len(tarefas_a_fazer)
+            + len(tarefas_devolvidas)
             + len(reunioes_sem_ata)
             + len(atas_rascunho)
             + len(versoes_sem_parecer)
