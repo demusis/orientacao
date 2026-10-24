@@ -136,6 +136,12 @@ def _gravar(storage, ext: str) -> dict:
     }
 
 
+def armazenar(storage) -> dict:
+    """Valida e grava um arquivo avulso (fora de versão de documento), devolvendo
+    as colunas de armazenamento. Mesmo rastreio de rollback de `salvar_versao`."""
+    return _gravar(storage, validar_arquivo(storage))
+
+
 def salvar_versao(
     documento: Documento, storage, usuario, comentario: str | None = None,
     eh_devolucao: bool = False, em_nome_do_orientando: bool = False,

@@ -24,6 +24,7 @@ from app.extensions import db
 from app.models import AnexoVersao, Documento, Marco, ModeloDocumento, VersaoDocumento
 from app.services import auditoria
 from app.services import documentos as servico_documentos
+from app.services import materiais as servico_materiais
 from app.services.rbac import manda_no_cronograma, orientacao_autorizada
 from app.services.uploads import (
     UploadInvalido,
@@ -46,7 +47,8 @@ def listar(orientacao_id: int):
     orientacao = orientacao_autorizada(orientacao_id)
     documentos = orientacao.documentos.order_by(Documento.criado_em.desc()).all()
     return render_template(
-        "documentos/listar.html", orientacao=orientacao, documentos=documentos
+        "documentos/listar.html", orientacao=orientacao, documentos=documentos,
+        materiais=servico_materiais.da_orientacao(orientacao),
     )
 
 

@@ -8,6 +8,7 @@ from app.models import (
     Ata,
     Documento,
     LogAuditoria,
+    Material,
     Orientacao,
     OrientacaoOrientador,
     Parecer,
@@ -95,6 +96,7 @@ def motivo_bloqueio_exclusao(
         (LogAuditoria.query.filter_by(usuario_id=usuario.id), "possui ações auditadas"),
         (Documento.query.filter_by(criado_por=usuario.id), "criou documentos"),
         (VersaoDocumento.query.filter_by(enviado_por=usuario.id), "enviou versões"),
+        (Material.query.filter_by(enviado_por=usuario.id), "publicou materiais de consulta"),
         (
             Ata.query.filter(
                 (Ata.redigida_por == usuario.id) | (Ata.orientador_id == usuario.id)

@@ -27,6 +27,7 @@
       {% if current_user.papel == 'orientador' %}
         <a href="{{ url_for('reunioes.index') }}">Reuniões</a>
         <a href="{{ url_for('orientandos.listar') }}">Orientandos</a>
+        <a href="{{ url_for('materiais.index') }}">Materiais</a>
       {% endif %}
       {% if current_user.papel == 'admin' %}
         <details class="menu"><summary>Gestão</summary>

@@ -1,0 +1,8 @@
+{#- Lista de materiais de consulta (documentos do vínculo e página da tarefa). -#}
+<ul class="materiais-lista">
+  {% for m in materiais %}
+  <li><a href="{{ url_for('materiais.download', material_id=m.id) }}">{{ m.titulo }}</a>
+    <small>· {{ m.nome_original }} · {{ m.autor.nome }}, {{ m.enviado_em.strftime('%d/%m/%Y') }}</small>
+    {% if m.descricao %}<br><small>{{ m.descricao }}</small>{% endif %}</li>
+  {% endfor %}
+</ul>

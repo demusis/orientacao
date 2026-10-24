@@ -232,3 +232,6 @@ dl dd { margin: .2rem 0 0 0; }
 .proximo-passo details { margin-top: .8rem; }
 .proximo-passo details > summary { cursor: pointer; color: var(--azul); }
 .proximo-passo details[open] > summary { margin-bottom: .5rem; }
+
+.materiais-lista { margin: .3rem 0 0; padding-left: 1.2rem; overflow-wrap: anywhere; }
+.materiais-lista li { margin-bottom: .35rem; }

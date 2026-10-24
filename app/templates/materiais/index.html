@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_form %}
+{% block title %}Materiais de consulta · ARIADNE{% endblock %}
+{% block voltar %}<a class="voltar" href="{{ url_for('main.dashboard') }}">Painel</a>{% endblock %}
+{% block content %}
+<h1>Materiais de consulta</h1>
+<p><small>Arquivos que você disponibiliza a um ou mais orientandos — apostila,
+artigos, bases de dados. Não são entregas: não têm versões nem pedem parecer. Cada
+orientando escolhido passa a vê-los na aba <em>Documentos</em> do próprio vínculo e,
+se você ligar o material a uma tarefa, também na página dela. Ninguém mais os vê.</small></p>
+
+<div class="card">
+  <h2>Publicar material</h2>
+  {% if not vinculos %}
+  <p class="flash flash-warning">É necessário ao menos um vínculo ativo.</p>
+  {% endif %}
+  {{ render_form(form, enctype='multipart/form-data') }}
+</div>
+
+<div class="card">
+  <h2>Publicados por você <span class="badge">{{ publicados|length }}</span></h2>
+  {% if publicados %}
+  <table>
+    <tr><th>Material</th><th>Disponível para</th><th>Tarefa</th><th>Em</th><th></th></tr>
+    {% for m in publicados %}
+    <tr>
+      <td><a href="{{ url_for('materiais.download', material_id=m.id) }}">{{ m.titulo }}</a>
+        <br><small>{{ m.nome_original }} ({{ (m.tamanho_bytes / 1024) | round(1) }} KB)</small>
+        {% if m.descricao %}<br><small>{{ m.descricao }}</small>{% endif %}</td>
+      <td>{% for o in m.orientacoes %}{{ o.orientando.nome }}{% if not loop.last %}, {% endif %}{% endfor %}</td>
+      <td>{% set titulos = m.marcos | map(attribute='titulo') | unique | list %}{{ titulos | join(', ') if titulos else '—' }}</td>
+      <td>{{ m.enviado_em.strftime('%d/%m/%Y') }}</td>
+      <td>
+        <form method="post" action="{{ url_for('materiais.excluir', material_id=m.id) }}">
+          {{ excluir_form.hidden_tag() }}
+          <button type="submit" class="link">Excluir</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p>Nenhum material publicado ainda.</p>
+  {% endif %}
+</div>
+{% endblock %}

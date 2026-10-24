@@ -5,6 +5,13 @@
 {% block content %}
 {{ nav_modulos(orientacao, 'documentos') }}
 <h1>Documentos do projeto {{ orientacao.titulo_projeto }}</h1>
+{% if materiais %}
+<div class="card">
+  <h2>Materiais de consulta <span class="badge">{{ materiais|length }}</span></h2>
+  <p><small>Disponibilizados pelo orientador para estudo. Não são entregas.</small></p>
+  {% include "materiais/_lista.html" %}
+</div>
+{% endif %}
 <p><a href="{{ url_for('documentos.criar', orientacao_id=orientacao.id) }}">+ Novo documento</a></p>
 <table>
   <tr><th>Título</th><th>Versão atual</th><th>Enviado por</th><th>Em</th><th></th></tr>
