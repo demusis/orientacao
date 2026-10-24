@@ -135,7 +135,7 @@ redigidas. Assinale as presenças, escreva a ata e finalize-a.</p>
   </div>
   <div class="card">
     <h2>Editar conteúdo (rascunho)</h2>
-    {{ render_form(form) }}
+    {{ render_form(form, opcoes_marcos=opcoes_marcos) }}
   </div>
   {% if pode_finalizar %}
   <form method="post" action="{{ url_for('atas.finalizar', orientacao_id=orientacao.id, ata_id=ata.id) }}">
