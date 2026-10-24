@@ -168,3 +168,28 @@ def devolver_entrega(marco: Marco, nota: str | None = None, versao=None) -> bool
         "devolucao_revisao_marco", "marco", marco.id, {"com_nota": bool(marco.nota_devolucao)}
     )
     return True
+
+
+def motivo_historico(marco: Marco) -> str | None:
+    """Por que a tarefa não pode ser excluída (já tem histórico), ou None."""
+    if marco.conclusao_sinalizada or marco.status != "pendente":
+        return "a conclusão já foi sinalizada ou a tarefa saiu do estado inicial"
+    if marco.documentos:
+        return "há documento ligado a ela"
+    if marco.atas:
+        return "uma reunião a discutiu"
+    return None
+
+
+def excluir_marco(marco: Marco) -> None:
+    """Apaga a tarefa limpa (sem histórico — o chamador confere). Antes, as
+    ligações que a apontam sem cascade: materiais de consulta mostrados nela.
+    Não faz commit."""
+    from sqlalchemy import delete
+
+    from app.models import material_marco
+
+    db.session.execute(
+        delete(material_marco).where(material_marco.c.marco_id == marco.id)
+    )
+    db.session.delete(marco)

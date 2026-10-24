@@ -286,6 +286,47 @@ def anexar(orientacao_id: int, marco_id: int):
     return voltar
 
 
+@bp.route("/<int:marco_id>/excluir", methods=["GET", "POST"])
+@login_required
+def excluir(orientacao_id: int, marco_id: int):
+    """Exclui a tarefa individual criada por engano (duplicada). Só a limpa:
+    com histórico — sinalizada, com documento, discutida em reunião — ela é
+    preservada, como a tarefa em grupo e as contas. GET confirma; POST exclui."""
+    orientacao = orientacao_autorizada(orientacao_id)
+    if not manda_no_cronograma(orientacao):
+        abort(403)
+    marco = _marco_da_orientacao(orientacao, marco_id)
+    motivo = servico_cronograma.motivo_historico(marco)
+    if motivo:
+        auditoria.registrar(
+            "exclusao_tarefa_recusada", "marco", marco.id, {"motivo": motivo}
+        )
+        db.session.commit()
+        flash(
+            f"A tarefa não pode ser excluída: {motivo}. Ela fica preservada; "
+            "edite-a se precisar.",
+            "danger",
+        )
+        return redirect(
+            url_for("cronogramas.detalhe", orientacao_id=orientacao.id, marco_id=marco.id)
+        )
+    form = ConfirmacaoForm()
+    if form.validate_on_submit():
+        titulo = marco.titulo
+        auditoria.registrar(
+            "exclusao_marco", "marco", marco.id,
+            {"titulo": titulo, "data_prevista": str(marco.data_prevista),
+             "grupo_id": marco.grupo_id},
+        )
+        servico_cronograma.excluir_marco(marco)
+        db.session.commit()
+        flash(f'Tarefa "{titulo}" excluída.', "success")
+        return redirect(url_for("cronogramas.listar", orientacao_id=orientacao.id))
+    return render_template(
+        "cronogramas/excluir.html", orientacao=orientacao, marco=marco, form=form
+    )
+
+
 @bp.route("/<int:marco_id>/editar", methods=["GET", "POST"])
 @login_required
 def editar(orientacao_id: int, marco_id: int):
