@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "_macros.html" import nav_modulos %}
+{% block title %}Excluir tarefa · ARIADNE{% endblock %}
+{% block voltar %}<a class="voltar" href="{{ url_for('cronogramas.detalhe', orientacao_id=orientacao.id, marco_id=marco.id) }}">{{ marco.titulo }}</a>{% endblock %}
+{% block content %}
+{{ nav_modulos(orientacao, 'cronograma') }}
+<div class="card">
+  <h1>Excluir tarefa</h1>
+  <p>Você está prestes a excluir a tarefa <strong>{{ marco.titulo }}</strong>
+  (prazo {{ marco.data_prevista.strftime('%d/%m/%Y') }}) do cronograma de
+  <strong>{{ orientacao.orientando.nome }}</strong>.</p>
+  {% if marco.grupo_id %}
+  <p class="flash flash-warning">Ela faz parte de uma tarefa em grupo: só esta cópia, a
+  deste orientando, é excluída. As dos demais seguem.</p>
+  {% endif %}
+  <p>A tarefa ainda não tem histórico (nenhuma entrega, sinalização ou reunião), por
+  isso pode ser excluída. <strong>Não há como desfazer.</strong> A exclusão fica
+  registrada na auditoria.</p>
+  <form method="post">
+    {{ form.hidden_tag() }}
+    <button type="submit">Excluir definitivamente</button>
+    <a href="{{ url_for('cronogramas.detalhe', orientacao_id=orientacao.id, marco_id=marco.id) }}">Cancelar</a>
+  </form>
+</div>
+{% endblock %}

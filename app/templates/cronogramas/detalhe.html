@@ -30,7 +30,8 @@
     {%- endif %}</p>
   {% endif %}
   {% if marco.descricao %}<p>{{ marco.descricao }}</p>{% endif %}
-  {% if is_gestor %}<p><small><a href="{{ url_for('cronogramas.editar', orientacao_id=orientacao.id, marco_id=marco.id) }}">Editar tarefa</a></small></p>{% endif %}
+  {% if is_gestor %}<p><small><a href="{{ url_for('cronogramas.editar', orientacao_id=orientacao.id, marco_id=marco.id) }}">Editar tarefa</a>
+    {%- if not marco.tem_historico %} · <a href="{{ url_for('cronogramas.excluir', orientacao_id=orientacao.id, marco_id=marco.id) }}">Excluir tarefa</a>{% endif %}</small></p>{% endif %}
 </div>
 
 {# ---------------------------------------------------------------- próximo passo #}

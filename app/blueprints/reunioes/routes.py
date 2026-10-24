@@ -13,6 +13,7 @@ from app.blueprints.reunioes.forms import (
 from app.extensions import db
 from app.models import Ata, AtaParticipacao, Marco, Orientacao
 from app.services import auditoria, convites, tarefas
+from app.services import cronogramas as servico_cronograma
 from app.services.atas import (
     AtaImutavel,
     OperacaoInvalida,
@@ -349,7 +350,7 @@ def excluir_tarefa_grupo(grupo_id: str):
 
     ids = [m.id for m in marcos]
     for m in marcos:
-        db.session.delete(m)
+        servico_cronograma.excluir_marco(m)
     auditoria.registrar(
         "exclusao_tarefa_grupo", "marco", ids[0],
         {"grupo_id": grupo_id, "marcos": ids},
