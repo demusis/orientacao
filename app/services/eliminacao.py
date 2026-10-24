@@ -43,6 +43,7 @@ from app.models import (
     Documento,
     EventoVinculo,
     LogAuditoria,
+    Material,
     ModeloDocumento,
     Orientacao,
     OrientacaoOrientador,
@@ -50,6 +51,8 @@ from app.models import (
     Reagendamento,
     Usuario,
     VersaoDocumento,
+    material_marco,
+    material_orientacao,
 )
 from app.models.ata import AtaParticipacao, ata_marco
 from app.services import auditoria, senhas
@@ -160,6 +163,18 @@ def _apagar_vinculo_do_titular(
             db.session.delete(versao)
         db.session.delete(documento)
     # marcos: limpa antes a associação com atas de grupo que sobrevivem
+    # materiais de consulta sobrevivem (são do orientador); some só o
+    # compartilhamento com o vínculo e com as tarefas dele
+    db.session.execute(
+        delete(material_orientacao).where(
+            material_orientacao.c.orientacao_id == orientacao.id
+        )
+    )
+    db.session.execute(
+        delete(material_marco).where(
+            material_marco.c.marco_id.in_([m.id for m in orientacao.marcos])
+        )
+    )
     for marco in list(orientacao.marcos):
         db.session.execute(delete(ata_marco).where(ata_marco.c.marco_id == marco.id))
         db.session.delete(marco)
@@ -205,6 +220,7 @@ def _reatribuir_autorias(usuario: Usuario, sentinela: Usuario) -> int:
         (Orientacao, Orientacao.orientador_id),  # vínculos não-ativos que ele
         (Documento, Documento.criado_por),  # orientava (ativos são barrados)
         (VersaoDocumento, VersaoDocumento.enviado_por),
+        (Material, Material.enviado_por),
         (AtaParticipacao, AtaParticipacao.presenca_registrada_por),
         (Reagendamento, Reagendamento.registrado_por),
         (EventoVinculo, EventoVinculo.registrado_por),

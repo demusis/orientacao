@@ -155,6 +155,13 @@
 </div>
 {% endif %}
 
+{% if materiais %}
+<div class="card">
+  <h2>Material de consulta</h2>
+  {% include "materiais/_lista.html" %}
+</div>
+{% endif %}
+
 {% if marco.nota_conclusao %}
 <div class="card">
   <h2>Nota do orientando</h2>

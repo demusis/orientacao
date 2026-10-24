@@ -41,6 +41,9 @@ ORDEM_TABELAS = [
     "versao_documento",
     "anexo_versao",
     "modelo_documento",
+    "material",
+    "material_orientacao",
+    "material_marco",
     "ata",
     "ata_orientacao",
     "ata_marco",
@@ -58,7 +61,10 @@ ORDEM_TABELAS = [
 # discutidos em cada reunião — passou a ser incluída em 23/07/2026; antes disso,
 # backup e migração a deixavam de fora, perdendo essa ligação em silêncio.)
 # (anexo_versao — arquivos adicionais de uma versão — nasceu em 28/09/2026.)
-TABELAS_OPCIONAIS_NA_RESTAURACAO = {"ata_marco", "anexo_versao"}
+# (material* — materiais de consulta — nasceram em 24/10/2026.)
+TABELAS_OPCIONAIS_NA_RESTAURACAO = {
+    "ata_marco", "anexo_versao", "material", "material_orientacao", "material_marco",
+}
 
 # `configuracao_email` está deliberadamente FORA da lista acima, por dois
 # motivos que se somam:

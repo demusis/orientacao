@@ -16,6 +16,7 @@ from app.models import Documento, Marco
 from app.models.cronograma import ultima_versao
 from app.services import auditoria
 from app.services import cronogramas as servico_cronograma
+from app.services import materiais as servico_materiais
 from app.services.rbac import manda_no_cronograma, orientacao_autorizada
 from app.services.uploads import UploadInvalido, salvar_versao
 
@@ -189,6 +190,7 @@ def detalhe(orientacao_id: int, marco_id: int):
         sinalizar_form=SinalizarForm(),
         confirmacao_form=ConfirmacaoForm(),
         devolver_form=devolver_form,
+        materiais=servico_materiais.do_marco(marco),
     )
 
 

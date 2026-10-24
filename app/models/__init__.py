@@ -8,6 +8,7 @@ from app.models.documento import (
     ModeloDocumento,
     VersaoDocumento,
 )
+from app.models.material import Material, material_marco, material_orientacao
 from app.models.orientacao import EventoVinculo, Orientacao, OrientacaoOrientador
 from app.models.user import Usuario
 
@@ -28,4 +29,7 @@ __all__ = [
     "Reagendamento",
     "Parecer",
     "LogAuditoria",
+    "Material",
+    "material_marco",
+    "material_orientacao",
 ]
