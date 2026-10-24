@@ -20,7 +20,7 @@ from app.blueprints.atas.forms import (
 )
 from app.extensions import db
 from app.models import Ata, AtaParticipacao, Documento, Parecer, VersaoDocumento
-from app.services import auditoria, convites, exportacao
+from app.services import auditoria, convites, exportacao, marcos_da_reuniao
 from app.services import cronogramas as servico_cronograma
 from app.services.atas import (
     AtaImutavel,
@@ -72,8 +72,9 @@ def criar_ata(orientacao_id: int):
     if not orientacao.orienta(current_user) and current_user.papel != "admin":
         abort(403)
     form = AtaForm()
-    marcos = orientacao.marcos.all()
-    form.marcos.choices = [(m.id, m.titulo) for m in marcos]
+    data_ref = form.data_reuniao.data if form.is_submitted() else None
+    opcoes_marcos = marcos_da_reuniao.opcoes([orientacao], data_ref)
+    form.marcos.choices = [(o.valor, o.rotulo) for o in opcoes_marcos.todas]
     if form.validate_on_submit():
         ata = Ata(
             tipo="individual",
@@ -85,7 +86,7 @@ def criar_ata(orientacao_id: int):
             deliberacoes=form.deliberacoes.data,
             redigida_por=current_user.id,
             participacoes=[AtaParticipacao(orientacao_id=orientacao.id)],
-            marcos=[m for m in marcos if m.id in form.marcos.data],
+            marcos=marcos_da_reuniao.expandir(form.marcos.data, [orientacao]),
         )
         db.session.add(ata)
         db.session.flush()
@@ -93,7 +94,9 @@ def criar_ata(orientacao_id: int):
         db.session.commit()
         flash("Ata registrada como rascunho.", "success")
         return redirect(url_for("atas.listar_atas", orientacao_id=orientacao.id))
-    return render_template("atas/form.html", form=form, orientacao=orientacao)
+    return render_template(
+        "atas/form.html", form=form, orientacao=orientacao, opcoes_marcos=opcoes_marcos
+    )
 
 
 @bp.route("/atas/<int:ata_id>", methods=["GET", "POST"])
@@ -111,15 +114,15 @@ def detalhe_ata(orientacao_id: int, ata_id: int):
     # O nome do orientando vai no rótulo: numa reunião de grupo, marcos de nomes
     # iguais (ex.: "Envio da última versão do Projeto") apareceriam indistinguíveis
     # sem ele.
-    marcos_disponiveis = [
-        m for o in ata.orientacoes for m in o.marcos
-    ]
-    form.marcos.choices = [
-        (m.id, f"{m.titulo} — {m.orientacao.orientando.nome}")
-        for m in marcos_disponiveis
-    ]
+    # A lista é enxuta (ver services/marcos_da_reuniao.py): relevantes à vista,
+    # tarefa em grupo uma vez só, o resto recolhido. Os já ligados ficam sempre à
+    # vista — omiti-los faria o salvamento apagá-los.
+    vinculos = list(ata.orientacoes)
+    marcados = list(ata.marcos)
+    opcoes_marcos = marcos_da_reuniao.opcoes(vinculos, ata.data_reuniao, marcados)
+    form.marcos.choices = [(o.valor, o.rotulo) for o in opcoes_marcos.todas]
     if request.method == "GET":
-        form.marcos.data = [m.id for m in ata.marcos]
+        form.marcos.data = marcos_da_reuniao.valores_marcados(marcados, vinculos)
 
     if pode_editar and form.submit.data and form.validate_on_submit():
         try:
@@ -127,7 +130,7 @@ def detalhe_ata(orientacao_id: int, ata_id: int):
                 ata,
                 pauta=form.pauta.data,
                 deliberacoes=form.deliberacoes.data,
-                marcos=[m for m in marcos_disponiveis if m.id in form.marcos.data],
+                marcos=marcos_da_reuniao.expandir(form.marcos.data, vinculos),
                 link=form.link_reuniao.data,
             )
             db.session.commit()
@@ -150,6 +153,7 @@ def detalhe_ata(orientacao_id: int, ata_id: int):
         pode_finalizar=current_user.id == ata.orientador_id
         or current_user.papel == "admin",
         acao_form=AcaoForm(),
+        opcoes_marcos=opcoes_marcos,
     )
 
 

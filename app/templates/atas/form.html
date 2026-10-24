@@ -6,6 +6,6 @@
 {{ nav_modulos(orientacao, 'atas') }}
 <div class="card">
   <h1>Nova ata no projeto {{ orientacao.titulo_projeto }}</h1>
-  {{ render_form(form) }}
+  {{ render_form(form, opcoes_marcos=opcoes_marcos) }}
 </div>
 {% endblock %}

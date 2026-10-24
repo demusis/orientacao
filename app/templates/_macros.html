@@ -26,7 +26,38 @@
 {%- endif -%}
 {% endmacro %}
 
-{% macro render_form(form, action='', enctype=None, method='post') %}
+{% macro campo_marcos(campo, opcoes) %}
+{#- "Marcos discutidos" agrupado: blocos à vista (tarefas em grupo, depois por
+    orientando) e o restante (concluídas, prazo distante) recolhido num
+    <details>. Todos são o mesmo campo — marcar dentro ou fora do <details> dá no
+    mesmo. HTML puro, sem script (CSP). -#}
+{% set por_valor = {} %}
+{% for sub in campo %}{% set _ = por_valor.update({sub.data: sub}) %}{% endfor %}
+{% macro _bloco(bloco) %}
+  <p class="marcos-bloco">{{ bloco.titulo }}</p>
+  <ul>
+    {% for o in bloco.opcoes %}{% set sub = por_valor.get(o.valor) %}{% if sub %}
+    <li>{{ sub() }} <label for="{{ sub.id }}">{{ o.rotulo }} <small>· {{ o.detalhe }}</small></label></li>
+    {% endif %}{% endfor %}
+  </ul>
+{% endmacro %}
+<div class="campo campo-xl campo-marcos">
+  {{ campo.label }}
+  {% for bloco in opcoes.visiveis %}{{ _bloco(bloco) }}{% else %}
+  <p><small>Nenhuma tarefa em aberto com prazo próximo.</small></p>
+  {% endfor %}
+  {% if opcoes.recolhidas %}
+  <details>
+    <summary>Mostrar concluídas e com prazo distante ({{ opcoes.total_recolhidas }})</summary>
+    {% for bloco in opcoes.recolhidas %}{{ _bloco(bloco) }}{% endfor %}
+  </details>
+  {% endif %}
+  {% if campo.description %}<span class="ajuda-campo">{{ campo.description }}</span>{% endif %}
+  {% for erro in campo.errors %}<span class="erro">{{ erro }}</span>{% endfor %}
+</div>
+{% endmacro %}
+
+{% macro render_form(form, action='', enctype=None, method='post', opcoes_marcos=None) %}
 {#- largura de cada campo na grade de 12 colunas, derivada do tipo: texto
     longo e listas de seleção ocupam a linha inteira; datas, horas e números
     ocupam um quarto; seleções curtas, um terço. -#}
@@ -52,12 +83,16 @@
 <form class="form-grid" method="{{ method }}" action="{{ action }}" {% if enctype %}enctype="{{ enctype }}"{% endif %}>
   {{ form.hidden_tag() }}
   {% for campo in form if campo.widget.input_type not in ('hidden', 'submit') %}
+    {% if campo.type == 'MarcosField' and opcoes_marcos is not none %}
+    {{ campo_marcos(campo, opcoes_marcos) }}
+    {% else %}
     <div class="campo {{ larguras.get(campo.type, 'campo-l') }}">
       {{ campo.label }}
       {{ campo() }}
       {% if campo.description %}<span class="ajuda-campo">{{ campo.description }}</span>{% endif %}
       {% for erro in campo.errors %}<span class="erro">{{ erro }}</span>{% endfor %}
     </div>
+    {% endif %}
   {% endfor %}
   {{ form.submit() }}
 </form>

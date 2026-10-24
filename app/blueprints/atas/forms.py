@@ -28,8 +28,11 @@ AJUDA_MARCACAO = (
 )
 
 AJUDA_MARCOS = (
-    "Marcos do cronograma tratados nesta reunião. Ao finalizar a ata, esta "
-    "associação congela junto com o registro."
+    "Marcos do cronograma tratados nesta reunião. À vista ficam as tarefas em "
+    "aberto com prazo próximo (e as já marcadas); concluídas e com prazo distante "
+    "ficam recolhidas abaixo. Tarefa em grupo aparece uma vez e vale para todos "
+    "os participantes. Ao finalizar a ata, esta associação congela junto com o "
+    "registro."
 )
 
 AJUDA_LINK = (
@@ -82,6 +85,25 @@ class MultiCheckboxField(SelectMultipleField):
     option_widget = widgets.CheckboxInput()
 
 
+class MarcosField(MultiCheckboxField):
+    """Marcos discutidos: valores `g:<grupo>` / `m:<id>` das opções montadas em
+    `services/marcos_da_reuniao.py`. Aceita também id numérico puro (POSTs
+    anteriores ao formato); a restrição aos vínculos da ata é de `expandir`."""
+
+    def pre_validate(self, form):
+        aceitos = {valor for valor, _ in self.choices}
+        for valor in self.data or []:
+            if valor not in aceitos and not str(valor).isdigit():
+                raise ValidationError("Marco inválido para esta reunião.")
+
+
+def campo_marcos():
+    return MarcosField(
+        "Marcos discutidos", coerce=str, validators=[Optional()],
+        description=AJUDA_MARCOS,
+    )
+
+
 class AtaForm(FlaskForm):
     data_reuniao = DateField("Data da reunião", validators=[DataRequired()])
     hora_reuniao = TimeField("Hora da reunião", validators=[Optional()])
@@ -90,9 +112,7 @@ class AtaForm(FlaskForm):
     deliberacoes = TextAreaField(
         "Deliberações", validators=[DataRequired()], description=AJUDA_MARCACAO
     )
-    marcos = MultiCheckboxField(
-        "Marcos discutidos", coerce=int, validators=[Optional()], description=AJUDA_MARCOS
-    )
+    marcos = campo_marcos()
     submit = SubmitField("Salvar rascunho")
 
 
@@ -109,9 +129,7 @@ class AtaEdicaoForm(FlaskForm):
     deliberacoes = TextAreaField(
         "Deliberações", validators=[Optional()], description=AJUDA_MARCACAO
     )
-    marcos = MultiCheckboxField(
-        "Marcos discutidos", coerce=int, validators=[Optional()], description=AJUDA_MARCOS
-    )
+    marcos = campo_marcos()
     submit = SubmitField("Salvar alterações")
 
 
