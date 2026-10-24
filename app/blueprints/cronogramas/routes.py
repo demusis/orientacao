@@ -141,7 +141,10 @@ def _escolhas_destino(docs) -> list[tuple[str, str]]:
         atual = d.versao_atual
         rotulo = f"Nova versão de: {d.titulo}"
         if atual is not None:
-            rotulo += f" (hoje na v{atual.numero_versao})"
+            rotulo += (
+                f" (hoje na v{atual.numero_versao}, "
+                f"enviada em {atual.enviado_em:%d/%m/%Y})"
+            )
         escolhas.append((str(d.id), rotulo))
     escolhas.append((NOVO_DOCUMENTO, "Documento novo"))
     return escolhas
