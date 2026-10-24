@@ -135,21 +135,40 @@
 </div>
 {% endif %}
 
+{#- tabela de "Tarefas a fazer", à vista e no <details>: a linha é um marco ou,
+    para quem orienta, uma tarefa em grupo (um nome por orientando, cada um
+    levando à própria tarefa) -#}
+{% macro tabela_a_fazer(linhas) %}
+<table>
+  <tr><th>Tarefa</th><th>Etapa</th>{% if avalia %}<th>Orientando</th>{% endif %}<th>Prazo</th><th></th></tr>
+  {% for l in linhas %}{% set m = l.principal %}
+  <tr>
+    <td>{{ m.titulo }}{% if l.grupo %} <span class="badge">grupo</span>{% else %} {{ situacao_marco(m, curto=True) }}{% endif %}{{ espera(m) }}</td>
+    <td>{{ ETAPA_MARCO_LABEL.get(m.etapa, 'Não classificada') }}</td>
+    {% if avalia %}<td>{% for x in l.marcos %}<a href="{{ url_for('cronogramas.detalhe', orientacao_id=x.orientacao_id, marco_id=x.id) }}">{{ x.orientacao.orientando.nome }}</a>{% if x.atrasado and l.grupo %} <span class="badge badge-atrasado">atrasado</span>{% endif %}{% if not loop.last %}<br>{% endif %}{% endfor %}</td>{% endif %}
+    <td>{{ l.prazo }}{% if l.atrasado %} <span class="badge badge-atrasado">atrasado</span>{% endif %}</td>
+    <td>{% if not l.grupo %}<a href="{{ url_for('cronogramas.detalhe', orientacao_id=m.orientacao_id, marco_id=m.id) }}">Abrir</a>{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endmacro %}
+
 {% if pendencias.tarefas_a_fazer %}
-<div class="card">
+<div class="card painel-recolhivel">
   <h2>Tarefas a fazer <span class="badge">{{ pendencias.tarefas_a_fazer|length }}</span></h2>
-  <table>
-    <tr><th>Tarefa</th><th>Etapa</th>{% if avalia %}<th>Orientando</th>{% endif %}<th>Prazo</th><th></th></tr>
-    {% for m in pendencias.tarefas_a_fazer %}
-    <tr>
-      <td>{{ m.titulo }} {{ situacao_marco(m, curto=True) }}{{ espera(m) }}</td>
-      <td>{{ ETAPA_MARCO_LABEL.get(m.etapa, 'Não classificada') }}</td>
-      {% if avalia %}<td>{{ m.orientacao.orientando.nome }}</td>{% endif %}
-      <td>{{ m.data_prevista }}{% if m.atrasado %} <span class="badge badge-atrasado">atrasado</span>{% endif %}</td>
-      <td><a href="{{ url_for('cronogramas.detalhe', orientacao_id=m.orientacao_id, marco_id=m.id) }}">Abrir</a></td>
-    </tr>
-    {% endfor %}
-  </table>
+  {% if pendencias.linhas_a_fazer %}
+  <p><small>Atrasadas e com prazo nos próximos 30 dias{% if avalia %}; tarefa em grupo numa
+  linha só, com um link por orientando{% endif %}.</small></p>
+  {{ tabela_a_fazer(pendencias.linhas_a_fazer) }}
+  {% else %}
+  <p><small>Nada vence nos próximos 30 dias.</small></p>
+  {% endif %}
+  {% if pendencias.linhas_a_fazer_depois %}
+  <details>
+    <summary>Ver as demais ({{ pendencias.linhas_a_fazer_depois|length }}) — prazo além de 30 dias</summary>
+    {{ tabela_a_fazer(pendencias.linhas_a_fazer_depois) }}
+  </details>
+  {% endif %}
 </div>
 {% endif %}
 
@@ -204,16 +223,12 @@
 {% endif %}
 
 <h2>{% if current_user.papel == 'orientando' %}Minha orientação{% elif current_user.papel == 'orientador' %}Minhas orientações{% else %}Orientações{% endif %}</h2>
-{% if orientacoes %}
-<table>
-  <tr><th>Projeto</th><th>Modalidade</th><th>Prazo</th><th>Orientador</th><th>Orientando</th><th>Status</th><th>Ações</th></tr>
-  {% for o in orientacoes %}
-  {% set r = relogios[o.id] %}
+{% macro linha_orientacao(o, r=None) %}
   <tr>
     <td>{{ o.titulo_projeto }}</td>
     <td>{{ MODALIDADE_LABEL[o.modalidade] }}</td>
-    <td><span class="badge badge-risco-{{ r.risco }}">{{ r.rotulo }}</span>
-        {% if r.marco_critico_vencido %}<br><small>marco crítico vencido</small>{% endif %}</td>
+    <td>{% if r %}<span class="badge badge-risco-{{ r.risco }}">{{ r.rotulo }}</span>
+        {% if r.marco_critico_vencido %}<br><small>marco crítico vencido</small>{% endif %}{% else %}—{% endif %}</td>
     <td>{{ o.orientador.nome }}</td>
     <td>{{ o.orientando.nome }}</td>
     <td><span class="badge">{{ o.status }}</span></td>
@@ -226,9 +241,23 @@
       {% endif %}
     </td>
   </tr>
-  {% endfor %}
+{% endmacro %}
+{% set cabecalho %}<tr><th>Projeto</th><th>Modalidade</th><th>Prazo</th><th>Orientador</th><th>Orientando</th><th>Status</th><th>Ações</th></tr>{% endset %}
+{% if orientacoes %}
+<table>
+  {{ cabecalho }}
+  {% for o in orientacoes %}{{ linha_orientacao(o, relogios[o.id]) }}{% endfor %}
 </table>
 {% else %}
-<p>Nenhuma orientação vinculada.</p>
+<p>Nenhuma orientação ativa.</p>
+{% endif %}
+{% if encerradas %}
+<details class="painel-encerradas">
+  <summary>Orientações encerradas ({{ encerradas|length }})</summary>
+  <table>
+    {{ cabecalho }}
+    {% for o in encerradas %}{{ linha_orientacao(o) }}{% endfor %}
+  </table>
+</details>
 {% endif %}
 {% endblock %}
