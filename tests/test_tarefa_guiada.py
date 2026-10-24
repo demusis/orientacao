@@ -249,7 +249,8 @@ def test_texto_base_mostra_a_versao_atual(client, orientacao, orientador):
     doc = _doc(orientacao, orientacao.orientando_id, titulo="Defesa")
     login(client, "orientador@teste.br")
     pagina = client.get(f"/orientacoes/{orientacao.id}/cronograma/novo").data.decode()
-    assert "Defesa (hoje na v1)" in pagina
+    v = doc.versao_atual
+    assert f"Defesa (hoje na v1, enviada em {v.enviado_em:%d/%m/%Y})" in pagina
     assert doc.id
 
 

@@ -47,7 +47,10 @@ def _rotulo_texto_base(documento) -> str:
     atual = documento.versao_atual
     if atual is None:
         return documento.titulo
-    return f"{documento.titulo} (hoje na v{atual.numero_versao})"
+    return (
+        f"{documento.titulo} (hoje na v{atual.numero_versao}, "
+        f"enviada em {atual.enviado_em:%d/%m/%Y})"
+    )
 
 
 def _escolhas_texto_base(form, orientacao) -> None:
