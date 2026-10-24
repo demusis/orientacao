@@ -240,3 +240,8 @@ dl dd { margin: .2rem 0 0 0; }
 .campo-marcos .marcos-bloco { margin: .6rem 0 .2rem; font-weight: 600; font-size: .9rem; }
 .campo-marcos details { margin-top: .6rem; }
 .campo-marcos details > summary { cursor: pointer; color: var(--azul); }
+
+/* Painel: o que vence além da janela e as orientações encerradas, recolhidos */
+.painel-recolhivel details, details.painel-encerradas { margin-top: .8rem; }
+.painel-recolhivel details > summary, details.painel-encerradas > summary { cursor: pointer; color: var(--azul); }
+.painel-recolhivel details[open] > summary, details.painel-encerradas[open] > summary { margin-bottom: .5rem; }

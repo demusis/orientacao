@@ -38,10 +38,15 @@ def index():
 @bp.route("/dashboard")
 @login_required
 def dashboard():
-    orientacoes = orientacoes_do_usuario().order_by(Orientacao.criado_em.desc()).all()
+    todas = orientacoes_do_usuario().order_by(Orientacao.criado_em.desc()).all()
+    # a tabela principal mostra só os vínculos ativos; os encerrados ficam
+    # recolhidos no fim, para o histórico (atas, pareceres) seguir à mão
+    orientacoes = [o for o in todas if o.status == "ativa"]
+    encerradas = [o for o in todas if o.status != "ativa"]
     return render_template(
         "main/dashboard.html",
         orientacoes=orientacoes,
+        encerradas=encerradas,
         relogios={o.id: painel.relogio(o) for o in orientacoes},
         pendencias=painel.pendencias(),
     )

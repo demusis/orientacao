@@ -8,9 +8,9 @@ from app.models import Documento, LogAuditoria, Marco, VersaoDocumento
 from tests.conftest import login, pdf_falso
 
 
-def _marco(orientacao, titulo="Revisão da metodologia", **kw):
+def _marco(orientacao, titulo="Revisão da metodologia", data_prevista=None, **kw):
     m = Marco(orientacao_id=orientacao.id, titulo=titulo,
-              data_prevista=date.today() + timedelta(days=20), **kw)
+              data_prevista=data_prevista or date.today() + timedelta(days=20), **kw)
     db.session.add(m)
     db.session.commit()
     return m

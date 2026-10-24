@@ -10,6 +10,9 @@ relacionamento é `lazy="dynamic"`.
 Devolve ainda `proximas_reunioes`, que é agenda e não pendência, e por isso não
 entra no total: reunião marcada para a semana que vem não está parada esperando
 ninguém."""
+from dataclasses import dataclass, field
+from datetime import timedelta
+
 from sqlalchemy.orm import joinedload
 
 from app.models import (
@@ -95,12 +98,70 @@ def _com_orientando(consulta):
     )
 
 
+# "Tarefas a fazer": à vista só as atrasadas e as de prazo próximo; o resto vai
+# recolhido. Com cronogramas inteiros cadastrados de uma vez (14 tarefas por
+# aluno), a lista completa afogava o que vence agora.
+JANELA_A_FAZER_DIAS = 30
+
+
+@dataclass
+class LinhaTarefa:
+    """Uma linha de "Tarefas a fazer": um marco, ou — para quem orienta — os
+    marcos de uma mesma tarefa em grupo, numa linha só."""
+
+    marcos: list = field(default_factory=list)
+
+    @property
+    def principal(self):
+        return min(self.marcos, key=lambda m: (m.data_prevista, m.id))
+
+    @property
+    def grupo(self) -> bool:
+        return len(self.marcos) > 1
+
+    @property
+    def prazo(self):
+        return self.principal.data_prevista
+
+    @property
+    def atrasado(self) -> bool:
+        return any(m.atrasado for m in self.marcos)
+
+
+def agrupar_linhas(marcos, agrupar_grupos: bool) -> list[LinhaTarefa]:
+    """Uma linha por marco; com `agrupar_grupos`, os marcos de mesmo `grupo_id`
+    viram uma linha. Preserva a ordem de prazo."""
+    linhas: list[LinhaTarefa] = []
+    por_grupo: dict[str, LinhaTarefa] = {}
+    for m in marcos:
+        if agrupar_grupos and m.grupo_id:
+            if m.grupo_id in por_grupo:
+                por_grupo[m.grupo_id].marcos.append(m)
+                continue
+            por_grupo[m.grupo_id] = LinhaTarefa([m])
+            linhas.append(por_grupo[m.grupo_id])
+        else:
+            linhas.append(LinhaTarefa([m]))
+    return linhas
+
+
+def dividir_por_prazo(linhas, hoje=None):
+    """(à vista, recolhidas): à vista as atrasadas e as de prazo até
+    `JANELA_A_FAZER_DIAS`; as demais, recolhidas."""
+    limite = (hoje or hoje_local()) + timedelta(days=JANELA_A_FAZER_DIAS)
+    vista = [linha for linha in linhas if linha.atrasado or linha.prazo <= limite]
+    depois = [linha for linha in linhas if linha not in vista]
+    return vista, depois
+
+
 def pendencias() -> dict:
     ids = _ids_visiveis()
     if not ids:
         return {
             "entregas_a_confirmar": [],
             "tarefas_a_fazer": [],
+            "linhas_a_fazer": [],
+            "linhas_a_fazer_depois": [],
             "tarefas_devolvidas": [],
             "reunioes_sem_ata": [],
             "atas_rascunho": [],
@@ -137,6 +198,12 @@ def pendencias() -> dict:
     )
     tarefas_devolvidas = [m for m in abertas if m.aguardando == "orientando_revisao"]
     tarefas_a_fazer = [m for m in abertas if m.aguardando == "orientando"]
+    # quem orienta vê a tarefa em grupo numa linha só; o orientando só tem a sua
+    from flask_login import current_user
+
+    linhas_a_fazer, linhas_a_fazer_depois = dividir_por_prazo(
+        agrupar_linhas(tarefas_a_fazer, current_user.papel != "orientando")
+    )
 
     # Toda reunião em rascunho dos vínculos visíveis, partida em seguida por
     # estado. Uma consulta só: filtrar "já realizada" em SQL exigiria comparar
@@ -176,6 +243,8 @@ def pendencias() -> dict:
     return {
         "entregas_a_confirmar": entregas_a_confirmar,
         "tarefas_a_fazer": tarefas_a_fazer,
+        "linhas_a_fazer": linhas_a_fazer,
+        "linhas_a_fazer_depois": linhas_a_fazer_depois,
         "tarefas_devolvidas": tarefas_devolvidas,
         "reunioes_sem_ata": reunioes_sem_ata,
         "atas_rascunho": atas_rascunho,
