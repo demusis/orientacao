@@ -243,3 +243,21 @@ def test_concluida_sem_formularios(client, orientacao, orientando):
     pagina = _pagina(client, orientacao, marco)
     assert "Tarefa concluída" in pagina
     assert "/anexar" not in pagina
+
+
+def test_texto_base_mostra_a_versao_atual(client, orientacao, orientador):
+    doc = _doc(orientacao, orientacao.orientando_id, titulo="Defesa")
+    login(client, "orientador@teste.br")
+    pagina = client.get(f"/orientacoes/{orientacao.id}/cronograma/novo").data.decode()
+    assert "Defesa (hoje na v1)" in pagina
+    assert doc.id
+
+
+def test_emitir_parecer_so_na_entrega_da_orientanda(client, orientacao, orientador):
+    meu = _doc(orientacao, orientacao.orientador_id, titulo="Anotado por mim")
+    dela = _doc(orientacao, orientacao.orientando_id, titulo="Texto dela")
+    login(client, "orientador@teste.br")
+    pagina_meu = client.get(f"/orientacoes/{orientacao.id}/documentos/{meu.id}").data.decode()
+    pagina_dela = client.get(f"/orientacoes/{orientacao.id}/documentos/{dela.id}").data.decode()
+    assert "Emitir parecer" not in pagina_meu
+    assert "Emitir parecer" in pagina_dela

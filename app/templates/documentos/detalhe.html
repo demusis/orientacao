@@ -53,10 +53,13 @@
        recebe o seletor de parecer (que só distingue registro/entrega) nem o
        "Emitir parecer" — evita representá-la como "registro" e apagar a etiqueta.
        O seletor "De quem é" só aparece no upload do orientador: o que a
-       orientanda envia é entrega dela, sem pergunta. #}
+       orientanda envia é entrega dela, sem pergunta. "Emitir parecer" só na
+       entrega da orientanda (enviada por ela ou registrada em nome dela): o
+       registro do próprio orientador não pede parecer dele — mesma regra do
+       Painel (services/pareceres.py). #}
     {% if is_principal and not v.eh_devolucao %}
     <div class="versao-acoes acoes">
-      {% if v.tem_arquivo %}
+      {% if v.tem_arquivo and v.natureza == 'entrega' %}
       <a href="{{ url_for('atas.emitir_parecer', orientacao_id=orientacao.id, versao=v.id) }}">Emitir parecer</a>
       {% endif %}
       {% if not v.enviada_pela_orientanda %}

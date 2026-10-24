@@ -41,10 +41,19 @@ def listar(orientacao_id: int):
     )
 
 
+def _rotulo_texto_base(documento) -> str:
+    """Título com a versão atual: quem procura "a v7" acha o documento que está
+    nela — a lista é de documentos, e a revisão parte da versão corrente."""
+    atual = documento.versao_atual
+    if atual is None:
+        return documento.titulo
+    return f"{documento.titulo} (hoje na v{atual.numero_versao})"
+
+
 def _escolhas_texto_base(form, orientacao) -> None:
     """Os documentos do vínculo, para a tarefa de revisão apontar o texto."""
     form.documento_base_id.choices = [(0, "(nenhum)")] + [
-        (d.id, d.titulo)
+        (d.id, _rotulo_texto_base(d))
         for d in orientacao.documentos.order_by(Documento.titulo).all()
     ]
 
