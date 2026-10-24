@@ -153,24 +153,34 @@ class Ata(db.Model):
 
     @property
     def realizada(self) -> bool:
-        """A data da reunião já passou.
+        """A reunião já aconteceu: a data passou, ou é hoje e a hora já chegou.
 
-        **Compara apenas a data, e de propósito.** `hora_reuniao` é hora de
-        parede digitada pelo orientador; confrontá-la com o relógio daria a
-        reunião da tarde como realizada de manhã em qualquer descompasso de
-        referência. O preço é o erro que se prefere: a reunião de hoje pela
-        manhã só migra para "aguardando ata" na virada do dia. Nunca se declara
-        passado o que ainda está por vir.
+        Data e hora são as de **parede local** (`agora_local`, fuso da
+        instituição em `FUSO_LOCAL`), as mesmas em que o orientador as digitou.
+        Antes a comparação era só por data — por medo de confrontar hora local
+        com relógio UTC —, e o preço era alto: a reunião das 14:00 continuava
+        "ainda por acontecer" até a meia-noite, e quem entrava logo depois para
+        registrar a ata lia que o encontro não tinha ocorrido. Com o relógio
+        local, a hora pode ser comparada sem descompasso.
 
-        A data comparada é a **local** (`agora_local`, fuso da instituição em
-        `FUSO_LOCAL`): a data digitada é a do dia local, e compará-la com a
-        data UTC fazia toda reunião "de hoje" virar passada às 20:00 locais,
-        quando a meia-noite UTC cruza."""
+        Reunião de hoje **sem hora** segue agendada até a virada do dia: não há
+        como saber se já aconteceu, e nunca se declara passado o que pode estar
+        por vir. A página da ata a anuncia como "marcada para hoje", e o registro
+        (presenças, deliberações, finalização) já é permitido no próprio dia."""
         if self.status != "rascunho":
             return False
+        from app.services.tempo import agora_local
+
+        agora = agora_local()
+        if self.data_reuniao != agora.date():
+            return self.data_reuniao < agora.date()
+        return self.hora_reuniao is not None and self.hora_reuniao <= agora.time()
+
+    @property
+    def eh_hoje(self) -> bool:
         from app.services.tempo import hoje_local
 
-        return self.data_reuniao < hoje_local()
+        return self.data_reuniao == hoje_local()
 
     @property
     def ata_redigida(self) -> bool:

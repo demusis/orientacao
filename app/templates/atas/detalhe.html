@@ -25,10 +25,15 @@
   {%- if ata.cancelador %} por {{ ata.cancelador.nome }}{% endif %}.
   {% if ata.motivo_cancelamento %}Motivo: {{ ata.motivo_cancelamento }}{% endif %}
   O registro é preservado, mas a reunião não gera lembrete, presença nem ata.</p>
+{% elif ata.agendada and ata.eh_hoje %}
+<p class="flash flash-info">Reunião marcada para hoje{% if ata.hora_reuniao %}, às
+{{ ata.hora_reuniao.strftime('%H:%M') }}{% endif %}. Terminado o encontro, assinale as
+presenças, escreva as deliberações abaixo e finalize a ata — já é possível hoje.</p>
 {% elif ata.agendada %}
 <p class="flash flash-info">Reunião ainda por acontecer. As deliberações e as
 presenças são preenchidas depois do encontro; até lá, a pauta pode ser ajustada e
-a reunião, remarcada ou cancelada.</p>
+a reunião, remarcada ou cancelada. <strong>Se ela já aconteceu em outra data</strong>,
+use <em>Reagendar</em> para corrigir a data antes de registrar a ata.</p>
 {% elif ata.status == 'rascunho' and not ata.ata_redigida %}
 <p class="flash flash-warning">A data já passou e as deliberações ainda não foram
 redigidas. Assinale as presenças, escreva a ata e finalize-a.</p>
