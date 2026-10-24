@@ -815,19 +815,13 @@ def test_deliberacoes_escritas_nao_somem_ao_salvar_em_branco(
     assert ata.deliberacoes == "Texto valioso"
 
 
-def test_reuniao_de_hoje_nao_e_dada_por_realizada(app, orientacao, orientador):
-    """A hora é digitada no fuso do usuário. Comparar hora de parede com o
-    relógio dava a reunião de hoje às 16:00 como realizada de manhã. Só a
-    virada do dia (LOCAL — o mesmo relógio que `Ata.realizada` usa; ancorar em
-    date.today() da máquina flakava perto da meia-noite) decide."""
-    from datetime import time
-
+def _ata_hoje(orientacao, orientador, hora):
     from app.services.tempo import agora_local
 
     ata = Ata(
         orientador_id=orientador.id,
         data_reuniao=agora_local().date(),
-        hora_reuniao=time(0, 1),
+        hora_reuniao=hora,
         pauta="Pauta",
         deliberacoes="",
         redigida_por=orientador.id,
@@ -835,9 +829,45 @@ def test_reuniao_de_hoje_nao_e_dada_por_realizada(app, orientacao, orientador):
     )
     db.session.add(ata)
     db.session.commit()
+    return ata
 
+
+def test_reuniao_de_hoje_cuja_hora_passou_e_realizada(app, orientacao, orientador):
+    """A hora é de parede local, comparada com o relógio LOCAL: a reunião das
+    00:01 de hoje já aconteceu. Antes só a virada do dia decidia, e quem
+    entrava depois do encontro lia "ainda por acontecer"."""
+    from datetime import time
+
+    ata = _ata_hoje(orientacao, orientador, time(0, 1))
+    assert ata.realizada is True
+    assert ata.agendada is False
+
+
+def test_reuniao_de_hoje_mais_tarde_segue_agendada(app, orientacao, orientador):
+    from datetime import time
+
+    ata = _ata_hoje(orientacao, orientador, time(23, 59))
     assert ata.realizada is False
     assert ata.agendada is True
+
+
+def test_reuniao_de_hoje_sem_hora_segue_agendada_mas_aceita_registro(
+    client, orientacao, orientador
+):
+    """Sem hora não há como saber se já ocorreu: segue agendada, mas a página
+    diz "marcada para hoje" (não "ainda por acontecer") e a finalização é
+    admitida no próprio dia."""
+    from app.services.atas import finalizar_ata
+
+    ata = _ata_hoje(orientacao, orientador, None)
+    assert ata.agendada is True
+    login(client, "orientador@teste.br")
+    html = client.get(f"/orientacoes/{orientacao.id}/atas/{ata.id}").get_data(as_text=True)
+    assert "marcada para hoje" in html
+    assert "ainda por acontecer" not in html
+    ata.deliberacoes = "Decidido X"
+    finalizar_ata(ata)
+    assert ata.status == "finalizada"
 
 
 def test_convidado_retirado_recebe_o_aviso(
