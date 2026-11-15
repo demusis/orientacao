@@ -214,6 +214,11 @@ def trilha(dias: int = 30) -> dict:
         .group_by(LogAuditoria.acao)
         .order_by(func.count().desc())
     ).all()
+    ultimo_backup = db.session.execute(
+        select(func.max(LogAuditoria.timestamp)).where(
+            LogAuditoria.acao == "geracao_backup"
+        )
+    ).scalar()
     return {
         "janela_dias": dias,
         "registros_no_periodo": sum(total for _, total in ocorrencias),
@@ -224,6 +229,11 @@ def trilha(dias: int = 30) -> dict:
             for (acao,) in db.session.execute(
                 select(LogAuditoria.acao).distinct()
             ).all()
+        ),
+        "ultimo_backup_em": (
+            ultimo_backup.strftime("%Y-%m-%d %H:%M:%S UTC")
+            if ultimo_backup
+            else None
         ),
         "origens_distintas": _contar(
             select(func.count(func.distinct(LogAuditoria.ip))).where(

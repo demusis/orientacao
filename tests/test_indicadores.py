@@ -258,3 +258,23 @@ def test_sem_parecer_segue_a_regra_do_painel(client, orientacao, orientador):
         assert len(pendencias()["versoes_sem_parecer"]) == (
             indicadores.documentos()["versoes_correntes_sem_parecer"]
         ) == 1
+
+
+def test_trilha_informa_ultimo_backup_mesmo_fora_da_janela(app, admin):
+    """A rotina de backup é semestral (avaliação 2026-09-28, P-1); a janela de
+    30 dias não basta para aferir se houve cópia recente."""
+    assert indicadores.trilha(dias=30)["ultimo_backup_em"] is None
+
+    db.session.add(
+        LogAuditoria(
+            usuario_id=admin.id,
+            acao="geracao_backup",
+            entidade="backup",
+            timestamp=datetime(2026, 7, 21, 14, 0, 0),
+        )
+    )
+    db.session.commit()
+
+    assert (
+        indicadores.trilha(dias=30)["ultimo_backup_em"] == "2026-07-21 14:00:00 UTC"
+    )
