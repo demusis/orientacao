@@ -91,20 +91,21 @@ NIVEL_RISCO_PRAZO_LABEL = {
 }
 
 
+def _peso_marco(m: Marco, criticos: tuple[str, ...]) -> float:
+    if m.tipo in criticos:
+        return 3.0
+    if (m.entrega_esperada in ("documento", "revisao")) or (
+        m.tipo in ("artigo", "publicacao", "relatorio")
+    ):
+        return 2.0
+    return 1.0
+
+
 def analisar_risco_prazos(orientacao, marcos=None, atas=None) -> dict:
     """Avalia e pontua (0 a 100) o risco de não cumprimento dos prazos do vínculo.
 
-    Combina quatro dimensões complementares:
-    1. Atrasos acumulados no cronograma (0–35 pts): proporção de marcos vencidos
-       e severidade do maior atraso em dias.
-    2. Ritmo vs. prazo decorrido (0–30 pts): defasagem entre a fração de tempo
-       já consumida do vínculo e a fração de marcos concluídos, mais pressão de
-       proximidade/estouro da data final.
-    3. Marcos críticos e revisões devolvidas (0–20 pts): marcos críticos
-       (qualificação/defesa etc.) vencidos ou a vencer em 30 dias, e tarefas
-       devolvidas aguardando revisão do orientando.
-    4. Assiduidade em reuniões (0–15 pts): taxa de ausência quando há ao menos
-       2 reuniões com presença registrada.
+    Implementa a metodologia Earned Schedule (ES) combinada com Early Warning
+    System (EWS), calibrada por ConfiguracaoRisco.
     """
     config = ConfiguracaoRisco.vigente()
     hoje = hoje_local()
@@ -124,17 +125,70 @@ def analisar_risco_prazos(orientacao, marcos=None, atas=None) -> dict:
     total_m = len(marcos)
     concluidos = [m for m in marcos if m.status == "concluido"]
     em_aberto = [m for m in marcos if m.status != "concluido"]
-    atrasados = [m for m in em_aberto if m.atrasado]
+
+    # Pesos dos marcos e crédito de execução (Earned Schedule EV)
+    peso_total = 0.0
+    peso_ganho = 0.0
+    atrasados_orientando = []
+    aguardando_orientador = 0
+
+    for m in marcos:
+        w = _peso_marco(m, config.criticos)
+        peso_total += w
+        if m.status == "concluido":
+            peso_ganho += 1.0 * w
+        elif m.aguardando == "orientador":
+            peso_ganho += 0.75 * w
+            aguardando_orientador += 1
+        else:
+            if m.atrasado:
+                atrasados_orientando.append(m)
+
+    fracao_concluida = (len(concluidos) / total_m) if total_m > 0 else 0.0
+    fracao_ponderada = (peso_ganho / peso_total) if peso_total > 0 else 0.0
+    perc_concluido = round(fracao_concluida * 100) if total_m else 0
+    perc_concluido_ponderado = (
+        round(fracao_ponderada * 100) if peso_total > 0 else (100 if not total_m else 0)
+    )
 
     inicio = orientacao.data_inicio
     fim = orientacao.data_fim_prevista
-    dias_decorridos = max((hoje - inicio).days, 0)
+    duracao_planejada = (fim - inicio).days if (fim and inicio) else 0
+
+    dias_decorridos = max((hoje - inicio).days, 0) if inicio else 0
     fracao_tempo = dias_restantes = None
-    if fim and fim > inicio:
-        fracao_tempo = dias_decorridos / (fim - inicio).days
+    if fim and inicio and duracao_planejada > 0:
+        fracao_tempo = dias_decorridos / duracao_planejada
         dias_restantes = (fim - hoje).days
 
-    fracao_concluida = (len(concluidos) / total_m) if total_m else 1.0
+    # Indicadores Earned Schedule
+    spi_t = tspi = data_termino_projetada = None
+    desvio_projetado_dias = 0
+
+    if fim and inicio and duracao_planejada > 0:
+        es_dias = fracao_ponderada * duracao_planejada
+        at_dias = max(dias_decorridos, 1)
+        spi_t = round(es_dias / at_dias, 2) if dias_decorridos > 0 else 1.0
+        if dias_restantes is not None and dias_restantes > 0:
+            tspi = round(max(0.0, duracao_planejada - es_dias) / dias_restantes, 2)
+        else:
+            tspi = 9.99 if em_aberto else 1.0
+
+        if (
+            fracao_tempo is not None
+            and fracao_tempo > 0
+            and em_aberto
+            and spi_t < 0.98
+            and total_m > 0
+        ):
+            duracao_estimada = round(duracao_planejada / max(spi_t, 0.25))
+            data_termino_projetada = inicio + timedelta(days=duracao_estimada)
+            desvio_projetado_dias = max(0, (data_termino_projetada - fim).days)
+
+    P_atraso = config.peso_atraso
+    P_ritmo = config.peso_ritmo
+    P_crit = config.peso_criticos
+    P_assid = config.peso_assiduidade
 
     # Vínculo já concluído não possui risco ativo de descumprimento
     if orientacao.status == "concluida":
@@ -148,48 +202,110 @@ def analisar_risco_prazos(orientacao, marcos=None, atas=None) -> dict:
             "pts_criticos": 0,
             "pts_assiduidade": 0,
             "maior_atraso_dias": 0,
-            "perc_tempo": round(min(fracao_tempo, 1.0) * 100) if fracao_tempo is not None else None,
+            "perc_tempo": (
+                round(min(fracao_tempo, 1.0) * 100)
+                if fracao_tempo is not None
+                else None
+            ),
             "perc_concluido": round(fracao_concluida * 100) if total_m else 100,
             "fatores": ["Vínculo concluído."],
+            "perc_concluido_ponderado": (
+                100 if (not total_m or fracao_concluida == 1.0) else perc_concluido_ponderado
+            ),
+            "spi_t": 1.0,
+            "tspi": 1.0,
+            "data_termino_projetada": None,
+            "desvio_projetado_dias": 0,
+            "atrasos_orientando": 0,
+            "aguardando_orientador": 0,
+            "faltas_consecutivas": 0,
+            "dias_inatividade": None,
+            "pesos": {
+                "atraso": P_atraso,
+                "ritmo": P_ritmo,
+                "criticos": P_crit,
+                "assiduidade": P_assid,
+            },
         }
 
     fatores: list[str] = []
 
-    # 1. Atrasos acumulados (0–35 pts)
+    # 1. Dimensão Atrasos e Severidade (0..P_atraso)
     maior_atraso_dias = 0
     marco_mais_atrasado = None
-    if atrasados:
-        marco_mais_atrasado = min(atrasados, key=lambda m: (m.data_prevista, m.id))
+    pts_atraso = 0
+    if atrasados_orientando:
+        marco_mais_atrasado = min(
+            atrasados_orientando, key=lambda m: (m.data_prevista, m.id)
+        )
         maior_atraso_dias = max((hoje - marco_mais_atrasado.data_prevista).days, 1)
-    pts_prop_atraso = min(20, round((len(atrasados) / total_m) * 40)) if total_m else 0
-    pts_sev_atraso = min(15, maior_atraso_dias // 3)
-    pts_atraso = min(35, pts_prop_atraso + pts_sev_atraso)
-    if atrasados and marco_mais_atrasado is not None:
+        peso_atrasado = sum(
+            _peso_marco(m, config.criticos) for m in atrasados_orientando
+        )
+        prop_simples = (len(atrasados_orientando) / total_m) if total_m else 0.0
+        prop_ponderada = (peso_atrasado / peso_total) if peso_total > 0 else 0.0
+        curva_idade = min(1.0, maior_atraso_dias / max(config.dias_atraso_grave, 1))
+        f_atraso = min(
+            1.0, prop_simples * 0.8 + prop_ponderada * 0.4 + 0.45 * curva_idade
+        )
+        pts_atraso = min(P_atraso, round(f_atraso * P_atraso))
         fatores.append(
-            f"{len(atrasados)} de {total_m} marco(s) em atraso "
+            f"{len(atrasados_orientando)} de {total_m} marco(s) em atraso "
             f"(maior atraso: {maior_atraso_dias} dia(s) em «{marco_mais_atrasado.titulo}»)."
         )
 
-    # 2. Ritmo vs. prazo decorrido (0–30 pts)
+    if aguardando_orientador > 0:
+        fatores.append(
+            f"{aguardando_orientador} entrega(s) aguardando validação do orientador."
+        )
+
+    # 2. Dimensão Ritmo Earned Schedule vs. Prazo (0..P_ritmo)
     pts_ritmo = 0
-    perc_tempo = round(min(max(fracao_tempo, 0.0), 1.0) * 100) if fracao_tempo is not None else None
-    perc_concluido = round(fracao_concluida * 100) if total_m else 0
+    perc_tempo = (
+        round(min(max(fracao_tempo, 0.0), 1.0) * 100)
+        if fracao_tempo is not None
+        else None
+    )
     if fracao_tempo is not None:
-        defasagem = max(0.0, min(fracao_tempo, 1.0) - fracao_concluida) if total_m else 0.0
-        pts_defasagem = min(20, round(defasagem * 35))
+        defasagem = (
+            max(0.0, min(fracao_tempo, 1.0) - min(fracao_concluida, fracao_ponderada))
+            if total_m > 0
+            else 0.0
+        )
+        pts_defasagem = min(20.0, defasagem * 35.0)
+        pts_tspi = (
+            min(6.0, max(0.0, (tspi - 1.0) * 3.0))
+            if (tspi is not None and tspi > 1.10)
+            else 0.0
+        )
         if dias_restantes is not None and dias_restantes < 0 and (em_aberto or not total_m):
-            pts_prazo_final = 10
+            pts_prazo = 10.0
             fatores.append(
                 f"Prazo final previsto vencido há {-dias_restantes} dia(s) "
                 f"com {len(em_aberto)} marco(s) ainda em aberto."
             )
         elif fracao_tempo > config.limiar_alto / 100:
-            pts_prazo_final = 10
+            pts_prazo = 10.0
         elif fracao_tempo > config.limiar_medio / 100:
-            pts_prazo_final = 6
+            pts_prazo = 6.0
         else:
-            pts_prazo_final = 0
-        pts_ritmo = min(30, pts_defasagem + pts_prazo_final)
+            pts_prazo = 0.0
+
+        if (
+            spi_t is not None
+            and spi_t >= 1.0
+            and not atrasados_orientando
+            and fracao_ponderada >= min(fracao_tempo, 1.0)
+        ):
+            pts_ritmo = 0
+        else:
+            pts_base_ritmo = min(30.0, pts_defasagem + pts_tspi + pts_prazo)
+            pts_ritmo = (
+                min(P_ritmo, round(pts_base_ritmo * (P_ritmo / 30.0)))
+                if P_ritmo > 0
+                else 0
+            )
+
         if defasagem >= 0.15 and total_m:
             restantes_txt = (
                 f", restando {len(em_aberto)} tarefa(s) para {max(dias_restantes, 0)} dia(s)"
@@ -200,27 +316,62 @@ def analisar_risco_prazos(orientacao, marcos=None, atas=None) -> dict:
                 f"Descompasso entre tempo e entregas: {perc_tempo}% do prazo decorrido "
                 f"versus {perc_concluido}% do cronograma concluído{restantes_txt}."
             )
+
+        if desvio_projetado_dias > 0 and data_termino_projetada is not None:
+            fatores.append(
+                f"Projeção Earned Schedule: SPI(t)={spi_t:.2f}, término estimado em "
+                f"{data_termino_projetada:%d/%m/%Y} (+{desvio_projetado_dias} dia(s) de desvio)."
+            )
     elif total_m:
         previstos_ate_hoje = [m for m in marcos if m.data_prevista <= hoje]
-        if previstos_ate_hoje and atrasados:
-            pts_ritmo = min(25, round((len(atrasados) / len(previstos_ate_hoje)) * 25))
+        if previstos_ate_hoje and atrasados_orientando:
+            pts_base_ritmo = min(
+                25.0, (len(atrasados_orientando) / len(previstos_ate_hoje)) * 25.0
+            )
+            pts_ritmo = (
+                min(P_ritmo, round(pts_base_ritmo * (P_ritmo / 30.0)))
+                if P_ritmo > 0
+                else 0
+            )
 
-    # 3. Marcos críticos e devoluções pendentes (0–20 pts)
-    criticos_vencidos = [m for m in atrasados if m.tipo in config.criticos]
+    # 3. Dimensão Marcos Críticos e Retrabalho (0..P_crit)
+    criticos_vencidos = [
+        m
+        for m in em_aberto
+        if m.atrasado
+        and m.tipo in config.criticos
+        and m.aguardando != "orientador"
+    ]
     criticos_proximos = [
         m
         for m in em_aberto
         if not m.atrasado
         and m.tipo in config.criticos
-        and 0 <= (m.data_prevista - hoje).days <= 30
+        and 0 <= (m.data_prevista - hoje).days <= config.janela_marco_critico_dias
     ]
     devolvidos = [m for m in em_aberto if m.aguardando == "orientando_revisao"]
-    pts_criticos = min(
-        20,
+
+    pareceres_vinculo = (
+        orientacao.pareceres.all()
+        if hasattr(orientacao.pareceres, "all")
+        else list(orientacao.pareceres)
+    )
+    reprovados = [p for p in pareceres_vinculo if p.resultado == "reprovado"]
+    ressalvas = [p for p in pareceres_vinculo if p.resultado == "aprovado_com_ressalvas"]
+    pts_pareceres = min(8, len(reprovados) * 6 + len(ressalvas) * 2)
+
+    pts_base_crit = (
         (15 if criticos_vencidos else 0)
         + (5 if criticos_proximos else 0)
-        + min(10, len(devolvidos) * 5),
+        + min(10, len(devolvidos) * 5)
+        + pts_pareceres
     )
+    pts_criticos = (
+        min(P_crit, round(min(20, pts_base_crit) * (P_crit / 20.0)))
+        if P_crit > 0
+        else 0
+    )
+
     for m in criticos_vencidos:
         fatores.append(
             f"Marco crítico vencido: «{m.titulo}» (previsto para {m.data_prevista:%d/%m/%Y})."
@@ -234,42 +385,139 @@ def analisar_risco_prazos(orientacao, marcos=None, atas=None) -> dict:
         fatores.append(
             f"{len(devolvidos)} tarefa(s) devolvida(s) aguardando revisão e reenvio pelo orientando."
         )
+    if reprovados:
+        fatores.append(
+            f"{len(reprovados)} parecer(es) com resultado reprovado no vínculo."
+        )
+    elif ressalvas:
+        fatores.append(
+            f"{len(ressalvas)} parecer(es) aprovado(s) com ressalvas no vínculo."
+        )
 
-    # 4. Assiduidade em reuniões (0–15 pts)
+    # 4. Dimensão Engajamento, Assiduidade e Atividade (0..P_assid)
     presentes = ausencias = 0
+    atas_apuradas = []
     for a in atas:
         if a.status == "cancelada":
             continue
         part = a.participacao_de(orientacao.id)
-        if part is not None:
+        if part is not None and part.presenca in ("presente", "ausente"):
+            atas_apuradas.append((a, part.presenca))
             if part.presenca == "presente":
                 presentes += 1
             elif part.presenca == "ausente":
                 ausencias += 1
+
     apuradas = presentes + ausencias
-    pts_assiduidade = 0
+    atas_ordenadas = sorted(
+        atas_apuradas,
+        key=lambda x: (x[0].data_reuniao, x[0].id or 0),
+        reverse=True,
+    )
+    faltas_consecutivas = 0
+    for _, presenca in atas_ordenadas:
+        if presenca == "ausente":
+            faltas_consecutivas += 1
+        else:
+            break
+
+    pts_faltas = 0
+    taxa_ausencia = 0.0
     if apuradas >= 2 and ausencias > 0:
         taxa_ausencia = ausencias / apuradas
-        pts_assiduidade = min(15, round(taxa_ausencia * 20))
+        taxa_pct = taxa_ausencia * 100
+        bonus_consecutivas = 2 if faltas_consecutivas >= 3 else 0
+        if taxa_pct > config.tolerancia_ausencia_pct:
+            pts_faltas = min(15, round(taxa_ausencia * 20) + bonus_consecutivas)
+        else:
+            pts_faltas = min(3, round(taxa_ausencia * 8) + bonus_consecutivas)
+
         if taxa_ausencia >= 0.3:
             fatores.append(
                 f"Ausência em reuniões: {ausencias} falta(s) em {apuradas} reunião(ões) "
                 f"com presença registrada ({round(taxa_ausencia * 100)}%)."
             )
 
+    # Inatividade
+    datas_atividades = []
+    for m in marcos:
+        if m.data_conclusao and m.data_conclusao <= hoje:
+            datas_atividades.append(m.data_conclusao)
+        elif getattr(m, "concluido_em", None):
+            dt_m = (
+                m.concluido_em.date()
+                if hasattr(m.concluido_em, "date")
+                else m.concluido_em
+            )
+            if dt_m <= hoje:
+                datas_atividades.append(dt_m)
+
+    docs = (
+        orientacao.documentos.all()
+        if hasattr(orientacao.documentos, "all")
+        else list(orientacao.documentos)
+    )
+    for d in docs:
+        vers = d.versoes.all() if hasattr(d.versoes, "all") else list(d.versoes)
+        for v in vers:
+            if (
+                v.enviada_pela_orientanda
+                or v.em_nome_do_orientando
+                or v.enviado_por == orientacao.orientando_id
+            ):
+                dt_v = (
+                    v.enviado_em.date()
+                    if hasattr(v.enviado_em, "date")
+                    else v.enviado_em
+                )
+                if dt_v <= hoje:
+                    datas_atividades.append(dt_v)
+
+    for a, p in atas_apuradas:
+        if p == "presente" and a.data_reuniao <= hoje:
+            datas_atividades.append(a.data_reuniao)
+
+    dias_inatividade = None
+    if em_aberto:
+        if datas_atividades:
+            ultima_data = max(datas_atividades)
+            dias_inatividade = max(0, (hoje - ultima_data).days)
+        elif orientacao.data_inicio and orientacao.data_inicio <= hoje:
+            dias_inatividade = max(0, (hoje - orientacao.data_inicio).days)
+
+    pts_inatividade = 0
+    if (
+        dias_inatividade is not None
+        and dias_inatividade > config.dias_inatividade_alerta
+        and em_aberto
+    ):
+        pts_inatividade = 4
+        fatores.append(
+            f"Inatividade do orientando: {dias_inatividade} dia(s) sem entregas, "
+            f"conclusões ou reuniões com presença (limite de alerta: {config.dias_inatividade_alerta} dias)."
+        )
+
+    pts_base_assid = pts_faltas + pts_inatividade
+    pts_assiduidade = (
+        min(P_assid, round(min(15, pts_base_assid) * (P_assid / 15.0)))
+        if P_assid > 0
+        else 0
+    )
+
+    # Classificação e pisos
     pontuacao = min(100, pts_atraso + pts_ritmo + pts_criticos + pts_assiduidade)
     if criticos_vencidos or (
         dias_restantes is not None and dias_restantes < 0 and em_aberto
     ):
-        pontuacao = max(pontuacao, 75)
+        pontuacao = max(pontuacao, config.nota_risco_critico)
 
-    if pontuacao >= 75:
+    if pontuacao >= config.nota_risco_critico:
         nivel = "critico"
         cor_badge = "alto"
-    elif pontuacao >= 50:
+    elif pontuacao >= config.nota_risco_alto:
         nivel = "alto"
         cor_badge = "alto"
-    elif pontuacao >= 25:
+    elif pontuacao >= config.nota_risco_moderado:
         nivel = "medio"
         cor_badge = "medio"
     else:
@@ -294,6 +542,21 @@ def analisar_risco_prazos(orientacao, marcos=None, atas=None) -> dict:
         "perc_tempo": perc_tempo,
         "perc_concluido": perc_concluido,
         "fatores": fatores,
+        "perc_concluido_ponderado": perc_concluido_ponderado,
+        "spi_t": spi_t,
+        "tspi": tspi,
+        "data_termino_projetada": data_termino_projetada,
+        "desvio_projetado_dias": desvio_projetado_dias,
+        "atrasos_orientando": len(atrasados_orientando),
+        "aguardando_orientador": aguardando_orientador,
+        "faltas_consecutivas": faltas_consecutivas,
+        "dias_inatividade": dias_inatividade,
+        "pesos": {
+            "atraso": P_atraso,
+            "ritmo": P_ritmo,
+            "criticos": P_crit,
+            "assiduidade": P_assid,
+        },
     }
 
 

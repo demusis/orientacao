@@ -16,6 +16,20 @@ LIMIAR_MEDIO_PADRAO = 75
 LIMIAR_ALTO_PADRAO = 90
 TIPOS_CRITICOS_PADRAO = ("qualificacao", "defesa")
 
+PARAMETROS_MODELO_RISCO_PADRAO = {
+    "peso_atraso": 30,
+    "peso_ritmo": 30,
+    "peso_criticos": 20,
+    "peso_assiduidade": 20,
+    "nota_risco_moderado": 25,
+    "nota_risco_alto": 50,
+    "nota_risco_critico": 75,
+    "dias_atraso_grave": 30,
+    "janela_marco_critico_dias": 30,
+    "dias_inatividade_alerta": 45,
+    "tolerancia_ausencia_pct": 25,
+}
+
 
 class ConfiguracaoEmail(db.Model):
     __tablename__ = "configuracao_email"
@@ -110,9 +124,120 @@ class ConfiguracaoRisco(db.Model):
             tipos_criticos=json.dumps(list(TIPOS_CRITICOS_PADRAO)),
         )
 
+    def _carga_json(self) -> tuple[list[str], dict[str, int]]:
+        if self.tipos_criticos is None:
+            return (list(TIPOS_CRITICOS_PADRAO), dict(PARAMETROS_MODELO_RISCO_PADRAO))
+        try:
+            dados = json.loads(self.tipos_criticos or "[]")
+        except (ValueError, TypeError):
+            return (list(TIPOS_CRITICOS_PADRAO), dict(PARAMETROS_MODELO_RISCO_PADRAO))
+        if isinstance(dados, dict):
+            tipos = list(dados.get("tipos", TIPOS_CRITICOS_PADRAO))
+            modelo_dados = dados.get("modelo")
+            if isinstance(modelo_dados, dict):
+                modelo = {**PARAMETROS_MODELO_RISCO_PADRAO, **modelo_dados}
+            else:
+                modelo = dict(PARAMETROS_MODELO_RISCO_PADRAO)
+            return (tipos, modelo)
+        if isinstance(dados, list):
+            return (dados, dict(PARAMETROS_MODELO_RISCO_PADRAO))
+        return (list(TIPOS_CRITICOS_PADRAO), dict(PARAMETROS_MODELO_RISCO_PADRAO))
+
     @property
     def criticos(self) -> tuple[str, ...]:
-        return tuple(json.loads(self.tipos_criticos))
+        return tuple(self._carga_json()[0])
+
+    @property
+    def parametros_modelo(self) -> dict[str, int]:
+        return self._carga_json()[1]
+
+    @property
+    def peso_atraso(self) -> int:
+        return int(self.parametros_modelo["peso_atraso"])
+
+    @peso_atraso.setter
+    def peso_atraso(self, valor: int) -> None:
+        self.definir_parametros_modelo(peso_atraso=valor)
+
+    @property
+    def peso_ritmo(self) -> int:
+        return int(self.parametros_modelo["peso_ritmo"])
+
+    @peso_ritmo.setter
+    def peso_ritmo(self, valor: int) -> None:
+        self.definir_parametros_modelo(peso_ritmo=valor)
+
+    @property
+    def peso_criticos(self) -> int:
+        return int(self.parametros_modelo["peso_criticos"])
+
+    @peso_criticos.setter
+    def peso_criticos(self, valor: int) -> None:
+        self.definir_parametros_modelo(peso_criticos=valor)
+
+    @property
+    def peso_assiduidade(self) -> int:
+        return int(self.parametros_modelo["peso_assiduidade"])
+
+    @peso_assiduidade.setter
+    def peso_assiduidade(self, valor: int) -> None:
+        self.definir_parametros_modelo(peso_assiduidade=valor)
+
+    @property
+    def nota_risco_moderado(self) -> int:
+        return int(self.parametros_modelo["nota_risco_moderado"])
+
+    @nota_risco_moderado.setter
+    def nota_risco_moderado(self, valor: int) -> None:
+        self.definir_parametros_modelo(nota_risco_moderado=valor)
+
+    @property
+    def nota_risco_alto(self) -> int:
+        return int(self.parametros_modelo["nota_risco_alto"])
+
+    @nota_risco_alto.setter
+    def nota_risco_alto(self, valor: int) -> None:
+        self.definir_parametros_modelo(nota_risco_alto=valor)
+
+    @property
+    def nota_risco_critico(self) -> int:
+        return int(self.parametros_modelo["nota_risco_critico"])
+
+    @nota_risco_critico.setter
+    def nota_risco_critico(self, valor: int) -> None:
+        self.definir_parametros_modelo(nota_risco_critico=valor)
+
+    @property
+    def dias_atraso_grave(self) -> int:
+        return int(self.parametros_modelo["dias_atraso_grave"])
+
+    @dias_atraso_grave.setter
+    def dias_atraso_grave(self, valor: int) -> None:
+        self.definir_parametros_modelo(dias_atraso_grave=valor)
+
+    @property
+    def janela_marco_critico_dias(self) -> int:
+        return int(self.parametros_modelo["janela_marco_critico_dias"])
+
+    @janela_marco_critico_dias.setter
+    def janela_marco_critico_dias(self, valor: int) -> None:
+        self.definir_parametros_modelo(janela_marco_critico_dias=valor)
+
+    @property
+    def dias_inatividade_alerta(self) -> int:
+        return int(self.parametros_modelo["dias_inatividade_alerta"])
+
+    @dias_inatividade_alerta.setter
+    def dias_inatividade_alerta(self, valor: int) -> None:
+        self.definir_parametros_modelo(dias_inatividade_alerta=valor)
+
+    @property
+    def tolerancia_ausencia_pct(self) -> int:
+        return int(self.parametros_modelo["tolerancia_ausencia_pct"])
+
+    @tolerancia_ausencia_pct.setter
+    def tolerancia_ausencia_pct(self, valor: int) -> None:
+        self.definir_parametros_modelo(tolerancia_ausencia_pct=valor)
 
     def definir_criticos(self, tipos) -> None:
         """Grava na ordem canônica de TIPOS_MARCO, ignorando valor desconhecido:
@@ -120,7 +245,31 @@ class ConfiguracaoRisco(db.Model):
         from app.models.cronograma import TIPOS_MARCO
 
         recebidos = set(tipos)
-        self.tipos_criticos = json.dumps([t for t in TIPOS_MARCO if t in recebidos])
+        lista_tipos = [t for t in TIPOS_MARCO if t in recebidos]
+        atuais = self.parametros_modelo
+        if atuais == PARAMETROS_MODELO_RISCO_PADRAO:
+            self.tipos_criticos = json.dumps(lista_tipos)
+        else:
+            self.tipos_criticos = json.dumps(
+                {"tipos": lista_tipos, "modelo": atuais}, ensure_ascii=False
+            )
+
+    def definir_parametros_modelo(self, **novos) -> None:
+        tipos_atuais = list(self.criticos)
+        atuais = dict(self.parametros_modelo)
+        atuais.update(
+            {
+                k: int(v)
+                for k, v in novos.items()
+                if k in PARAMETROS_MODELO_RISCO_PADRAO and v is not None
+            }
+        )
+        if atuais == PARAMETROS_MODELO_RISCO_PADRAO:
+            self.tipos_criticos = json.dumps(tipos_atuais)
+        else:
+            self.tipos_criticos = json.dumps(
+                {"tipos": tipos_atuais, "modelo": atuais}, ensure_ascii=False
+            )
 
     def registrar_alteracao(self, usuario_id: int) -> None:
         self.atualizado_em = datetime.now(UTC)

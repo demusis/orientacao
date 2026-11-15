@@ -101,16 +101,22 @@ def eventos(orientacao) -> list:
 
     for a in orientacao.atas:
         discutidos = marcos_discutidos_do_vinculo(a, orientacao.id)
+        part = a.participacao_de(orientacao.id)
+        estado = (
+            "finalizada"
+            if a.status == "finalizada"
+            else ("cancelada" if a.status == "cancelada" else "rascunho")
+        )
+        if a.status != "cancelada" and part is not None and part.presenca in ("presente", "ausente"):
+            detalhe = f"{estado} · {part.presenca}"
+        else:
+            detalhe = estado
         itens.append({
             "tipo": "reuniao",
             "quando": _dt(a.data_reuniao),
             "data": a.data_reuniao,
             "titulo": "Reunião de orientação",
-            "detalhe": (
-                "finalizada"
-                if a.status == "finalizada"
-                else ("cancelada" if a.status == "cancelada" else "rascunho")
-            ),
+            "detalhe": detalhe,
             "alvo": ("atas.detalhe_ata",
                      {"orientacao_id": orientacao.id, "ata_id": a.id}),
             "relacionado": f"discutiu: {discutidos}" if discutidos else "",

@@ -12,8 +12,9 @@
 {% endif %}</p>
 {% endif %}
 <table>
-  <tr><th>Reunião</th><th>Tipo</th><th>Pauta</th><th>Estado</th><th>Redigida por</th><th></th></tr>
+  <tr><th>Reunião</th><th>Tipo</th><th>Pauta</th><th>Estado</th><th>Presença</th><th>Redigida por</th><th></th></tr>
   {% for a in atas %}
+  {% set part = a.participacao_de(orientacao.id) %}
   <tr>
     <td>{{ a.data_reuniao }}{% if a.hora_reuniao %} às {{ a.hora_reuniao.strftime('%H:%M') }}{% endif %}</td>
     <td><span class="badge">{{ a.tipo }}</span></td>
@@ -25,11 +26,15 @@
       {% elif not a.ata_redigida %}<span class="badge badge-atrasado">aguardando ata</span>
       {% else %}<span class="badge">ata em redação</span>{% endif %}
     </td>
+    <td>
+      {% set pres = part.presenca if part else 'pendente' %}
+      <span class="badge {% if pres == 'presente' %}badge-concluido{% elif pres == 'ausente' %}badge-atrasado{% endif %}">{{ pres }}</span>
+    </td>
     <td>{{ a.redator.nome }}</td>
     <td><a href="{{ url_for('atas.detalhe_ata', orientacao_id=orientacao.id, ata_id=a.id) }}">Abrir</a></td>
   </tr>
   {% else %}
-  <tr><td colspan="6">Nenhuma ata registrada.</td></tr>
+  <tr><td colspan="7">Nenhuma ata registrada.</td></tr>
   {% endfor %}
 </table>
 {% endblock %}

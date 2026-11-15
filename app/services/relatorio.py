@@ -83,30 +83,58 @@ _CORES_FUNDO_RISCO = {
 
 def _quadro_risco(risco: dict, cel) -> Table:
     cor_fundo = _CORES_FUNDO_RISCO.get(risco["nivel"], colors.HexColor("#e6f4ea"))
-    t = Table(
-        [
-            [
-                Paragraph(
-                    f"<b>Análise de risco dos prazos</b><br/>"
-                    f"<b>{risco['pontuacao']}/100 · Risco {_texto(risco['rotulo'])}</b>",
-                    cel,
-                ),
-                Paragraph(
-                    f"<b>Composição da nota:</b> Atrasos: {risco['pts_atraso']}/35 · "
-                    f"Ritmo vs. prazo: {risco['pts_ritmo']}/30 · "
-                    f"Marcos críticos/revisões: {risco['pts_criticos']}/20 · "
-                    f"Assiduidade: {risco['pts_assiduidade']}/15",
-                    cel,
-                ),
-            ],
-            [
-                Paragraph("<b>Diagnóstico do cronograma</b>", cel),
-                Paragraph("<br/>".join(f"• {_texto(f)}" for f in risco["fatores"]), cel),
-            ],
-        ],
-        colWidths=[55 * mm, 115 * mm],
-        hAlign="LEFT",
+    pesos = risco.get(
+        "pesos",
+        {"atraso": 30, "ritmo": 30, "criticos": 20, "assiduidade": 20},
     )
+    composicao = (
+        f"<b>Composição da nota:</b> Atrasos: {risco['pts_atraso']}/{pesos['atraso']} · "
+        f"Ritmo ES: {risco['pts_ritmo']}/{pesos['ritmo']} · "
+        f"Críticos/retrabalho: {risco['pts_criticos']}/{pesos['criticos']} · "
+        f"Engajamento: {risco['pts_assiduidade']}/{pesos['assiduidade']}"
+    )
+    linhas = [
+        [
+            Paragraph(
+                f"<b>Análise de risco dos prazos</b><br/>"
+                f"<b>{risco['pontuacao']}/100 · Risco {_texto(risco['rotulo'])}</b>",
+                cel,
+            ),
+            Paragraph(composicao, cel),
+        ],
+    ]
+
+    partes_es = []
+    if risco.get("perc_concluido_ponderado") is not None:
+        partes_es.append(f"Avanço ponderado: {risco['perc_concluido_ponderado']}%")
+    if risco.get("spi_t") is not None:
+        partes_es.append(f"SPI(t): {risco['spi_t']:.2f}")
+    if risco.get("tspi") is not None:
+        partes_es.append(f"TSPI: {risco['tspi']:.2f}")
+    if risco.get("data_termino_projetada"):
+        dt_proj = risco["data_termino_projetada"].strftime("%d/%m/%Y")
+        desvio = risco.get("desvio_projetado_dias", 0)
+        desvio_txt = f" (+{desvio}d)" if desvio > 0 else ""
+        partes_es.append(f"Término projetado: {dt_proj}{desvio_txt}")
+    if risco.get("aguardando_orientador", 0) > 0:
+        partes_es.append(f"Aguardando orientador: {risco['aguardando_orientador']} item(ns)")
+
+    if partes_es:
+        linhas.append(
+            [
+                Paragraph("<b>Indicadores Earned Schedule</b>", cel),
+                Paragraph(" · ".join(partes_es), cel),
+            ]
+        )
+
+    linhas.append(
+        [
+            Paragraph("<b>Diagnóstico do cronograma</b>", cel),
+            Paragraph("<br/>".join(f"• {_texto(f)}" for f in risco["fatores"]), cel),
+        ]
+    )
+
+    t = Table(linhas, colWidths=[55 * mm, 115 * mm], hAlign="LEFT")
     t.setStyle(
         TableStyle(
             [

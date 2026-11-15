@@ -240,6 +240,50 @@ class ConfiguracaoRiscoForm(FlaskForm):
                     "em risco alto (vermelho), qualquer que seja o percentual do "
                     "prazo. Desmarcar todos deixa o risco a cargo apenas do tempo.",
     )
+    peso_atraso = IntegerField(
+        "Peso: Atrasos e severidade (0–100)",
+        validators=[Optional(), NumberRange(min=0, max=100)],
+    )
+    peso_ritmo = IntegerField(
+        "Peso: Ritmo Earned Schedule e prazo (0–100)",
+        validators=[Optional(), NumberRange(min=0, max=100)],
+    )
+    peso_criticos = IntegerField(
+        "Peso: Marcos críticos e retrabalho (0–100)",
+        validators=[Optional(), NumberRange(min=0, max=100)],
+    )
+    peso_assiduidade = IntegerField(
+        "Peso: Engajamento, assiduidade e atividade (0–100)",
+        validators=[Optional(), NumberRange(min=0, max=100)],
+    )
+    nota_risco_moderado = IntegerField(
+        "Corte para Risco Moderado (1–98)",
+        validators=[Optional(), NumberRange(min=1, max=98)],
+    )
+    nota_risco_alto = IntegerField(
+        "Corte para Risco Alto (2–99)",
+        validators=[Optional(), NumberRange(min=2, max=99)],
+    )
+    nota_risco_critico = IntegerField(
+        "Corte para Risco Crítico (3–100)",
+        validators=[Optional(), NumberRange(min=3, max=100)],
+    )
+    dias_atraso_grave = IntegerField(
+        "Dias para atraso de severidade máxima",
+        validators=[Optional(), NumberRange(min=5, max=365)],
+    )
+    janela_marco_critico_dias = IntegerField(
+        "Janela de alerta para marco crítico próximo (dias)",
+        validators=[Optional(), NumberRange(min=5, max=180)],
+    )
+    dias_inatividade_alerta = IntegerField(
+        "Janela de alerta de inatividade do orientando (dias)",
+        validators=[Optional(), NumberRange(min=7, max=365)],
+    )
+    tolerancia_ausencia_pct = IntegerField(
+        "Tolerância de ausências em reuniões (%)",
+        validators=[Optional(), NumberRange(min=0, max=100)],
+    )
     submit = SubmitField("Salvar parâmetros")
 
     def validate_limiar_alto(self, field):
@@ -247,6 +291,44 @@ class ConfiguracaoRiscoForm(FlaskForm):
             raise ValidationError(
                 "O limiar do risco alto deve ser maior que o do risco médio."
             )
+
+    def validate_peso_assiduidade(self, field):
+        if all(
+            p is not None
+            for p in (
+                self.peso_atraso.data,
+                self.peso_ritmo.data,
+                self.peso_criticos.data,
+                field.data,
+            )
+        ):
+            if (
+                self.peso_atraso.data
+                + self.peso_ritmo.data
+                + self.peso_criticos.data
+                + field.data
+            ) != 100:
+                raise ValidationError(
+                    "A soma dos quatro pesos do modelo deve ser exatamente 100 pontos."
+                )
+
+    def validate_nota_risco_critico(self, field):
+        if all(
+            n is not None
+            for n in (
+                self.nota_risco_moderado.data,
+                self.nota_risco_alto.data,
+                field.data,
+            )
+        ):
+            if not (
+                self.nota_risco_moderado.data
+                < self.nota_risco_alto.data
+                < field.data
+            ):
+                raise ValidationError(
+                    "Os cortes de pontuação devem ser crescentes: moderado < alto < crítico."
+                )
 
 
 class TesteEmailForm(FlaskForm):

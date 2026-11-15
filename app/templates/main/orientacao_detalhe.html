@@ -29,7 +29,11 @@
      {%- if relogio.marco_critico_vencido %} · <strong>marco crítico vencido</strong>{% endif %}</p>
   <p><strong>Risco de descumprimento de prazos:</strong>
      <span class="badge badge-risco-{{ analise_risco.cor_badge }}">{{ analise_risco.pontuacao }}/100 · Risco {{ analise_risco.rotulo }}</span>
-     <small>(atrasos {{ analise_risco.pts_atraso }}/35 · ritmo {{ analise_risco.pts_ritmo }}/30 · críticos/revisões {{ analise_risco.pts_criticos }}/20 · assiduidade {{ analise_risco.pts_assiduidade }}/15)</small></p>
+     <small>(atrasos {{ analise_risco.pts_atraso }}/{{ analise_risco.pesos.atraso if analise_risco.pesos else 30 }} · ritmo {{ analise_risco.pts_ritmo }}/{{ analise_risco.pesos.ritmo if analise_risco.pesos else 30 }} · críticos/revisões {{ analise_risco.pts_criticos }}/{{ analise_risco.pesos.criticos if analise_risco.pesos else 20 }} · assiduidade {{ analise_risco.pts_assiduidade }}/{{ analise_risco.pesos.assiduidade if analise_risco.pesos else 20 }})</small>
+     {%- if analise_risco.spi_t is not none %}
+     <br/><small class="text-muted">Earned Schedule: SPI(t) = {{ analise_risco.spi_t }}{% if analise_risco.tspi is not none %} · TSPI = {{ analise_risco.tspi }}{% endif %}{% if analise_risco.data_termino_projetada %} · Término estimado: {{ analise_risco.data_termino_projetada.strftime('%d/%m/%Y') }} (desvio: +{{ analise_risco.desvio_projetado_dias }}d){% endif %}</small>
+     {%- endif %}
+  </p>
   <ul class="fatores-risco">
     {% for f in analise_risco.fatores %}
     <li><small>{{ f }}</small></li>

@@ -237,6 +237,7 @@ def test_extrato_omite_texto_das_atas_e_filtra_marcos_de_grupo(
         e for e in linha_tempo.eventos(orientacao) if e["tipo"] == "reuniao"
     )
     assert ev_reuniao["relacionado"] == "discutiu: Tarefa em grupo"
+    assert "ausente" in ev_reuniao["detalhe"]
 
     # Seção de reuniões no extrato traz apenas a tabela resumida, sem texto das atas
     _, estilos = _documento_base(BytesIO(), "Teste")

@@ -24,6 +24,27 @@
     <em>nenhum</em> — o risco depende só do tempo decorrido.
   {% endif %}
   </p>
+  <hr/>
+  <h2>Modelo Multidimensional de Risco de Prazos (0–100)</h2>
+  <p>Além do selo rápido de prazo, o ARIADNE calcula um índice composto de <strong>0 a 100 pontos</strong>
+  baseado na metodologia <em>Earned Schedule (ES)</em> combinada com alertas precoces (<em>Early Warning System - EWS</em>).
+  O índice avalia a execução física ponderada das tarefas, ritmo de avanço temporal (SPI(t) e TSPI),
+  severidade dos atrasos, marcos críticos com retrabalho e o engajamento do orientando em reuniões e entregas.</p>
+  <ul>
+    <li><strong>Pesos do modelo (soma = 100):</strong>
+      Atrasos e severidade: <strong>{{ config.peso_atraso }} pts</strong> ·
+      Ritmo Earned Schedule: <strong>{{ config.peso_ritmo }} pts</strong> ·
+      Marcos críticos e retrabalho: <strong>{{ config.peso_criticos }} pts</strong> ·
+      Engajamento e assiduidade: <strong>{{ config.peso_assiduidade }} pts</strong>.
+    </li>
+    <li><strong>Cortes de classificação:</strong>
+      <span class="badge badge-risco-baixo">Baixo</span>: pontuação &lt; {{ config.nota_risco_moderado }} ·
+      <span class="badge badge-risco-medio">Moderado</span>: ≥ {{ config.nota_risco_moderado }} ·
+      <span class="badge badge-risco-alto">Alto</span>: ≥ {{ config.nota_risco_alto }} ·
+      <span class="badge badge-risco-alto">Crítico</span>: ≥ {{ config.nota_risco_critico }}
+      (marcos críticos vencidos pelo orientando ou prazo final expirado com tarefas pendentes ativam piso crítico automático).
+    </li>
+  </ul>
   <p><small>O percentual decorrido é contado entre a data de início e o fim previsto
   do vínculo. Vínculo sem fim previsto não tem percentual: nele a cor depende apenas
   dos marcos críticos, e o selo diz "prazo não definido". A cor é recalculada a cada

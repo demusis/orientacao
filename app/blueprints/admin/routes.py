@@ -43,6 +43,7 @@ from app.models import (
     OrientacaoOrientador,
     Usuario,
 )
+from app.models.configuracao import PARAMETROS_MODELO_RISCO_PADRAO
 from app.models.cronograma import TIPO_MARCO_LABEL
 from app.services import auditoria, avisos, credenciais, cripto
 from app.services import eliminacao as eliminacao_service
@@ -576,6 +577,13 @@ def configurar_risco():
         config.limiar_medio = form.limiar_medio.data
         config.limiar_alto = form.limiar_alto.data
         config.definir_criticos(form.tipos_criticos.data)
+        config.definir_parametros_modelo(
+            **{
+                k: getattr(form, k).data
+                for k in PARAMETROS_MODELO_RISCO_PADRAO
+                if getattr(form, k).data is not None
+            }
+        )
         config.registrar_alteracao(current_user.id)
         db.session.add(config)  # 1ª gravação: vigente() devolve objeto fora da sessão
         auditoria.registrar(
@@ -586,6 +594,7 @@ def configurar_risco():
                 "limiar_medio": config.limiar_medio,
                 "limiar_alto": config.limiar_alto,
                 "tipos_criticos": list(config.criticos),
+                "modelo": config.parametros_modelo,
             },
         )
         db.session.commit()
