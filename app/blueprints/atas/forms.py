@@ -167,6 +167,7 @@ class ParecerForm(FlaskForm):
     # com resultado favorável e quando o documento da versão está ligado a um marco
     # ainda não concluído (imposto na rota).
     concluir_marco = BooleanField(
-        "Concluir o marco vinculado ao documento, quando houver, ao aprovar"
+        "Concluir o marco vinculado ao documento, quando houver, ao aprovar "
+        "(se reprovado, devolve a tarefa para revisão)"
     )
     submit = SubmitField("Emitir parecer")

@@ -21,8 +21,16 @@ from app.blueprints.documentos.forms import (
     eh_entrega_da_orientanda,
 )
 from app.extensions import db
-from app.models import AnexoVersao, Documento, Marco, ModeloDocumento, VersaoDocumento
+from app.models import (
+    AnexoVersao,
+    Documento,
+    Marco,
+    ModeloDocumento,
+    Parecer,
+    VersaoDocumento,
+)
 from app.services import auditoria
+from app.services import cronogramas as servico_cronograma
 from app.services import documentos as servico_documentos
 from app.services import materiais as servico_materiais
 from app.services.rbac import manda_no_cronograma, orientacao_autorizada
@@ -41,14 +49,59 @@ def _documento_da_orientacao(orientacao, documento_id: int) -> Documento:
     return documento
 
 
+def _marco_sinalizavel_do_documento(documento: Documento, usuario) -> Marco | None:
+    """Devolve o marco ainda não sinalizado nem concluído ao qual este envio
+    pelo documento responde (ligação direta por `marco_id` ou tarefa aberta de
+    revisão usando este documento como texto-base)."""
+    if documento.marco is not None and servico_cronograma.pode_sinalizar(
+        documento.marco, usuario
+    ):
+        return documento.marco
+    revisoes = (
+        Marco.query.filter_by(
+            orientacao_id=documento.orientacao_id,
+            documento_base_id=documento.id,
+            entrega_esperada="revisao",
+        )
+        .order_by(Marco.data_prevista)
+        .all()
+    )
+    return next(
+        (m for m in revisoes if servico_cronograma.pode_sinalizar(m, usuario)),
+        None,
+    )
+
+
 @bp.route("/")
 @login_required
 def listar(orientacao_id: int):
     orientacao = orientacao_autorizada(orientacao_id)
     documentos = orientacao.documentos.order_by(Documento.criado_em.desc()).all()
+    revisoes = (
+        Marco.query.filter_by(orientacao_id=orientacao.id, entrega_esperada="revisao")
+        .filter(Marco.documento_base_id.isnot(None))
+        .order_by(Marco.data_prevista)
+        .all()
+    )
+    revisoes_por_doc: dict[int, list[Marco]] = {}
+    for m in revisoes:
+        revisoes_por_doc.setdefault(m.documento_base_id, []).append(m)
+    pareceres = (
+        Parecer.query.filter_by(orientacao_id=orientacao.id)
+        .filter(Parecer.versao_documento_id.isnot(None))
+        .order_by(Parecer.emitido_em.desc(), Parecer.id.desc())
+        .all()
+    )
+    parecer_por_versao: dict[int, Parecer] = {}
+    for p in pareceres:
+        parecer_por_versao.setdefault(p.versao_documento_id, p)
     return render_template(
-        "documentos/listar.html", orientacao=orientacao, documentos=documentos,
+        "documentos/listar.html",
+        orientacao=orientacao,
+        documentos=documentos,
         materiais=servico_materiais.da_orientacao(orientacao),
+        revisoes_por_doc=revisoes_por_doc,
+        parecer_por_versao=parecer_por_versao,
     )
 
 
@@ -62,6 +115,8 @@ def criar(orientacao_id: int):
     eh_gestor = current_user.id != orientacao.orientando_id
     if not eh_gestor:
         del form.natureza
+    else:
+        del form.sinalizar
     form.marco_id.choices = [(0, "(nenhum)")] + [
         (m.id, m.titulo) for m in orientacao.marcos
     ]
@@ -92,8 +147,19 @@ def criar(orientacao_id: int):
                 {"titulo": documento.titulo, "arquivo": versao.nome_original,
                  "anexos": len(versao.anexos), "natureza": versao.natureza},
             )
+            sinalizou = False
+            if not eh_gestor and documento.marco_id and form.sinalizar.data:
+                marco = db.session.get(Marco, documento.marco_id)
+                if marco is not None and servico_cronograma.pode_sinalizar(
+                    marco, current_user
+                ):
+                    servico_cronograma.sinalizar_conclusao(marco)
+                    sinalizou = True
             db.session.commit()
-            flash("Documento enviado (versão 1).", "success")
+            msg = "Documento enviado (versão 1)."
+            if sinalizou:
+                msg += " O orientador foi avisado para conferir."
+            flash(msg, "success")
             return redirect(url_for("documentos.listar", orientacao_id=orientacao.id))
     modelos = ModeloDocumento.query.order_by(ModeloDocumento.titulo).all()
     return render_template(
@@ -110,6 +176,14 @@ def detalhe(orientacao_id: int, documento_id: int):
     eh_gestor = current_user.id != orientacao.orientando_id
     if not eh_gestor:
         del form.natureza
+    marco_sinalizavel = _marco_sinalizavel_do_documento(documento, current_user)
+    if marco_sinalizavel is None:
+        del form.sinalizar
+    else:
+        form.sinalizar.label.text = (
+            f'Esta é a entrega da tarefa "{marco_sinalizavel.titulo}" — '
+            "avisar o orientador para conferir"
+        )
     if form.validate_on_submit():
         # a orientanda sempre entrega; o gestor diz de quem é o arquivo. O upload
         # só grava a versão — devolver é ação da tarefa, não do envio.
@@ -132,8 +206,15 @@ def detalhe(orientacao_id: int, documento_id: int):
                 {"documento_id": documento.id, "versao": versao.numero_versao,
                  "anexos": len(versao.anexos), "natureza": versao.natureza},
             )
+            sinalizou = False
+            if marco_sinalizavel is not None and form.sinalizar.data:
+                servico_cronograma.sinalizar_conclusao(marco_sinalizavel)
+                sinalizou = True
             db.session.commit()
-            flash(f"Versão {versao.numero_versao} enviada.", "success")
+            msg = f"Versão {versao.numero_versao} enviada."
+            if sinalizou:
+                msg += " O orientador foi avisado para conferir."
+            flash(msg, "success")
             return redirect(
                 url_for(
                     "documentos.detalhe",
@@ -154,10 +235,37 @@ def detalhe(orientacao_id: int, documento_id: int):
     tarefas_de_revisao = Marco.query.filter_by(
         documento_base_id=documento.id, orientacao_id=orientacao.id
     ).all()
+    pareceres_doc = (
+        Parecer.query.join(
+            VersaoDocumento, Parecer.versao_documento_id == VersaoDocumento.id
+        )
+        .filter(VersaoDocumento.documento_id == documento.id)
+        .order_by(Parecer.emitido_em.desc(), Parecer.id.desc())
+        .all()
+    )
+    pareceres_por_versao: dict[int, list[Parecer]] = {}
+    for p in pareceres_doc:
+        pareceres_por_versao.setdefault(p.versao_documento_id, []).append(p)
+    marcos_relacionados = [
+        m
+        for m in ([documento.marco] + tarefas_de_revisao)
+        if m is not None and m.nota_devolucao
+    ]
+    marco_com_devolucao = next(
+        (m for m in marcos_relacionados if m.aguardando == "orientando_revisao"),
+        marcos_relacionados[0] if marcos_relacionados else None,
+    )
     return render_template(
-        "documentos/detalhe.html", orientacao=orientacao, documento=documento,
-        form=form, eh_gestor=eh_gestor, classificar_form=ClassificarVersaoForm(),
-        excluivel_id=excluivel_id, tarefas_de_revisao=tarefas_de_revisao,
+        "documentos/detalhe.html",
+        orientacao=orientacao,
+        documento=documento,
+        form=form,
+        eh_gestor=eh_gestor,
+        classificar_form=ClassificarVersaoForm(),
+        excluivel_id=excluivel_id,
+        tarefas_de_revisao=tarefas_de_revisao,
+        pareceres_por_versao=pareceres_por_versao,
+        marco_com_devolucao=marco_com_devolucao,
     )
 
 

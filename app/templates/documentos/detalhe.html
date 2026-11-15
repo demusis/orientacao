@@ -46,6 +46,18 @@
     <p class="versao-arquivo"><em>Sem arquivo — comentário</em></p>
     {% endif %}
     {% if v.comentario %}<p class="versao-comentario">{{ v.comentario }}</p>{% endif %}
+    {% if v.eh_devolucao and not v.comentario and marco_com_devolucao and marco_com_devolucao.nota_devolucao %}
+    <p class="versao-comentario"><strong>O que corrigir ({{ marco_com_devolucao.titulo }}):</strong> {{ marco_com_devolucao.nota_devolucao }}</p>
+    {% endif %}
+    {% for p in pareceres_por_versao.get(v.id, []) %}
+    <p class="versao-parecer">
+      <strong>Parecer:</strong>
+      <span class="badge">{{ RESULTADO_LABEL[p.resultado] }}</span>
+      <small>({{ p.emitido_em.strftime('%d/%m/%Y') }} ·
+        <a href="{{ url_for('atas.listar_pareceres', orientacao_id=orientacao.id) }}">Ver parecer</a> ·
+        <a href="{{ url_for('atas.pdf_parecer', orientacao_id=orientacao.id, parecer_id=p.id) }}">PDF</a>)</small>
+    </p>
+    {% endfor %}
     {% if v.id == excluivel_id %}
     <p class="versao-excluir"><small><a href="{{ url_for('documentos.excluir_versao', orientacao_id=orientacao.id, documento_id=documento.id, versao_id=v.id) }}">Excluir esta versão (enviada por engano)</a></small></p>
     {% endif %}
@@ -59,7 +71,7 @@
        Painel (services/pareceres.py). #}
     {% if is_principal and not v.eh_devolucao %}
     <div class="versao-acoes acoes">
-      {% if v.tem_arquivo and v.natureza == 'entrega' %}
+      {% if v.tem_arquivo and v.natureza == 'entrega' and not pareceres_por_versao.get(v.id) %}
       <a href="{{ url_for('atas.emitir_parecer', orientacao_id=orientacao.id, versao=v.id) }}">Emitir parecer</a>
       {% endif %}
       {% if not v.enviada_pela_orientanda %}

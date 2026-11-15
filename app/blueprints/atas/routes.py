@@ -31,6 +31,7 @@ from app.services.atas import (
     reagendar_ata,
     registrar_presenca,
 )
+from app.services.pareceres import marco_aberto_da_versao
 from app.services.rbac import orientacao_autorizada
 
 
@@ -338,8 +339,8 @@ def emitir_parecer(orientacao_id: int):
     )
     def _rotulo_versao(v):
         rotulo = f"{v.documento.titulo} (v{v.numero_versao})"
-        marco = v.documento.marco
-        if marco is not None and marco.status != "concluido":
+        marco = marco_aberto_da_versao(v)
+        if marco is not None:
             rotulo += f" — fecha o marco: {marco.titulo}"
         return rotulo
 
@@ -359,6 +360,7 @@ def emitir_parecer(orientacao_id: int):
         # avaliar uma entrega é justamente o caso do tipo "documento", que fixa
         # exatamente o que foi apreciado
         form.tipo.data = "documento"
+        form.concluir_marco.data = marco_aberto_da_versao(avaliada) is not None
 
     if form.validate_on_submit():
         parecer = Parecer(
@@ -378,26 +380,31 @@ def emitir_parecer(orientacao_id: int):
             parecer.id,
             {"tipo": parecer.tipo, "resultado": parecer.resultado},
         )
-        # No mesmo passo, fecha o marco que a versão apreciada cumpre — mas só com
-        # resultado favorável e sobre marco desta orientação ainda não concluído.
+        # No mesmo passo, fecha ou devolve o marco que a versão apreciada cumpre
+        # (via marco_id ou como texto-base de uma revisão aberta).
         marco_concluido = None
-        if form.concluir_marco.data and parecer.resultado in (
-            "aprovado",
-            "aprovado_com_ressalvas",
-        ):
-            avaliada_id = form.versao_documento_id.data
-            versao = next((v for v in versoes if v.id == avaliada_id), None)
-            marco = versao.documento.marco if versao else None
-            if (
-                marco is not None
-                and marco.orientacao_id == orientacao.id
-                and servico_cronograma.confirmar_conclusao(marco)
+        marco_devolvido = None
+        avaliada_id = form.versao_documento_id.data
+        versao = next((v for v in versoes if v.id == avaliada_id), None)
+        marco = marco_aberto_da_versao(versao) if versao else None
+        if marco is not None and marco.orientacao_id == orientacao.id:
+            if form.concluir_marco.data and parecer.resultado in (
+                "aprovado",
+                "aprovado_com_ressalvas",
             ):
-                marco_concluido = marco
+                if servico_cronograma.confirmar_conclusao(marco):
+                    marco_concluido = marco
+            elif parecer.resultado == "reprovado" and servico_cronograma.pode_devolver(
+                marco
+            ):
+                if servico_cronograma.devolver_entrega(marco, parecer.conteudo):
+                    marco_devolvido = marco
         db.session.commit()
         mensagem = "Parecer emitido. O registro é imutável."
         if marco_concluido:
             mensagem += f' O marco "{marco_concluido.titulo}" foi concluído.'
+        elif marco_devolvido:
+            mensagem += f' A tarefa "{marco_devolvido.titulo}" foi devolvida para revisão.'
         flash(mensagem, "success")
         return redirect(url_for("atas.listar_pareceres", orientacao_id=orientacao.id))
 

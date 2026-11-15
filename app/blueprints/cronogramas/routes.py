@@ -12,7 +12,7 @@ from app.blueprints.cronogramas.forms import (
 )
 from app.blueprints.documentos.forms import eh_entrega_da_orientanda
 from app.extensions import db
-from app.models import Documento, Marco
+from app.models import Documento, Marco, Parecer
 from app.models.cronograma import ultima_versao
 from app.services import auditoria
 from app.services import cronogramas as servico_cronograma
@@ -195,12 +195,22 @@ def detalhe(orientacao_id: int, marco_id: int):
         del devolver_form.documento_id
         del devolver_form.arquivo
         del devolver_form.anexos
+    ids_versoes = [va.id for _, va in entregas if va is not None]
+    parecer_por_versao = {}
+    if ids_versoes:
+        for p in (
+            Parecer.query.filter(Parecer.versao_documento_id.in_(ids_versoes))
+            .order_by(Parecer.emitido_em.desc(), Parecer.id.desc())
+            .all()
+        ):
+            parecer_por_versao.setdefault(p.versao_documento_id, p)
     return render_template(
         "cronogramas/detalhe.html",
         orientacao=orientacao,
         marco=marco,
         entregas=entregas,
         ultima=ultima,
+        parecer_por_versao=parecer_por_versao,
         entrega_form=entrega_form,
         sinalizar_form=SinalizarForm(),
         confirmacao_form=ConfirmacaoForm(),

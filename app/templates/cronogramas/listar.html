@@ -22,10 +22,13 @@
     <td>{{ ETAPA_MARCO_LABEL.get(m.etapa, 'Não classificada') }}</td>
     <td><a href="{{ url_for('cronogramas.detalhe', orientacao_id=orientacao.id, marco_id=m.id) }}">{{ m.titulo }}</a> <span class="badge">{{ TIPO_MARCO_LABEL[m.tipo] }}</span>
         {% if m.descricao %}<br><small>{{ m.descricao }}</small>{% endif %}
-        {#- ligações do marco: entregas feitas para ele e reuniões que o discutiram -#}
-        {% if m.documentos or m.atas %}
+        {#- ligações do marco: entregas feitas para ele, texto a revisar e reuniões que o discutiram -#}
+        {% if m.documentos or (m.entrega_esperada == 'revisao' and m.documento_base) or m.atas %}
         <br><small class="marco-ligacoes">
           {% for d in m.documentos %}<span class="badge">entrega: {{ d.titulo }}</span> {% endfor %}
+          {% if m.entrega_esperada == 'revisao' and m.documento_base and m.documento_base not in m.documentos %}
+            <span class="badge">revisão: {{ m.documento_base.titulo }}{% if m.documento_base.versao_atual %} (v{{ m.documento_base.versao_atual.numero_versao }}){% endif %}</span>
+          {% endif %}
           {% for a in m.atas %}<span class="badge">reunião {{ a.data_reuniao.strftime('%d/%m') }}</span> {% endfor %}
         </small>
         {% endif %}</td>

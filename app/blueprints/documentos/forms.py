@@ -1,6 +1,7 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, MultipleFileField
 from wtforms import (
+    BooleanField,
     RadioField,
     SelectField,
     StringField,
@@ -85,6 +86,10 @@ class NovoDocumentoForm(FlaskForm):
     anexos = campo_anexos()
     comentario = TextAreaField("Comentário", validators=[Optional()])
     natureza = campo_natureza()
+    sinalizar = BooleanField(
+        "Esta é a entrega do marco selecionado — avisar o orientador para conferir",
+        default=True,
+    )
     submit = SubmitField("Enviar")
 
 
@@ -95,6 +100,10 @@ class NovaVersaoForm(FlaskForm):
     anexos = campo_anexos()
     comentario = TextAreaField("Comentário", validators=[Optional()])
     natureza = campo_natureza()
+    sinalizar = BooleanField(
+        "Esta é a entrega da tarefa — avisar o orientador para conferir",
+        default=True,
+    )
     submit = SubmitField("Enviar nova versão")
 
 

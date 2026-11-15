@@ -99,6 +99,11 @@
   <a href="{{ url_for('documentos.detalhe', orientacao_id=orientacao.id, documento_id=ultima.documento_id) }}">{{ ultima.documento.titulo }} v{{ ultima.numero_versao }}</a>,
   em {{ ultima.enviado_em.strftime('%d/%m/%Y') }}{% endif %}. Confira o material e
   escolha um dos dois caminhos.</small></p>
+  {% if ultima and ultima.tem_arquivo and ultima.natureza == 'entrega' %}
+  <p><small>Precisa de parecer formal assinado em PDF?
+    <a href="{{ url_for('atas.emitir_parecer', orientacao_id=orientacao.id, versao=ultima.id) }}">Emitir parecer sobre esta versão</a>
+    (já conclui ou devolve a tarefa no mesmo passo).</small></p>
+  {% endif %}
   <div class="decisao">
     <div class="decisao-opcao">
       <h4>Está bom — encerrar</h4>
@@ -178,7 +183,7 @@
     {% for d, va in entregas %}
     <tr>
       <td>{{ d.titulo }}{% if marco.documento_base and d.id == marco.documento_base.id %} <small>(texto a revisar)</small>{% endif %}</td>
-      <td>{% if va %}v{{ va.numero_versao }}{% if va.eh_devolucao %} <span class="badge">devolução</span>{% elif va.natureza == 'entrega' %} <span class="badge">entrega da orientanda</span>{% endif %}{% if not va.tem_arquivo %} <small>· comentário</small>{% elif va.anexos %} <small>· {{ va.quantidade_arquivos }} arquivos</small>{% endif %}{% else %}sem versão{% endif %}</td>
+      <td>{% if va %}v{{ va.numero_versao }}{% if va.eh_devolucao %} <span class="badge">devolução</span>{% elif va.natureza == 'entrega' %} <span class="badge">entrega da orientanda</span>{% endif %}{% if parecer_por_versao.get(va.id) %} <span class="badge">parecer: {{ RESULTADO_LABEL[parecer_por_versao[va.id].resultado] }}</span>{% endif %}{% if not va.tem_arquivo %} <small>· comentário</small>{% elif va.anexos %} <small>· {{ va.quantidade_arquivos }} arquivos</small>{% endif %}{% else %}sem versão{% endif %}</td>
       <td>{% if va %}{{ va.remetente.nome }}
         {%- if va.em_nome_do_orientando %} <small>(em nome da orientanda)</small>
         {%- elif va.enviado_por == orientacao.orientando_id %} <small>(orientando)</small>
