@@ -15,7 +15,7 @@ deliberações são preenchidas depois do encontro. Registrar reunião já reali
 serve ao que aconteceu fora do sistema, e não dispara aviso. Você possui
 {{ vinculos|length }} vínculo(s) ativo(s).</small></p>
 
-{% macro linha_reuniao(a, acoes=false) %}
+{% macro linha_reuniao(a, acoes=false, editar_convidados=false) %}
 <tr>
   <td>{{ a.data_reuniao.strftime('%d/%m/%Y') }}{% if a.hora_reuniao %} às {{ a.hora_reuniao.strftime('%H:%M') }}{% endif %}</td>
   <td>{{ a.pauta | truncate(60) if a.pauta else 'sem pauta' }}</td>
@@ -25,8 +25,10 @@ serve ao que aconteceu fora do sistema, e não dispara aviso. Você possui
     {% if a.orientacoes %}
     <a href="{{ url_for('atas.detalhe_ata', orientacao_id=a.orientacoes[0].id, ata_id=a.id) }}">Abrir</a>
     {% endif %}
-    {% if acoes %}
+    {% if acoes or editar_convidados %}
     · <a href="{{ url_for('reunioes.convidados', ata_id=a.id) }}">Convidados</a>
+    {% endif %}
+    {% if acoes %}
     {% if a.orientacoes %}
     · <a href="{{ url_for('atas.reagendar', orientacao_id=a.orientacoes[0].id, ata_id=a.id) }}">Reagendar</a>
     {% endif %}
@@ -104,7 +106,7 @@ serve ao que aconteceu fora do sistema, e não dispara aviso. Você possui
   <table>
     <tr><th>Quando</th><th>Pauta</th><th>Sala</th><th>Convidados</th><th>Ações</th></tr>
     {% for a in encerradas %}
-    {{ linha_reuniao(a) }}
+    {{ linha_reuniao(a, editar_convidados=true) }}
     {% endfor %}
   </table>
 </div>

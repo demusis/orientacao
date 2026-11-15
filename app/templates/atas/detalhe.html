@@ -41,11 +41,13 @@ redigidas. Assinale as presenças, escreva a ata e finalize-a.</p>
 
 {# a agenda é do orientador convocante: o blueprint de reuniões não admite o
    admin, que trata a mesma reunião por esta página #}
-{% if ata.status == 'rascunho' and current_user.id == ata.orientador_id
+{% if ata.status != 'cancelada' and current_user.id == ata.orientador_id
       and current_user.papel == 'orientador' %}
 <p class="acoes-reuniao">
   <a href="{{ url_for('reunioes.convidados', ata_id=ata.id) }}">Alterar convidados</a> ·
+  {% if ata.status == 'rascunho' %}
   <a href="{{ url_for('reunioes.criar_tarefa_derivada', ata_id=ata.id) }}">Nova tarefa derivada</a> ·
+  {% endif %}
   <a href="{{ url_for('reunioes.index') }}">Agenda de reuniões</a>
 </p>
 {% endif %}
@@ -89,7 +91,7 @@ redigidas. Assinale as presenças, escreva a ata e finalize-a.</p>
 
 <div class="card">
   <h2>Participantes e presenças</h2>
-  {% set mostrar_acoes = geriveis and not ata.imutavel %}
+  {% set mostrar_acoes = geriveis and ata.status != 'cancelada' %}
   <table>
     <tr><th>Orientando</th><th>Presença</th><th>Registro</th>
       {% if mostrar_acoes %}<th>Ações</th>{% endif %}</tr>
@@ -142,8 +144,9 @@ redigidas. Assinale as presenças, escreva a ata e finalize-a.</p>
     {{ finalizar_form.hidden_tag() }}
     {{ finalizar_form.submit() }}
   </form>
-  <p><small>Atenção: após finalizada, a ata torna-se imutável e as presenças não podem
-  mais ser alteradas. A finalização cabe ao orientador principal.</small></p>
+  <p><small>Atenção: após finalizada, o conteúdo da ata torna-se imutável;
+  apenas participantes e presenças ainda podem ser ajustados. A finalização
+  cabe ao orientador principal.</small></p>
   {% endif %}
 {% else %}
   <div class="card">

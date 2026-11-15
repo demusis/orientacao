@@ -73,6 +73,11 @@ class AtaGrupoForm(FlaskForm):
     orientacoes = MultiCheckboxField(
         "Orientandos presentes (um ou mais)", coerce=int, validators=[_minimo_um]
     )
+    ausentes = MultiCheckboxField(
+        "Orientandos convocados que faltaram (opcional)",
+        coerce=int,
+        validators=[Optional()],
+    )
     finalizar_agora = BooleanField(
         "Finalizar a ata agora (torna-se imutável e exportável em PDF)"
     )

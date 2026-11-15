@@ -98,11 +98,65 @@ def test_orientando_nao_assinala_presenca(client, orientacao, orientacao2, orien
 
 
 
-def test_presenca_bloqueada_apos_finalizacao(client, orientacao, orientacao2, orientador):
+def test_presenca_e_convidados_ajustaveis_apos_finalizacao(
+    client, orientacao, orientacao2, orientador, monkeypatch
+):
+    """Após finalizada, participantes esquecidos e presenças/ausências ainda
+    podem ser ajustados e atualizam o snapshot congelado, sem disparar convite."""
+    import json
+
+    enviados = []
+    monkeypatch.setattr(
+        "app.services.email.enviar_lote",
+        lambda msgs: (enviados.extend(msgs) or [m[0] for m in msgs], []),
+    )
     login(client, "orientador@teste.br")
-    _criar_ata_grupo(client, [orientacao.id, orientacao2.id])
+    _criar_ata_grupo(client, [orientacao.id])
     ata = Ata.query.one()
     client.post(f"/orientacoes/{orientacao.id}/atas/{ata.id}/finalizar")
+    assert ata.status == "finalizada"
+
+    detalhe = client.get(f"/orientacoes/{orientacao.id}/atas/{ata.id}").get_data(
+        as_text=True
+    )
+    assert "Alterar convidados" in detalhe
+    assert "Presente" in detalhe and "Ausente" in detalhe
+
+    agenda = client.get("/reunioes/").get_data(as_text=True)
+    assert f"/reunioes/{ata.id}/convidados" in agenda
+
+    client.post(
+        f"/reunioes/{ata.id}/convidados",
+        data={"orientacoes": [str(orientacao.id), str(orientacao2.id)]},
+        follow_redirects=True,
+    )
+    assert enviados == []
+    assert ata.tipo == "grupo"
+    assert {p.orientacao_id for p in ata.participacoes} == {
+        orientacao.id,
+        orientacao2.id,
+    }
+
+    client.post(
+        f"/orientacoes/{orientacao.id}/atas/{ata.id}/presenca/{orientacao2.id}/ausente"
+    )
+    assert ata.participacao_de(orientacao2.id).presenca == "ausente"
+    congelado = json.loads(ata.conteudo_congelado)
+    por_id = {p["orientacao_id"]: p["presenca"] for p in congelado["participacoes"]}
+    assert por_id[orientacao2.id] == "ausente"
+
+
+def test_presenca_e_convidados_bloqueados_em_ata_cancelada(
+    client, orientacao, orientacao2, orientador
+):
+    from app.extensions import db
+    from app.services.atas import cancelar_reuniao
+
+    login(client, "orientador@teste.br")
+    _criar_ata_grupo(client, [orientacao.id])
+    ata = Ata.query.one()
+    cancelar_reuniao(ata, orientador, "Cancelada por conflito")
+    db.session.commit()
 
     client.post(
         f"/orientacoes/{orientacao.id}/atas/{ata.id}/presenca/{orientacao.id}/presente"
@@ -110,5 +164,16 @@ def test_presenca_bloqueada_apos_finalizacao(client, orientacao, orientacao2, or
     assert ata.participacao_de(orientacao.id).presenca == "pendente"
     assert (
         LogAuditoria.query.filter_by(acao="tentativa_presenca_ata_finalizada").count()
+        == 1
+    )
+
+    client.post(
+        f"/reunioes/{ata.id}/convidados",
+        data={"orientacoes": [str(orientacao.id), str(orientacao2.id)]},
+        follow_redirects=True,
+    )
+    assert [p.orientacao_id for p in ata.participacoes] == [orientacao.id]
+    assert (
+        LogAuditoria.query.filter_by(acao="tentativa_edicao_ata_finalizada").count()
         == 1
     )

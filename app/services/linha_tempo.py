@@ -25,6 +25,15 @@ TIPOS = {
 }
 
 
+def marcos_discutidos_do_vinculo(ata, orientacao_id: int) -> str:
+    """Títulos únicos dos marcos do vínculo discutidos na reunião."""
+    return ", ".join(
+        dict.fromkeys(
+            m.titulo for m in ata.marcos if m.orientacao_id == orientacao_id
+        )
+    )
+
+
 def _dt(valor):
     """Normaliza para datetime: Date vira meia-noite (ingênuo), para ordenar
     junto dos DateTime. Só ordena; não é exibido."""
@@ -91,7 +100,7 @@ def eventos(orientacao) -> list:
         })
 
     for a in orientacao.atas:
-        discutidos = ", ".join(m.titulo for m in a.marcos)
+        discutidos = marcos_discutidos_do_vinculo(a, orientacao.id)
         itens.append({
             "tipo": "reuniao",
             "quando": _dt(a.data_reuniao),

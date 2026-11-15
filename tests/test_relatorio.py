@@ -180,3 +180,82 @@ def test_atalho_extrato_no_painel_e_em_orientandos(
     orientandos_enc = client.get("/orientandos/").data.decode()
     assert f"/orientacoes/{orientacao.id}/relatorio.pdf" in orientandos_enc
     assert "concluida" in orientandos_enc
+
+
+def test_extrato_omite_texto_das_atas_e_filtra_marcos_de_grupo(
+    client, orientacao, orientacao2, orientador
+):
+    import re
+    import zlib
+    from io import BytesIO
+
+    from reportlab.platypus import Table
+
+    from app.services import linha_tempo
+    from app.services.exportacao import _documento_base
+
+    hoje = date.today()
+    m1 = Marco(
+        orientacao_id=orientacao.id,
+        titulo="Tarefa em grupo",
+        data_prevista=hoje + timedelta(days=5),
+        grupo_id="grp-1",
+    )
+    m2 = Marco(
+        orientacao_id=orientacao2.id,
+        titulo="Tarefa em grupo",
+        data_prevista=hoje + timedelta(days=5),
+        grupo_id="grp-1",
+    )
+    m_outro = Marco(
+        orientacao_id=orientacao2.id,
+        titulo="Marco exclusivo do colega",
+        data_prevista=hoje + timedelta(days=7),
+    )
+    db.session.add_all([m1, m2, m_outro])
+    db.session.flush()
+
+    ata = Ata(
+        tipo="grupo",
+        orientador_id=orientador.id,
+        data_reuniao=hoje - timedelta(days=2),
+        pauta="PAUTA_CONFIDENCIAL_DA_ATA",
+        deliberacoes="DELIBERACAO_LONGA_DA_ATA",
+        redigida_por=orientador.id,
+        status="finalizada",
+        marcos=[m1, m2, m_outro],
+        participacoes=[
+            AtaParticipacao(orientacao_id=orientacao.id, presenca="ausente"),
+            AtaParticipacao(orientacao_id=orientacao2.id, presenca="presente"),
+        ],
+    )
+    db.session.add(ata)
+    db.session.commit()
+
+    # Linha do tempo filtra pelo vínculo e desduplica títulos de grupo
+    ev_reuniao = next(
+        e for e in linha_tempo.eventos(orientacao) if e["tipo"] == "reuniao"
+    )
+    assert ev_reuniao["relacionado"] == "discutiu: Tarefa em grupo"
+
+    # Seção de reuniões no extrato traz apenas a tabela resumida, sem texto das atas
+    _, estilos = _documento_base(BytesIO(), "Teste")
+    cel = relatorio._estilo_celula(estilos)
+    blocos = relatorio._reunioes(orientacao, [ata], estilos, cel)
+    tabelas = [b for b in blocos if isinstance(b, Table)]
+    assert len(tabelas) == 1
+    celula_marcos = tabelas[0]._cellvalues[1][4].text
+    assert celula_marcos == "Tarefa em grupo"
+    assert tabelas[0]._cellvalues[1][3] == "Ausente"
+
+    # O PDF final não contém os blocos de pauta/deliberações da ata
+    pdf = relatorio.gerar_pdf_relatorio(orientacao)
+    conteudo_pdf = pdf.decode("latin1", errors="ignore")
+    for m in re.finditer(rb"stream\r?\n(.*?)\r?\nendstream", pdf, re.DOTALL):
+        try:
+            conteudo_pdf += zlib.decompress(m.group(1)).decode("latin1", errors="ignore")
+        except zlib.error:
+            pass
+    assert "PAUTA_CONFIDENCIAL_DA_ATA" not in conteudo_pdf
+    assert "DELIBERACAO_LONGA_DA_ATA" not in conteudo_pdf
+    assert "Marco exclusivo do colega" not in conteudo_pdf

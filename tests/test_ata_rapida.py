@@ -42,3 +42,32 @@ def test_ata_rapida_recusa_data_futura(client, orientacao):
     assert r.status_code == 200
     assert Ata.query.count() == 0
     assert db.session.query(Ata).count() == 0
+
+
+def test_ata_rapida_registra_presentes_e_ausentes(client, orientacao, orientacao2):
+    import json
+
+    login(client, "orientador@teste.br")
+    r = client.post(
+        "/reunioes/atas/nova",
+        data={
+            "data_reuniao": "2026-07-10",
+            "pauta": "Reunião do grupo",
+            "deliberacoes": "Encaminhamentos registrados.",
+            "orientacoes": [orientacao.id],
+            "ausentes": [orientacao2.id],
+            "finalizar_agora": "y",
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    ata = Ata.query.one()
+    assert ata.status == "finalizada"
+    assert ata.tipo == "grupo"
+    presencas = {p.orientacao_id: p.presenca for p in ata.participacoes}
+    assert presencas == {orientacao.id: "presente", orientacao2.id: "ausente"}
+    assert all(p.presenca_registrada_em is not None for p in ata.participacoes)
+
+    congelado = json.loads(ata.conteudo_congelado)
+    por_id = {p["orientacao_id"]: p["presenca"] for p in congelado["participacoes"]}
+    assert por_id == {orientacao.id: "presente", orientacao2.id: "ausente"}

@@ -73,6 +73,15 @@ def agendar_reuniao(orientador, *, vinculos, data, hora, pauta, link=None) -> At
     return ata
 
 
+def _re_congelar_se_finalizada(ata: Ata) -> None:
+    """Atualiza o snapshot da ata finalizada após ajuste de participantes/presenças."""
+    if ata.status == "finalizada":
+        from app.services.exportacao import congelar_ata
+
+        db.session.flush()
+        congelar_ata(ata)
+
+
 def alterar_convidados(ata: Ata, vinculos) -> tuple[list, list]:
     """Redefine os participantes, devolvendo (incluídos, excluídos) por id.
 
@@ -80,9 +89,9 @@ def alterar_convidados(ata: Ata, vinculos) -> tuple[list, list]:
     registrado com autor e carimbo, e removê-la pela porta dos fundos apagaria
     esse fato sem deixar rastro. Nesse caso, o caminho é reverter a presença a
     pendente antes, ou manter o convidado."""
-    if ata.imutavel:
+    if ata.status == "cancelada":
         auditoria.registrar("tentativa_edicao_ata_finalizada", "ata", ata.id)
-        raise AtaImutavel("Reunião encerrada ou cancelada não muda de convidados.")
+        raise AtaImutavel("Reunião cancelada não muda de convidados.")
     if not vinculos:
         raise OperacaoInvalida("A reunião precisa de ao menos um convidado.")
 
@@ -109,6 +118,7 @@ def alterar_convidados(ata: Ata, vinculos) -> tuple[list, list]:
     # o tipo acompanha o tamanho: retirar convidados de uma reunião de grupo até
     # sobrar um a torna individual, e o PDF deve dizer o que ela de fato foi
     ata.tipo = "grupo" if len(desejados) > 1 else "individual"
+    _re_congelar_se_finalizada(ata)
 
     auditoria.registrar(
         "alteracao_convidados_reuniao",
@@ -268,14 +278,15 @@ def reagendar_ata(
 def registrar_presenca(participacao: AtaParticipacao, presenca: str, usuario):
     if presenca not in ("presente", "ausente"):
         raise OperacaoInvalida("Valor de presença inválido.")
-    if participacao.ata.imutavel:
+    if participacao.ata.status == "cancelada":
         auditoria.registrar(
             "tentativa_presenca_ata_finalizada", "ata", participacao.ata_id
         )
-        raise AtaImutavel("Presenças não podem ser alteradas após a finalização da ata.")
+        raise AtaImutavel("Presenças não podem ser alteradas em reunião cancelada.")
     participacao.presenca = presenca
     participacao.presenca_registrada_em = datetime.now(UTC)
     participacao.presenca_registrada_por = usuario.id
+    _re_congelar_se_finalizada(participacao.ata)
     auditoria.registrar(
         "registro_presenca",
         "ata",

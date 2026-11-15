@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from flask import abort, flash, redirect, render_template, url_for
 from flask_login import current_user
 
@@ -202,7 +204,8 @@ def convidados(ata_id: int):
             f"{len(excluidos)} retirado(s).",
             "success",
         )
-        _avisar(ata, "convidados_alterados", retirados=retirados)
+        if ata.status == "rascunho" and ata.agendada:
+            _avisar(ata, "convidados_alterados", retirados=retirados)
         return redirect(url_for("reunioes.index"))
     return render_template(
         "reunioes/convidados.html", form=form, ata=ata, vinculos=disponiveis
@@ -369,9 +372,39 @@ def criar_ata_grupo():
     `agendar`."""
     vinculos = _vinculos_ativos()
     form = AtaGrupoForm()
-    form.orientacoes.choices = _choices(vinculos)
+    escolhas = _choices(vinculos)
+    form.orientacoes.choices = escolhas
+    form.ausentes.choices = escolhas
     if form.validate_on_submit():
-        selecionadas = [o for o in vinculos if o.id in form.orientacoes.data]
+        presentes_ids = set(form.orientacoes.data or [])
+        ausentes_ids = set(form.ausentes.data or [])
+        participantes_ids = presentes_ids | ausentes_ids
+        selecionadas = [o for o in vinculos if o.id in participantes_ids]
+        ausentes_validos = {o.id for o in selecionadas if o.id in ausentes_ids}
+        agora_utc = datetime.now(UTC)
+        participacoes = []
+        for o in selecionadas:
+            if o.id in ausentes_validos:
+                participacoes.append(
+                    AtaParticipacao(
+                        orientacao_id=o.id,
+                        presenca="ausente",
+                        presenca_registrada_em=agora_utc,
+                        presenca_registrada_por=current_user.id,
+                    )
+                )
+            elif form.finalizar_agora.data or ausentes_validos:
+                participacoes.append(
+                    AtaParticipacao(
+                        orientacao_id=o.id,
+                        presenca="presente",
+                        presenca_registrada_em=agora_utc,
+                        presenca_registrada_por=current_user.id,
+                    )
+                )
+            else:
+                participacoes.append(AtaParticipacao(orientacao_id=o.id))
+
         ata = Ata(
             # com um único orientando a reunião é individual; o registro fica
             # idêntico ao criado pelo módulo do próprio vínculo
@@ -382,9 +415,7 @@ def criar_ata_grupo():
             pauta=form.pauta.data,
             deliberacoes=form.deliberacoes.data,
             redigida_por=current_user.id,
-            participacoes=[
-                AtaParticipacao(orientacao_id=o.id) for o in selecionadas
-            ],
+            participacoes=participacoes,
         )
         db.session.add(ata)
         db.session.flush()
@@ -392,15 +423,15 @@ def criar_ata_grupo():
             "criacao_ata_grupo" if ata.tipo == "grupo" else "criacao_ata",
             "ata",
             ata.id,
-            {"orientacoes": [o.id for o in selecionadas],
-             "finalizada": bool(form.finalizar_agora.data)},
+            {
+                "orientacoes": [o.id for o in selecionadas],
+                "ausentes": sorted(ausentes_validos),
+                "finalizada": bool(form.finalizar_agora.data),
+            },
         )
         if form.finalizar_agora.data:
-            # reunião ocorrida: quem foi convidado à ata rápida é tido por
-            # presente. A finalização exige pauta e deliberações, ambas já
-            # obrigatórias no formulário, e congela o registro (imutável).
-            for participacao in ata.participacoes:
-                participacao.presenca = "presente"
+            # A finalização exige pauta e deliberações, ambas já obrigatórias
+            # no formulário, e congela o texto e marcos do registro.
             try:
                 finalizar_ata(ata)
             except (AtaImutavel, OperacaoInvalida) as exc:

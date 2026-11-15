@@ -9,8 +9,10 @@
   nenhum aviso é enviado. Reunião a realizar entra por
   <a href="{{ url_for('reunioes.agendar') }}">Agendar reunião</a>, que avisa os
   convidados.</small></p>
-  <p><small>Selecione um ou mais orientandos. Com um único selecionado, a ata é
-  registrada como reunião individual do vínculo correspondente.</small></p>
+  <p><small>Selecione os orientandos presentes e, se aplicável, os convocados
+  que faltaram (para que a ausência conte no extrato e no histórico). Com um
+  único participante ao todo, a ata é registrada como reunião individual do
+  vínculo correspondente.</small></p>
   {% if not vinculos %}
   <p class="flash flash-warning">É necessário ao menos um vínculo ativo para
   registrar reunião.</p>

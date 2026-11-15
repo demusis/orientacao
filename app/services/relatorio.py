@@ -2,8 +2,8 @@
 
 Reúne num só documento o retrato completo do acompanhamento: ficha cadastral
 e resumo executivo, cronograma e situação das tarefas, histórico completo de
-versões de documentos e pareceres, pareceres integrais, reuniões com pauta e
-deliberações, eventos formais do vínculo e linha do tempo cronológica.
+versões de documentos e pareceres, pareceres integrais, quadro de reuniões e
+presenças, eventos formais do vínculo e linha do tempo cronológica.
 
 **Não leva hash de verificação, deliberadamente.** Ata e parecer são atos:
 congelados na finalização/emissão e conferíveis por rota pública. Este extrato
@@ -324,7 +324,9 @@ def _reunioes(orientacao, atas, estilos, cel) -> list:
     for a in atas:
         part = a.participacao_de(orientacao.id)
         presenca = PRESENCA_LABEL[part.presenca] if part else "Pendente"
-        marcos_txt = ", ".join(m.titulo for m in a.marcos) or "—"
+        marcos_txt = (
+            linha_tempo.marcos_discutidos_do_vinculo(a, orientacao.id) or "—"
+        )
         data_txt = a.data_reuniao.strftime("%d/%m/%Y") + (
             f" {a.hora_reuniao.strftime('%H:%M')}" if a.hora_reuniao else ""
         )
@@ -339,33 +341,6 @@ def _reunioes(orientacao, atas, estilos, cel) -> list:
         _tabela(linhas, larguras=[28 * mm, 22 * mm, 25 * mm, 25 * mm, 70 * mm])
     )
     blocos.append(Spacer(1, 3 * mm))
-
-    for a in atas:
-        sit = _situacao_reuniao(a)
-        blocos.append(
-            Paragraph(
-                f"<b>Reunião de {a.data_reuniao:%d/%m/%Y}</b> ({sit})",
-                estilos["BodyText"],
-            )
-        )
-        if a.status == "cancelada":
-            if a.motivo_cancelamento:
-                blocos.append(
-                    Paragraph(
-                        f"Motivo do cancelamento: {_texto(a.motivo_cancelamento)}",
-                        cel,
-                    )
-                )
-        else:
-            if (a.pauta or "").strip():
-                blocos.append(Paragraph("<b>Pauta:</b>", cel))
-                blocos += marcacao.para_flowables(a.pauta, estilos, a.formato_conteudo)
-            if (a.deliberacoes or "").strip():
-                blocos.append(Paragraph("<b>Deliberações:</b>", cel))
-                blocos += marcacao.para_flowables(
-                    a.deliberacoes, estilos, a.formato_conteudo
-                )
-        blocos.append(Spacer(1, 2 * mm))
     return blocos
 
 
