@@ -27,12 +27,15 @@ def _meus_orientandos():
 @role_required("orientador")
 def listar():
     orientandos = _meus_orientandos()
-    vinculos = {
-        o.orientando_id: o
-        for o in Orientacao.query.filter_by(
-            orientador_id=current_user.id, status="ativa"
-        )
-    }
+    vinculos: dict[int, Orientacao] = {}
+    for o in (
+        Orientacao.query.filter_by(orientador_id=current_user.id)
+        .order_by(Orientacao.criado_em.asc())
+        .all()
+    ):
+        anterior = vinculos.get(o.orientando_id)
+        if anterior is None or o.status == "ativa" or anterior.status != "ativa":
+            vinculos[o.orientando_id] = o
     return render_template(
         "orientandos/listar.html", orientandos=orientandos, vinculos=vinculos
     )

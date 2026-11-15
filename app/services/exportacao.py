@@ -183,7 +183,7 @@ def _documento_base(buffer: BytesIO, titulo: str):
 
 
 def _tabela(dados, larguras=None):
-    t = Table(dados, colWidths=larguras, hAlign="LEFT")
+    t = Table(dados, colWidths=larguras, hAlign="LEFT", repeatRows=1)
     t.setStyle(
         TableStyle(
             [

@@ -21,8 +21,10 @@ conta ou o encerramento do vínculo, que preservam o histórico.</small></p>
       {% if o %}
         <a href="{{ url_for('main.orientacao_detalhe', orientacao_id=o.id) }}">{{ o.titulo_projeto }}</a>
         <span class="badge">{{ MODALIDADE_LABEL[o.modalidade] }}</span>
+        {% if o.status != 'ativa' %}<span class="badge">{{ o.status }}</span>{% endif %}
+        · <a href="{{ url_for('main.relatorio_orientacao', orientacao_id=o.id) }}">Extrato PDF</a>
       {% else %}
-        <span class="badge">sem vínculo ativo</span>
+        <span class="badge">sem vínculo</span>
       {% endif %}
     </td>
     <td>{{ 'sim' if u.ativo else 'não' }}</td>

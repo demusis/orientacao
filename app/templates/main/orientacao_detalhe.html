@@ -9,8 +9,8 @@
   {% if pode_alterar_titulo %}
   <p><a href="{{ url_for('main.alterar_titulo', orientacao_id=orientacao.id) }}">Alterar título do projeto</a></p>
   {% endif %}
-  <p><a href="{{ url_for('main.relatorio_orientacao', orientacao_id=orientacao.id) }}">Relatório de acompanhamento (PDF)</a>
-  <small>(retrato consolidado do cronograma, reuniões, entregas e pareceres).</small></p>
+  <p><a href="{{ url_for('main.relatorio_orientacao', orientacao_id=orientacao.id) }}">Extrato completo do orientando (PDF)</a>
+  <small>(relatório estruturado com resumo executivo, cronograma, histórico de versões, pareceres, reuniões e linha do tempo).</small></p>
   <p><strong>Modalidade:</strong> {{ MODALIDADE_LABEL[orientacao.modalidade] }} |
      <strong>Status:</strong> {{ orientacao.status }}</p>
   <p><strong>Orientador:</strong> {{ orientacao.orientador.nome }}

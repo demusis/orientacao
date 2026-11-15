@@ -239,6 +239,7 @@
       · <a href="{{ url_for('documentos.listar', orientacao_id=o.id) }}">Documentos</a>
       · <a href="{{ url_for('atas.listar_atas', orientacao_id=o.id) }}">Atas</a>
       {% endif %}
+      · <a href="{{ url_for('main.relatorio_orientacao', orientacao_id=o.id) }}">Extrato PDF</a>
     </td>
   </tr>
 {% endmacro %}
