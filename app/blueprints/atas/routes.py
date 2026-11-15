@@ -164,15 +164,25 @@ def reagendar(orientacao_id: int, ata_id: int):
     ata = _ata_da_orientacao(orientacao, ata_id)
     if current_user.id != ata.orientador_id and current_user.papel != "admin":
         abort(403)
-    form = ReagendarForm(data_reuniao=ata.data_reuniao, hora_reuniao=ata.hora_reuniao)
+    form = ReagendarForm(
+        data_reuniao=ata.data_reuniao,
+        hora_reuniao=ata.hora_reuniao,
+        link_reuniao=ata.link_reuniao,
+    )
     if form.validate_on_submit():
         try:
+            kwargs_link = (
+                {"link": form.link_reuniao.data}
+                if "link_reuniao" in request.form
+                else {}
+            )
             reagendar_ata(
                 ata,
                 current_user,
                 data_nova=form.data_reuniao.data,
                 hora_nova=form.hora_reuniao.data,
                 motivo=form.motivo.data,
+                **kwargs_link,
             )
             db.session.commit()
             flash("Reunião reagendada; o histórico foi registrado.", "success")

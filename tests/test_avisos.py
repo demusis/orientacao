@@ -520,11 +520,14 @@ def test_assinatura_separada_do_conteudo(client, orientacao, orientando):
 # --- avisos preventivos (Lote 3) ---
 
 
-def _reuniao_em(orientacao, orientador, quando, hora=None, status="rascunho"):
+def _reuniao_em(
+    orientacao, orientador, quando, hora=None, status="rascunho", link=None
+):
     a = Ata(
         orientador_id=orientador.id,
         data_reuniao=quando,
         hora_reuniao=hora,
+        link_reuniao=link,
         pauta="p",
         deliberacoes="d",
         redigida_por=orientador.id,
@@ -608,3 +611,31 @@ def test_reuniao_com_hora_ja_passada_nao_avisa(client, orientacao, orientador):
         for s in secoes if s in ("reunioes_proximas", "reunioes_hoje")
     ]
     assert reunioes == []
+
+
+def test_aviso_de_reuniao_online_inclui_botao_e_link(
+    client, orientacao, orientador, orientando
+):
+    sala = "https://meet.google.com/abc-defg-hij"
+    _reuniao_em(
+        orientacao, orientador, _hoje_local() + timedelta(days=1), link=sala
+    )
+    secoes = avisos.coletar()[orientando]
+    texto = avisos.corpo_texto(orientando, secoes, "https://x.br")
+    html = avisos.corpo_html(orientando, secoes, "https://x.br")
+
+    assert f"Sala virtual: {sala}" in texto
+    assert f'href="{sala}"' in html
+    assert "Entrar na reunião" in html
+
+
+def test_aviso_de_reuniao_presencial_omite_botao_e_link(
+    client, orientacao, orientador, orientando
+):
+    _reuniao_em(orientacao, orientador, _hoje_local())
+    secoes = avisos.coletar()[orientando]
+    texto = avisos.corpo_texto(orientando, secoes, "https://x.br")
+    html = avisos.corpo_html(orientando, secoes, "https://x.br")
+
+    assert "Sala virtual:" not in texto
+    assert "Entrar na reunião" not in html

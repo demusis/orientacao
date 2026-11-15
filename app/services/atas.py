@@ -230,7 +230,9 @@ def finalizar_ata(ata: Ata):
     auditoria.registrar("finalizacao_ata", "ata", ata.id)
 
 
-def reagendar_ata(ata: Ata, usuario, *, data_nova, hora_nova, motivo=None):
+def reagendar_ata(
+    ata: Ata, usuario, *, data_nova, hora_nova, motivo=None, link=_MANTER
+):
     if ata.imutavel:
         auditoria.registrar("tentativa_reagendamento_ata_finalizada", "ata", ata.id)
         raise AtaImutavel(
@@ -248,6 +250,8 @@ def reagendar_ata(ata: Ata, usuario, *, data_nova, hora_nova, motivo=None):
     db.session.add(registro)
     ata.data_reuniao = data_nova
     ata.hora_reuniao = hora_nova
+    if link is not _MANTER:
+        ata.link_reuniao = limpar_link(link)
     auditoria.registrar(
         "reagendamento_reuniao",
         "ata",

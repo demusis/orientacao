@@ -25,6 +25,9 @@ Acesse: {{ url }}
 {% for item in itens %}
   - {{ item.titulo }}
     {{ item.detalhe }}
+{%- if item.link %}
+    Sala virtual: {{ item.link }}
+{%- endif %}
 {%- endfor %}
 
   Como proceder:

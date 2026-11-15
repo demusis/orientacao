@@ -181,8 +181,8 @@ SECOES = {
             "para hoje."
         ),
         "passos": [
-            "Confirme a hora e, havendo, o link da reunião na página da "
-            "orientação, em Atas.",
+            "Confirme a hora e, sendo a reunião online, use o botão da "
+            "videoconferência acima (ou confira na página da orientação, em Atas).",
             "Não podendo comparecer, avise a outra parte e use Reagendar "
             "enquanto a ata está em rascunho.",
         ],
@@ -193,7 +193,8 @@ SECOES = {
             "São reuniões de orientação já agendadas cuja data se aproxima."
         ),
         "passos": [
-            "Confirme a data e a hora na página da orientação, em Atas.",
+            "Confirme a data, a hora e, sendo a reunião online, o link da "
+            "videoconferência acima (ou na página da orientação, em Atas).",
             "Precisando remarcar, use Reagendar enquanto a ata está em rascunho; "
             "a nova data fica registrada no histórico.",
         ],
@@ -201,12 +202,21 @@ SECOES = {
 }
 
 
-def _acumular(destino: dict, pessoa, secao: str, titulo: str, detalhe: str) -> None:
-    """Item guardado em partes — título e detalhe — para que texto simples e
-    HTML possam formatá-lo cada um a seu modo, sem duplicar a regra."""
-    destino.setdefault(pessoa, {}).setdefault(secao, []).append(
-        {"titulo": titulo, "detalhe": detalhe}
-    )
+def _acumular(
+    destino: dict,
+    pessoa,
+    secao: str,
+    titulo: str,
+    detalhe: str,
+    link: str | None = None,
+) -> None:
+    """Item guardado em partes — título, detalhe e link opcional — para que
+    texto simples e HTML possam formatá-lo cada um a seu modo, sem duplicar a
+    regra."""
+    item = {"titulo": titulo, "detalhe": detalhe}
+    if link:
+        item["link"] = link
+    destino.setdefault(pessoa, {}).setdefault(secao, []).append(item)
 
 
 def marcos_atrasados(destino: dict, hoje=None) -> None:
@@ -376,7 +386,14 @@ def reunioes_proximas(destino: dict, hoje=None) -> None:
             secao = "reunioes_proximas"
             detalhe = f"{a.data_reuniao.strftime('%d/%m/%Y')}{rotulo_hora}"
         for pessoa in [a.orientador, *participantes]:
-            _acumular(destino, pessoa, secao, "Reunião de orientação", detalhe)
+            _acumular(
+                destino,
+                pessoa,
+                secao,
+                "Reunião de orientação",
+                detalhe,
+                link=a.link_reuniao,
+            )
 
 
 def marcos_devolvidos(destino: dict, hoje=None) -> None:

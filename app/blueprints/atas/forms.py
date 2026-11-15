@@ -136,6 +136,7 @@ class AtaEdicaoForm(FlaskForm):
 class ReagendarForm(FlaskForm):
     data_reuniao = DateField("Nova data", validators=[DataRequired()])
     hora_reuniao = TimeField("Nova hora", validators=[Optional()])
+    link_reuniao = campo_link_reuniao()
     motivo = TextAreaField("Motivo (opcional)", validators=[Optional()])
     submit = SubmitField("Reagendar reunião")
 

@@ -897,3 +897,31 @@ def test_ajuda_documenta_o_ciclo(client, orientando):
     assert "Tarefas derivadas" in ajuda
     # o manual não pode mandar clicar num botão que não existe mais
     assert "+ Nova ata de reunião" not in ajuda
+
+
+def test_reagendar_permite_informar_ou_atualizar_link_da_sala(
+    client, orientacao, orientador, sem_smtp
+):
+    """Ao remarcar, o orientador pode definir ou atualizar o link da sala, e o
+    aviso de remarcação já sai com o botão apontando para o novo endereço."""
+    login(client, "orientador@teste.br")
+    _agendar(client, [orientacao])
+    ata = Ata.query.one()
+    assert ata.link_reuniao is None
+
+    sem_smtp.clear()
+    nova_sala = "https://meet.google.com/xyz-uvwx-rst"
+    client.post(
+        f"/orientacoes/{orientacao.id}/atas/{ata.id}/reagendar",
+        data={
+            "data_reuniao": FUTURO,
+            "hora_reuniao": "15:00",
+            "link_reuniao": nova_sala,
+            "motivo": "Ajuste de sala",
+        },
+        follow_redirects=True,
+    )
+    assert ata.link_reuniao == nova_sala
+    assert nova_sala in sem_smtp[0][2]
+    assert f'href="{nova_sala}"' in sem_smtp[0][3]
+    assert "Entrar na reunião" in sem_smtp[0][3]

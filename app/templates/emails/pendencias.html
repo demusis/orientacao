@@ -50,6 +50,14 @@
       <div style="border-left:3px solid {{ borda }};padding:4px 0 4px 10px;margin-bottom:10px">
         <div style="font:600 15px/1.4 {{ fonte }};color:{{ texto }}">{{ item.titulo }}</div>
         <div style="font:13px/1.5 {{ fonte }};color:{{ apagado }};margin-top:2px">{{ item.detalhe }}</div>
+        {% if item.link %}
+        <div style="font:13px/1.5 {{ fonte }};color:{{ apagado }};margin-top:4px;word-break:break-all">
+          Sala virtual: <a href="{{ item.link }}" style="color:{{ azul }}">{{ item.link }}</a>
+        </div>
+        <div style="margin-top:8px">
+          <a href="{{ item.link }}" style="display:inline-block;background:{{ azul }};color:#ffffff;text-decoration:none;padding:9px 18px;border-radius:4px;font:600 14px {{ fonte }}">Entrar na reunião</a>
+        </div>
+        {% endif %}
       </div>
       {% endfor %}
 
