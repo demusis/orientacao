@@ -12,9 +12,9 @@ from app.blueprints.cronogramas.forms import (
 )
 from app.blueprints.documentos.forms import eh_entrega_da_orientanda
 from app.extensions import db
-from app.models import Documento, Marco, Parecer
+from app.models import Documento, Marco, Orientacao, Parecer
 from app.models.cronograma import ultima_versao
-from app.services import auditoria
+from app.services import auditoria, tarefas
 from app.services import cronogramas as servico_cronograma
 from app.services import materiais as servico_materiais
 from app.services.rbac import manda_no_cronograma, orientacao_autorizada
@@ -77,23 +77,64 @@ def criar(orientacao_id: int):
     orientacao = orientacao_autorizada(orientacao_id)
     if not manda_no_cronograma(orientacao):
         abort(403)
+    outros_vinculos = (
+        Orientacao.query.filter(
+            Orientacao.orientador_id == orientacao.orientador_id,
+            Orientacao.status == "ativa",
+            Orientacao.id != orientacao.id,
+        )
+        .order_by(Orientacao.titulo_projeto)
+        .all()
+    )
     form = MarcoIndividualForm()
     _escolhas_texto_base(form, orientacao)
+    if outros_vinculos:
+        form.outros_orientandos.choices = [
+            (o.id, f"{o.orientando.nome} ({o.titulo_projeto})")
+            for o in outros_vinculos
+        ]
+    else:
+        del form.outros_orientandos
     if form.validate_on_submit():
-        marco = Marco(
-            orientacao_id=orientacao.id,
-            titulo=form.titulo.data,
-            tipo=form.tipo.data,
-            descricao=form.descricao.data,
-            data_prevista=form.data_prevista.data,
-            etapa=form.etapa.data,
-        )
-        _aplicar_entrega_esperada(marco, form)
-        db.session.add(marco)
-        db.session.flush()
-        auditoria.registrar("criacao_marco", "marco", marco.id, {"titulo": marco.titulo})
-        db.session.commit()
-        flash("Marco criado.", "success")
+        selecionados_extras = [
+            o
+            for o in outros_vinculos
+            if hasattr(form, "outros_orientandos")
+            and o.id in (form.outros_orientandos.data or [])
+        ]
+        if selecionados_extras:
+            criados = tarefas.criar_tarefa(
+                [orientacao, *selecionados_extras],
+                titulo=form.titulo.data,
+                tipo=form.tipo.data,
+                descricao=form.descricao.data,
+                data_prevista=form.data_prevista.data,
+                etapa=form.etapa.data,
+                entrega_esperada=form.entrega_esperada.data,
+            )
+            _aplicar_entrega_esperada(criados[0], form)
+            db.session.commit()
+            flash(
+                f"Tarefa criada e atribuída a {len(criados)} orientando(s).",
+                "success",
+            )
+        else:
+            marco = Marco(
+                orientacao_id=orientacao.id,
+                titulo=form.titulo.data,
+                tipo=form.tipo.data,
+                descricao=form.descricao.data,
+                data_prevista=form.data_prevista.data,
+                etapa=form.etapa.data,
+            )
+            _aplicar_entrega_esperada(marco, form)
+            db.session.add(marco)
+            db.session.flush()
+            auditoria.registrar(
+                "criacao_marco", "marco", marco.id, {"titulo": marco.titulo}
+            )
+            db.session.commit()
+            flash("Tarefa criada.", "success")
         return redirect(url_for("cronogramas.listar", orientacao_id=orientacao.id))
     return render_template("cronogramas/form.html", form=form, orientacao=orientacao)
 
@@ -351,6 +392,7 @@ def editar(orientacao_id: int, marco_id: int):
         abort(403)
     marco = _marco_da_orientacao(orientacao, marco_id)
     form = MarcoIndividualForm(obj=marco)
+    del form.outros_orientandos
     _escolhas_texto_base(form, orientacao)
     if not form.is_submitted():
         form.entrega_esperada.data = marco.entrega_esperada or ""

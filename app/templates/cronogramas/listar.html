@@ -6,7 +6,12 @@
 {{ nav_modulos(orientacao, 'cronograma') }}
 <h1>Cronograma do projeto {{ orientacao.titulo_projeto }}</h1>
 {% if current_user.id == orientacao.orientador_id or current_user.papel == 'admin' %}
-<p><a href="{{ url_for('cronogramas.criar', orientacao_id=orientacao.id) }}">+ Novo marco</a></p>
+<p>
+  <a href="{{ url_for('cronogramas.criar', orientacao_id=orientacao.id) }}">+ Nova tarefa</a>
+  {% if current_user.papel == 'orientador' %}
+  · <a href="{{ url_for('reunioes.index') }}#tarefas-grupo">Tarefas em grupo</a>
+  {% endif %}
+</p>
 {% if not marcos %}
 <form method="post" action="{{ url_for('cronogramas.semear_padrao', orientacao_id=orientacao.id) }}" class="semear-padrao">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -43,6 +48,9 @@
     <td class="acoes">
       {% if current_user.id == orientacao.orientador_id or current_user.papel == 'admin' %}
         <a href="{{ url_for('cronogramas.editar', orientacao_id=orientacao.id, marco_id=m.id) }}">Editar</a>
+        {% if m.grupo_id and current_user.papel == 'orientador' and current_user.id == orientacao.orientador_id %}
+        <a href="{{ url_for('reunioes.editar_tarefa_grupo', grupo_id=m.grupo_id) }}">Editar grupo</a>
+        {% endif %}
         {% if m.status != 'concluido' %}
         <form method="post" action="{{ url_for('cronogramas.confirmar_conclusao', orientacao_id=orientacao.id, marco_id=m.id) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

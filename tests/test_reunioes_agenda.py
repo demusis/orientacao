@@ -760,20 +760,26 @@ def test_verificacao_publica_nao_quebra_com_cancelada(client, orientacao, orient
     assert "NÃO CONFERE" in resposta.data.decode()
 
 
-def test_ata_finalizada_nao_recebe_tarefa_derivada(
+def test_ata_finalizada_recebe_tarefa_derivada_sem_alterar_hash(
     client, orientacao, orientador
 ):
-    """Ligar um marco novo alteraria os marcos discutidos, que a finalização
-    congela."""
+    """Derivar tarefa após finalizar a ata cria o marco e vincula à reunião sem
+    alterar o snapshot impresso e o hash SHA-256 já congelados."""
+    from app.services.exportacao import hash_ata
+
     ata = _reuniao_realizada(orientacao, orientador, deliberacoes="Escrito")
     finalizar_ata(ata)
     db.session.commit()
+    hash_original = hash_ata(ata)
 
     login(client, "orientador@teste.br")
-    client.post(
+    detalhe = client.get(f"/orientacoes/{orientacao.id}/atas/{ata.id}").data.decode()
+    assert "Nova tarefa derivada" in detalhe
+
+    resp = client.post(
         f"/reunioes/{ata.id}/tarefas/nova",
         data={
-            "titulo": "X",
+            "titulo": "Encaminhamento pós-ata",
             "tipo": "outro",
             "descricao": "",
             "data_prevista": FUTURO,
@@ -782,8 +788,12 @@ def test_ata_finalizada_nao_recebe_tarefa_derivada(
         },
         follow_redirects=True,
     )
-    assert Marco.query.count() == 0
-    assert ata.marcos == []
+    assert resp.status_code == 200
+    assert Marco.query.count() == 1
+    marco = Marco.query.one()
+    assert marco.titulo == "Encaminhamento pós-ata"
+    assert [m.id for m in ata.marcos] == [marco.id]
+    assert hash_ata(ata) == hash_original
 
 
 def test_cancelada_nao_e_excluida(app, orientacao, orientador):

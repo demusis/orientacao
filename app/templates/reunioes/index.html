@@ -8,6 +8,7 @@
   <a class="hub-item" href="{{ url_for('reunioes.agendar') }}">+ Agendar reunião</a>
   <a class="hub-item" href="{{ url_for('reunioes.criar_ata_grupo') }}">+ Registrar reunião já realizada</a>
   <a class="hub-item" href="{{ url_for('reunioes.criar_tarefa_grupo') }}">+ Nova tarefa</a>
+  <a class="hub-item" href="#tarefas-grupo">Tarefas em grupo ({{ tarefas_grupo|length }})</a>
 </nav>
 
 <p><small>Agendar marca uma reunião futura e avisa os convidados por e-mail; as
@@ -27,12 +28,12 @@ serve ao que aconteceu fora do sistema, e não dispara aviso. Você possui
     {% endif %}
     {% if acoes or editar_convidados %}
     · <a href="{{ url_for('reunioes.convidados', ata_id=a.id) }}">Convidados</a>
+    · <a href="{{ url_for('reunioes.criar_tarefa_derivada', ata_id=a.id) }}">Nova tarefa</a>
     {% endif %}
     {% if acoes %}
     {% if a.orientacoes %}
     · <a href="{{ url_for('atas.reagendar', orientacao_id=a.orientacoes[0].id, ata_id=a.id) }}">Reagendar</a>
     {% endif %}
-    · <a href="{{ url_for('reunioes.criar_tarefa_derivada', ata_id=a.id) }}">Nova tarefa</a>
     {% if not a.tem_historico %}
     <form method="post" action="{{ url_for('reunioes.excluir', ata_id=a.id) }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -129,7 +130,7 @@ serve ao que aconteceu fora do sistema, e não dispara aviso. Você possui
 </div>
 {% endif %}
 
-<div class="card">
+<div class="card" id="tarefas-grupo">
   <h2>Tarefas atribuídas em grupo</h2>
   <table>
     <tr><th>Tarefa</th><th>Prazo</th><th>Orientandos</th><th>Conclusão</th><th>Ações</th></tr>

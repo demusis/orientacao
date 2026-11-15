@@ -164,3 +164,44 @@ def test_tarefa_de_outro_orientador_nao_e_acessivel(client, orientacao, orientac
     login(client, "outro@teste.br")
     assert client.get(f"/reunioes/tarefas/{gid}/editar").status_code == 404
     assert client.post(f"/reunioes/tarefas/{gid}/excluir").status_code == 404
+
+
+def test_replicar_tarefa_pelo_cronograma_individual(client, orientacao, orientacao2, orientador):
+    """Criar tarefa no cronograma de um vínculo permite replicá-la para outro."""
+    login(client, "orientador@teste.br")
+    resp = client.post(
+        f"/orientacoes/{orientacao.id}/cronograma/novo",
+        data={
+            "titulo": "Entrega conjunta",
+            "entrega_esperada": "documento",
+            "tipo": "outro",
+            "descricao": "Mesma tarefa",
+            "data_prevista": "2026-10-15",
+            "etapa": 30,
+            "outros_orientandos": [str(orientacao2.id)],
+        },
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    marcos = Marco.query.filter_by(titulo="Entrega conjunta").all()
+    assert len(marcos) == 2
+    assert {m.orientacao_id for m in marcos} == {orientacao.id, orientacao2.id}
+    assert marcos[0].grupo_id and marcos[0].grupo_id == marcos[1].grupo_id
+
+
+def test_preselecao_orientando_na_tela_nova_tarefa(client, orientacao, orientacao2, orientador):
+    """Passar ?orientacao_id= em /reunioes/tarefas/nova pré-marca apenas o vínculo."""
+    import re
+
+    login(client, "orientador@teste.br")
+    pagina = client.get(f"/reunioes/tarefas/nova?orientacao_id={orientacao.id}").data.decode()
+    padrao_1 = (
+        r'<input[^>]*name="orientacoes"[^>]*value="' + str(orientacao.id) + r'"[^>]*>'
+    )
+    padrao_2 = (
+        r'<input[^>]*name="orientacoes"[^>]*value="' + str(orientacao2.id) + r'"[^>]*>'
+    )
+    m1 = re.search(padrao_1, pagina)
+    m2 = re.search(padrao_2, pagina)
+    assert m1 and "checked" in m1.group(0)
+    assert m2 and "checked" not in m2.group(0)

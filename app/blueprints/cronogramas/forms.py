@@ -5,9 +5,11 @@ from wtforms import (
     DateField,
     RadioField,
     SelectField,
+    SelectMultipleField,
     StringField,
     SubmitField,
     TextAreaField,
+    widgets,
 )
 from wtforms.validators import DataRequired, Length, Optional, ValidationError
 
@@ -69,6 +71,11 @@ class MarcoForm(CamposMarco, FlaskForm):
     submit = SubmitField("Salvar")
 
 
+class MultiCheckboxField(SelectMultipleField):
+    widget = widgets.ListWidget(prefix_label=False)
+    option_widget = widgets.CheckboxInput()
+
+
 class MarcoIndividualForm(MarcoForm):
     """O marco de um só vínculo pode apontar o texto a revisar — na tarefa em
     grupo não, pois cada orientanda tem os seus documentos. As choices vêm da
@@ -79,6 +86,10 @@ class MarcoIndividualForm(MarcoForm):
         coerce=int,
         default=0,
         validators=[Optional()],
+    )
+    outros_orientandos = MultiCheckboxField(
+        "Replicar também para outros orientandos (opcional)",
+        coerce=int,
     )
 
     def validate_documento_base_id(self, field):

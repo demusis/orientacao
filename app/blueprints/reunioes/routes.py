@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from flask import abort, flash, redirect, render_template, url_for
+from flask import abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user
 
 from app.blueprints.cronogramas.forms import MarcoForm
@@ -256,13 +256,13 @@ def criar_tarefa_derivada(ata_id: int):
     que a derivação apareça no cronograma, na linha do tempo e no próprio
     registro da reunião."""
     ata = _reuniao_do_orientador(ata_id)
-    # ligar um marco novo à ata altera os marcos discutidos, que a finalização
-    # congela; a cancelada, por sua vez, não deriva coisa alguma
-    if ata.imutavel:
+    # reunião cancelada não existiu e não deriva tarefas; a finalizada pode
+    # gerar encaminhamentos no cronograma sem alterar o texto congelado da ata
+    if ata.status == "cancelada":
         auditoria.registrar("tentativa_edicao_ata_finalizada", "ata", ata.id)
         db.session.commit()
         flash(
-            "Reunião encerrada ou cancelada não deriva tarefas. Atribua a "
+            "Reunião cancelada não deriva tarefas. Atribua a "
             "tarefa pela tela de Reuniões.",
             "warning",
         )
@@ -463,6 +463,10 @@ def criar_tarefa_grupo():
     vinculos = _vinculos_ativos()
     form = MarcoGrupoForm()
     form.orientacoes.choices = _choices(vinculos)
+    if not form.is_submitted():
+        orientacao_id = request.args.get("orientacao_id", type=int)
+        if orientacao_id in {o.id for o in vinculos}:
+            form.orientacoes.data = [orientacao_id]
     if form.validate_on_submit():
         selecionadas = [o for o in vinculos if o.id in form.orientacoes.data]
         tarefas.criar_tarefa(
