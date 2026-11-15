@@ -59,3 +59,12 @@ desbloqueia registrada na justificativa).
 | 2026-09-28 | U-3 / P-4 — 7 de 14 contas ativas nunca acessaram | aceito — **reenviar convites** | Reenvio pela "Senha temporária" da tela de usuários, que gera nova senha e a manda por e-mail. Próximo ciclo compara `nunca_acessaram`. |
 | 2026-09-28 | U-4 / P-5 — 2 de 9 vínculos ativos sem marco | recusado neste ciclo | O responsável cadastrará o cronograma desses vínculos por conta própria. Não é defeito do sistema; o próximo ciclo apenas relê `ativos_sem_marco`. |
 | 2026-09-28 | F-1 / P-6 — `versoes_correntes_sem_parecer` com regra diferente da do Painel | aceito | O indicador passa a reutilizar a regra do Painel (só entrega da orientanda, sem devolução, com arquivo), para que o número do ciclo seja o que o orientador vê na tela. |
+
+## Ciclo de 2026-11-15
+
+| Data | Achado | Decisão | Justificativa |
+|---|---|---|---|
+| 2026-11-15 | O-3 / P-1 — backup semestral sem cópia pós-28/09 confirmada diante do crescimento do acervo | aceito — **baixar pacote atualizado** | Ação operacional do administrador em `/admin/backup` para guardar cópia externa atualizada das 11 atas, 9 pareceres e 25 MB de uploads. |
+| 2026-11-15 | U-2 / P-2 — 7 de 14 contas ativas nunca acessaram, 2 ociosas há > 30 d e 13 `login_falho` | aceito — **reenviar senhas / revisar contas** | Ação operacional em `/admin/usuarios` usando o botão *Reenviar senha* ou inativando contas que não participarão. |
+| 2026-11-15 | U-1 / P-3 — 8 marcos atrasados restantes (de 38 em aberto) | aceito — **revisar nos cronogramas** | Ação de acompanhamento do orientador sobre os 8 marcos remanescentes. |
+| 2026-11-15 | F-2 / P-4 — `indicadores.py` não informa a data do último `geracao_backup` | aceito — **concluído** | `trilha()` passa a expor `ultimo_backup_em` (ISO UTC ou `None`), permitindo aferir diretamente a janela semestral de backup independentemente de `--dias 30`. |
