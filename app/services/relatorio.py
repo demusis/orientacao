@@ -14,9 +14,10 @@ de geração — que é o que um retrato honesto declara.
 """
 from io import BytesIO
 
+from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.platypus import Paragraph, Spacer
+from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
 
 from app.models import Ata, Documento, Parecer
 from app.models.ata import RESULTADO_LABEL
@@ -72,6 +73,53 @@ def _situacao_reuniao(ata: Ata) -> str:
     return "Rascunho"
 
 
+_CORES_FUNDO_RISCO = {
+    "baixo": colors.HexColor("#e6f4ea"),
+    "medio": colors.HexColor("#fef7e0"),
+    "alto": colors.HexColor("#fce8e6"),
+    "critico": colors.HexColor("#fce8e6"),
+}
+
+
+def _quadro_risco(risco: dict, cel) -> Table:
+    cor_fundo = _CORES_FUNDO_RISCO.get(risco["nivel"], colors.HexColor("#e6f4ea"))
+    t = Table(
+        [
+            [
+                Paragraph(
+                    f"<b>Análise de risco dos prazos</b><br/>"
+                    f"<b>{risco['pontuacao']}/100 · Risco {_texto(risco['rotulo'])}</b>",
+                    cel,
+                ),
+                Paragraph(
+                    f"<b>Composição da nota:</b> Atrasos: {risco['pts_atraso']}/35 · "
+                    f"Ritmo vs. prazo: {risco['pts_ritmo']}/30 · "
+                    f"Marcos críticos/revisões: {risco['pts_criticos']}/20 · "
+                    f"Assiduidade: {risco['pts_assiduidade']}/15",
+                    cel,
+                ),
+            ],
+            [
+                Paragraph("<b>Diagnóstico do cronograma</b>", cel),
+                Paragraph("<br/>".join(f"• {_texto(f)}" for f in risco["fatores"]), cel),
+            ],
+        ],
+        colWidths=[55 * mm, 115 * mm],
+        hAlign="LEFT",
+    )
+    t.setStyle(
+        TableStyle(
+            [
+                ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
+                ("BACKGROUND", (0, 0), (-1, 0), cor_fundo),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]
+        )
+    )
+    return t
+
+
 def _cabecalho_e_resumo(
     orientacao, marcos, docs, versoes_por_doc, pareceres, atas, estilos, cel
 ) -> list:
@@ -95,6 +143,8 @@ def _cabecalho_e_resumo(
             relogio_txt += f" · vencido há {-rel['dias_restantes']} dia(s)"
     if rel["marco_critico_vencido"]:
         relogio_txt += " · marco crítico vencido"
+
+    risco = painel.analisar_risco_prazos(orientacao, marcos=marcos, atas=atas)
 
     modalidade = MODALIDADE_LABEL.get(orientacao.modalidade, orientacao.modalidade)
 
@@ -158,6 +208,8 @@ def _cabecalho_e_resumo(
             ],
             larguras=[42 * mm, 43 * mm, 42 * mm, 43 * mm],
         ),
+        Spacer(1, 3 * mm),
+        _quadro_risco(risco, cel),
     ]
 
 

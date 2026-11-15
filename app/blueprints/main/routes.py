@@ -66,6 +66,7 @@ def orientacao_detalhe(orientacao_id: int):
         "main/orientacao_detalhe.html",
         orientacao=orientacao,
         relogio=painel.relogio(orientacao),
+        analise_risco=painel.analisar_risco_prazos(orientacao),
         pode_alterar_titulo=_pode_alterar_titulo(orientacao),
         eventos=eventos,
         tipos=linha_tempo.TIPOS,

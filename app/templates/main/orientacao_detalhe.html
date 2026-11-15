@@ -27,6 +27,14 @@
        {% else %} · prazo previsto vencido há {{ -relogio.dias_restantes }} dia(s){% endif %}
      {%- endif %}
      {%- if relogio.marco_critico_vencido %} · <strong>marco crítico vencido</strong>{% endif %}</p>
+  <p><strong>Risco de descumprimento de prazos:</strong>
+     <span class="badge badge-risco-{{ analise_risco.cor_badge }}">{{ analise_risco.pontuacao }}/100 · Risco {{ analise_risco.rotulo }}</span>
+     <small>(atrasos {{ analise_risco.pts_atraso }}/35 · ritmo {{ analise_risco.pts_ritmo }}/30 · críticos/revisões {{ analise_risco.pts_criticos }}/20 · assiduidade {{ analise_risco.pts_assiduidade }}/15)</small></p>
+  <ul class="fatores-risco">
+    {% for f in analise_risco.fatores %}
+    <li><small>{{ f }}</small></li>
+    {% endfor %}
+  </ul>
 </div>
 
 <section class="card" id="linha-do-tempo">

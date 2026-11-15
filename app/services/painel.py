@@ -83,6 +83,220 @@ def relogio(orientacao) -> dict:
     }
 
 
+NIVEL_RISCO_PRAZO_LABEL = {
+    "baixo": "Baixo",
+    "medio": "Moderado",
+    "alto": "Alto",
+    "critico": "Crítico",
+}
+
+
+def analisar_risco_prazos(orientacao, marcos=None, atas=None) -> dict:
+    """Avalia e pontua (0 a 100) o risco de não cumprimento dos prazos do vínculo.
+
+    Combina quatro dimensões complementares:
+    1. Atrasos acumulados no cronograma (0–35 pts): proporção de marcos vencidos
+       e severidade do maior atraso em dias.
+    2. Ritmo vs. prazo decorrido (0–30 pts): defasagem entre a fração de tempo
+       já consumida do vínculo e a fração de marcos concluídos, mais pressão de
+       proximidade/estouro da data final.
+    3. Marcos críticos e revisões devolvidas (0–20 pts): marcos críticos
+       (qualificação/defesa etc.) vencidos ou a vencer em 30 dias, e tarefas
+       devolvidas aguardando revisão do orientando.
+    4. Assiduidade em reuniões (0–15 pts): taxa de ausência quando há ao menos
+       2 reuniões com presença registrada.
+    """
+    config = ConfiguracaoRisco.vigente()
+    hoje = hoje_local()
+    if marcos is None:
+        marcos = (
+            orientacao.marcos.all()
+            if hasattr(orientacao.marcos, "all")
+            else list(orientacao.marcos)
+        )
+    if atas is None:
+        atas = (
+            orientacao.atas.all()
+            if hasattr(orientacao.atas, "all")
+            else list(orientacao.atas)
+        )
+
+    total_m = len(marcos)
+    concluidos = [m for m in marcos if m.status == "concluido"]
+    em_aberto = [m for m in marcos if m.status != "concluido"]
+    atrasados = [m for m in em_aberto if m.atrasado]
+
+    inicio = orientacao.data_inicio
+    fim = orientacao.data_fim_prevista
+    dias_decorridos = max((hoje - inicio).days, 0)
+    fracao_tempo = dias_restantes = None
+    if fim and fim > inicio:
+        fracao_tempo = dias_decorridos / (fim - inicio).days
+        dias_restantes = (fim - hoje).days
+
+    fracao_concluida = (len(concluidos) / total_m) if total_m else 1.0
+
+    # Vínculo já concluído não possui risco ativo de descumprimento
+    if orientacao.status == "concluida":
+        return {
+            "pontuacao": 0,
+            "nivel": "baixo",
+            "cor_badge": "baixo",
+            "rotulo": NIVEL_RISCO_PRAZO_LABEL["baixo"],
+            "pts_atraso": 0,
+            "pts_ritmo": 0,
+            "pts_criticos": 0,
+            "pts_assiduidade": 0,
+            "maior_atraso_dias": 0,
+            "perc_tempo": round(min(fracao_tempo, 1.0) * 100) if fracao_tempo is not None else None,
+            "perc_concluido": round(fracao_concluida * 100) if total_m else 100,
+            "fatores": ["Vínculo concluído."],
+        }
+
+    fatores: list[str] = []
+
+    # 1. Atrasos acumulados (0–35 pts)
+    maior_atraso_dias = 0
+    marco_mais_atrasado = None
+    if atrasados:
+        marco_mais_atrasado = min(atrasados, key=lambda m: (m.data_prevista, m.id))
+        maior_atraso_dias = max((hoje - marco_mais_atrasado.data_prevista).days, 1)
+    pts_prop_atraso = min(20, round((len(atrasados) / total_m) * 40)) if total_m else 0
+    pts_sev_atraso = min(15, maior_atraso_dias // 3)
+    pts_atraso = min(35, pts_prop_atraso + pts_sev_atraso)
+    if atrasados and marco_mais_atrasado is not None:
+        fatores.append(
+            f"{len(atrasados)} de {total_m} marco(s) em atraso "
+            f"(maior atraso: {maior_atraso_dias} dia(s) em «{marco_mais_atrasado.titulo}»)."
+        )
+
+    # 2. Ritmo vs. prazo decorrido (0–30 pts)
+    pts_ritmo = 0
+    perc_tempo = round(min(max(fracao_tempo, 0.0), 1.0) * 100) if fracao_tempo is not None else None
+    perc_concluido = round(fracao_concluida * 100) if total_m else 0
+    if fracao_tempo is not None:
+        defasagem = max(0.0, min(fracao_tempo, 1.0) - fracao_concluida) if total_m else 0.0
+        pts_defasagem = min(20, round(defasagem * 35))
+        if dias_restantes is not None and dias_restantes < 0 and (em_aberto or not total_m):
+            pts_prazo_final = 10
+            fatores.append(
+                f"Prazo final previsto vencido há {-dias_restantes} dia(s) "
+                f"com {len(em_aberto)} marco(s) ainda em aberto."
+            )
+        elif fracao_tempo > config.limiar_alto / 100:
+            pts_prazo_final = 10
+        elif fracao_tempo > config.limiar_medio / 100:
+            pts_prazo_final = 6
+        else:
+            pts_prazo_final = 0
+        pts_ritmo = min(30, pts_defasagem + pts_prazo_final)
+        if defasagem >= 0.15 and total_m:
+            restantes_txt = (
+                f", restando {len(em_aberto)} tarefa(s) para {max(dias_restantes, 0)} dia(s)"
+                if dias_restantes is not None and dias_restantes >= 0
+                else ""
+            )
+            fatores.append(
+                f"Descompasso entre tempo e entregas: {perc_tempo}% do prazo decorrido "
+                f"versus {perc_concluido}% do cronograma concluído{restantes_txt}."
+            )
+    elif total_m:
+        previstos_ate_hoje = [m for m in marcos if m.data_prevista <= hoje]
+        if previstos_ate_hoje and atrasados:
+            pts_ritmo = min(25, round((len(atrasados) / len(previstos_ate_hoje)) * 25))
+
+    # 3. Marcos críticos e devoluções pendentes (0–20 pts)
+    criticos_vencidos = [m for m in atrasados if m.tipo in config.criticos]
+    criticos_proximos = [
+        m
+        for m in em_aberto
+        if not m.atrasado
+        and m.tipo in config.criticos
+        and 0 <= (m.data_prevista - hoje).days <= 30
+    ]
+    devolvidos = [m for m in em_aberto if m.aguardando == "orientando_revisao"]
+    pts_criticos = min(
+        20,
+        (15 if criticos_vencidos else 0)
+        + (5 if criticos_proximos else 0)
+        + min(10, len(devolvidos) * 5),
+    )
+    for m in criticos_vencidos:
+        fatores.append(
+            f"Marco crítico vencido: «{m.titulo}» (previsto para {m.data_prevista:%d/%m/%Y})."
+        )
+    for m in criticos_proximos:
+        dias_m = (m.data_prevista - hoje).days
+        fatores.append(
+            f"Marco crítico próximo: «{m.titulo}» vence em {dias_m} dia(s) ({m.data_prevista:%d/%m/%Y})."
+        )
+    if devolvidos:
+        fatores.append(
+            f"{len(devolvidos)} tarefa(s) devolvida(s) aguardando revisão e reenvio pelo orientando."
+        )
+
+    # 4. Assiduidade em reuniões (0–15 pts)
+    presentes = ausencias = 0
+    for a in atas:
+        if a.status == "cancelada":
+            continue
+        part = a.participacao_de(orientacao.id)
+        if part is not None:
+            if part.presenca == "presente":
+                presentes += 1
+            elif part.presenca == "ausente":
+                ausencias += 1
+    apuradas = presentes + ausencias
+    pts_assiduidade = 0
+    if apuradas >= 2 and ausencias > 0:
+        taxa_ausencia = ausencias / apuradas
+        pts_assiduidade = min(15, round(taxa_ausencia * 20))
+        if taxa_ausencia >= 0.3:
+            fatores.append(
+                f"Ausência em reuniões: {ausencias} falta(s) em {apuradas} reunião(ões) "
+                f"com presença registrada ({round(taxa_ausencia * 100)}%)."
+            )
+
+    pontuacao = min(100, pts_atraso + pts_ritmo + pts_criticos + pts_assiduidade)
+    if criticos_vencidos or (
+        dias_restantes is not None and dias_restantes < 0 and em_aberto
+    ):
+        pontuacao = max(pontuacao, 75)
+
+    if pontuacao >= 75:
+        nivel = "critico"
+        cor_badge = "alto"
+    elif pontuacao >= 50:
+        nivel = "alto"
+        cor_badge = "alto"
+    elif pontuacao >= 25:
+        nivel = "medio"
+        cor_badge = "medio"
+    else:
+        nivel = "baixo"
+        cor_badge = "baixo"
+
+    if not fatores:
+        fatores.append(
+            "Cronograma em dia, sem atrasos ou alertas relevantes de prazo no momento."
+        )
+
+    return {
+        "pontuacao": pontuacao,
+        "nivel": nivel,
+        "cor_badge": cor_badge,
+        "rotulo": NIVEL_RISCO_PRAZO_LABEL[nivel],
+        "pts_atraso": pts_atraso,
+        "pts_ritmo": pts_ritmo,
+        "pts_criticos": pts_criticos,
+        "pts_assiduidade": pts_assiduidade,
+        "maior_atraso_dias": maior_atraso_dias,
+        "perc_tempo": perc_tempo,
+        "perc_concluido": perc_concluido,
+        "fatores": fatores,
+    }
+
+
 def _ids_visiveis() -> list[int]:
     """Vínculos ativos que o usuário corrente enxerga. Pendência de vínculo
     encerrado não é acionável e por isso fica de fora."""
