@@ -1,7 +1,15 @@
 from datetime import date, timedelta
 
 from app.extensions import db
-from app.models import Ata, LogAuditoria, Marco, Parecer, Usuario
+from app.models import (
+    Ata,
+    Documento,
+    LogAuditoria,
+    Marco,
+    Parecer,
+    Usuario,
+    VersaoDocumento,
+)
 from app.services.tempo import hoje_local
 
 
@@ -376,3 +384,108 @@ def test_post_sync_fluxo_completo_e_idempotencia(
     # Confirma registro na trilha
     assert LogAuditoria.query.filter_by(acao="sync_operacao").count() >= 10
     assert Usuario.query.count() >= 2
+
+
+def test_api_documentos_parecer_e_extrato_pdf(
+    client, orientador, orientando, intruso, orientacao
+):
+    marco = Marco(
+        orientacao_id=orientacao.id,
+        titulo="Versão preliminar da dissertação",
+        data_prevista=date(2026, 7, 15),
+        tipo="relatorio",
+        etapa=50,
+        entrega_esperada="documento",
+        conclusao_sinalizada=True,
+    )
+    db.session.add(marco)
+    db.session.flush()
+
+    doc = Documento(
+        orientacao_id=orientacao.id,
+        marco_id=marco.id,
+        titulo="Texto de Qualificação",
+        criado_por=orientando.id,
+    )
+    db.session.add(doc)
+    db.session.flush()
+
+    versao = VersaoDocumento(
+        documento_id=doc.id,
+        numero_versao=1,
+        nome_original="qualificacao-v1.pdf",
+        nome_fisico="hash-fisico-qualificacao-v1.pdf",
+        tamanho_bytes=1024,
+        mimetype="application/pdf",
+        enviado_por=orientando.id,
+        comentario="Versão inicial para análise.",
+    )
+    db.session.add(versao)
+    db.session.commit()
+
+    tok_orientador = _token_de(client, "orientador@teste.br")
+    tok_intruso = _token_de(client, "intruso@teste.br")
+
+    # GET /sync deve trazer documentos e versoes
+    estado = client.get("/api/v1/sync", headers=_headers(tok_orientador)).get_json()
+    assert len(estado["documentos"]) == 1
+    doc_json = estado["documentos"][0]
+    assert doc_json["titulo"] == "Texto de Qualificação"
+    assert doc_json["marco_titulo"] == "Versão preliminar da dissertação"
+    assert len(doc_json["versoes"]) == 1
+    assert doc_json["versoes"][0]["nome_original"] == "qualificacao-v1.pdf"
+    assert doc_json["versoes"][0]["marco_aberto_id"] == marco.id
+
+    # Emitir parecer com versao_documento_id e concluir_marco
+    resp_par = client.post(
+        "/api/v1/sync",
+        json={
+            "operacoes": [
+                {
+                    "op_id": "op-parecer-doc-1",
+                    "acao": "emitir_parecer",
+                    "dados": {
+                        "orientacao_id": orientacao.id,
+                        "versao_documento_id": versao.id,
+                        "resultado": "aprovado",
+                        "conteudo": "Texto consistente e bem fundamentado.",
+                        "concluir_marco": True,
+                    },
+                }
+            ]
+        },
+        headers=_headers(tok_orientador),
+    )
+    assert resp_par.status_code == 200
+    d_par = resp_par.get_json()
+    assert d_par["resultados"][0]["status"] == "ok"
+    par_json = d_par["estado"]["pareceres"][0]
+    assert par_json["tipo"] == "documento"
+    assert par_json["versao_documento_id"] == versao.id
+    assert par_json["documento_id"] == doc.id
+    assert par_json["documento_titulo"] == "Texto de Qualificação"
+    assert par_json["numero_versao"] == 1
+    assert par_json["nome_arquivo"] == "qualificacao-v1.pdf"
+    assert par_json["marco_id"] == marco.id
+    assert par_json["marco_titulo"] == "Versão preliminar da dissertação"
+    assert par_json["emissor_nome"] == orientador.nome
+
+    marco_json = next(
+        m for m in d_par["estado"]["marcos"] if m["id"] == marco.id
+    )
+    assert marco_json["status"] == "concluido"
+
+    # GET /orientacoes/<id>/extrato.pdf gera PDF valido e respeita isolamento
+    r_pdf = client.get(
+        f"/api/v1/orientacoes/{orientacao.id}/extrato.pdf",
+        headers=_headers(tok_orientador),
+    )
+    assert r_pdf.status_code == 200
+    assert r_pdf.mimetype == "application/pdf"
+    assert r_pdf.data.startswith(b"%PDF-")
+
+    r_intruso = client.get(
+        f"/api/v1/orientacoes/{orientacao.id}/extrato.pdf",
+        headers=_headers(tok_intruso),
+    )
+    assert r_intruso.status_code == 404

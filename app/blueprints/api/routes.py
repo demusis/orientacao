@@ -4,7 +4,7 @@ from datetime import UTC, date, datetime, time
 from functools import wraps
 from urllib.parse import urlparse
 
-from flask import current_app, g, jsonify, request
+from flask import Response, current_app, g, jsonify, request
 from flask_login import current_user
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.security import check_password_hash
@@ -26,7 +26,7 @@ from app.models import (
 )
 from app.models.ata import RESULTADOS_PARECER, TIPOS_PARECER
 from app.models.cronograma import ENTREGAS_ESPERADAS, ETAPAS_MARCO, TIPOS_MARCO
-from app.services import auditoria, exportacao, tarefas
+from app.services import auditoria, exportacao, relatorio, tarefas
 from app.services import cronogramas as servico_cronograma
 from app.services.atas import (
     AtaImutavel,
@@ -192,15 +192,56 @@ def _serializar_ata(a: Ata) -> dict:
     }
 
 
+def _serializar_versao_documento(v: VersaoDocumento) -> dict:
+    marco_aberto = marco_aberto_da_versao(v)
+    return {
+        "id": v.id,
+        "documento_id": v.documento_id,
+        "numero_versao": v.numero_versao,
+        "nome_original": v.nome_original,
+        "tem_arquivo": bool(v.tem_arquivo),
+        "enviado_por": v.enviado_por,
+        "remetente_nome": v.remetente.nome if v.remetente else "",
+        "enviado_em": _iso(v.enviado_em),
+        "comentario": v.comentario,
+        "natureza": v.natureza,
+        "marco_aberto_id": marco_aberto.id if marco_aberto else None,
+        "marco_aberto_titulo": marco_aberto.titulo if marco_aberto else None,
+    }
+
+
+def _serializar_documento(d: Documento) -> dict:
+    versoes = d.versoes.all() if hasattr(d.versoes, "all") else list(d.versoes)
+    return {
+        "id": d.id,
+        "orientacao_id": d.orientacao_id,
+        "marco_id": d.marco_id,
+        "marco_titulo": d.marco.titulo if d.marco else None,
+        "titulo": d.titulo,
+        "criado_em": _iso(d.criado_em),
+        "versoes": [_serializar_versao_documento(v) for v in versoes],
+    }
+
+
 def _serializar_parecer(p: Parecer) -> dict:
+    versao = p.versao_documento
+    doc = versao.documento if versao else None
+    marco = doc.marco if doc else None
     return {
         "id": p.id,
         "orientacao_id": p.orientacao_id,
         "versao_documento_id": p.versao_documento_id,
+        "documento_id": doc.id if doc else None,
+        "documento_titulo": doc.titulo if doc else None,
+        "numero_versao": versao.numero_versao if versao else None,
+        "nome_arquivo": versao.nome_original if versao else None,
+        "marco_id": marco.id if marco else None,
+        "marco_titulo": marco.titulo if marco else None,
         "tipo": p.tipo,
         "conteudo": p.conteudo,
         "resultado": p.resultado,
         "emitido_por": p.emitido_por,
+        "emissor_nome": p.emissor.nome if p.emissor else None,
         "emitido_em": _iso(p.emitido_em),
         "formato": p.formato_conteudo,
     }
@@ -213,6 +254,11 @@ def _montar_estado_sync() -> dict:
         marcos = (
             Marco.query.filter(Marco.orientacao_id.in_(ids))
             .order_by(Marco.orientacao_id, Marco.etapa, Marco.data_prevista, Marco.id)
+            .all()
+        )
+        documentos = (
+            Documento.query.filter(Documento.orientacao_id.in_(ids))
+            .order_by(Documento.criado_em.desc(), Documento.id.desc())
             .all()
         )
         atas = (
@@ -228,12 +274,13 @@ def _montar_estado_sync() -> dict:
             .all()
         )
     else:
-        marcos, atas, pareceres = [], [], []
+        marcos, documentos, atas, pareceres = [], [], [], []
 
     return {
         "usuario": _serializar_usuario(current_user),
         "orientacoes": [_serializar_orientacao(o) for o in orientacoes],
         "marcos": [_serializar_marco(m) for m in marcos],
+        "documentos": [_serializar_documento(d) for d in documentos],
         "atas": [_serializar_ata(a) for a in atas],
         "pareceres": [_serializar_parecer(p) for p in pareceres],
         "sincronizado_em": _iso(agora()),
@@ -318,6 +365,24 @@ def emitir_token():
 @api_auth_required
 def obter_sync():
     return jsonify(_montar_estado_sync()), 200
+
+
+@bp.route("/orientacoes/<int:orientacao_id>/extrato.pdf", methods=["GET"])
+@api_auth_required
+def extrato_orientacao_pdf(orientacao_id: int):
+    orientacao = orientacoes_do_usuario().filter(Orientacao.id == orientacao_id).first()
+    if orientacao is None:
+        return jsonify({"erro": "Vínculo não encontrado ou sem permissão."}), 404
+    pdf = relatorio.gerar_pdf_relatorio(orientacao)
+    return Response(
+        pdf,
+        mimetype="application/pdf",
+        headers={
+            "Content-Disposition": (
+                f'inline; filename="relatorio-vinculo-{orientacao.id}.pdf"'
+            )
+        },
+    )
 
 
 @bp.route("/sync", methods=["POST"])
@@ -803,14 +868,6 @@ def _op_emitir_parecer(dados: dict) -> tuple[str, int, dict | None]:
     if current_user.id != orientacao.orientador_id and current_user.papel != "admin":
         raise _AcessoNegado("Sem permissão para emitir parecer neste vínculo.")
 
-    tipo = str(dados.get("tipo") or "")
-    if tipo not in TIPOS_PARECER:
-        raise OperacaoInvalida("Tipo de parecer inválido.")
-    resultado = str(dados.get("resultado") or "")
-    if resultado not in RESULTADOS_PARECER:
-        raise OperacaoInvalida("Resultado de parecer inválido.")
-    conteudo = _texto_obrigatorio(dados, "conteudo")
-
     versao = None
     versao_id = dados.get("versao_documento_id")
     if versao_id is not None:
@@ -828,6 +885,28 @@ def _op_emitir_parecer(dados: dict) -> tuple[str, int, dict | None]:
         )
         if versao is None:
             raise OperacaoInvalida("Versão de documento não encontrada neste vínculo.")
+
+    tipo_bruto = str(dados.get("tipo") or "").strip()
+    tipo = tipo_bruto or ("documento" if versao is not None else "")
+    if tipo not in TIPOS_PARECER:
+        raise OperacaoInvalida("Tipo de parecer inválido.")
+
+    if versao is None and tipo == "documento":
+        versao = (
+            db.session.query(VersaoDocumento)
+            .join(Documento)
+            .filter(
+                Documento.orientacao_id == orientacao.id,
+                VersaoDocumento.nome_fisico.isnot(None),
+            )
+            .order_by(VersaoDocumento.enviado_em.desc(), VersaoDocumento.id.desc())
+            .first()
+        )
+
+    resultado = str(dados.get("resultado") or "")
+    if resultado not in RESULTADOS_PARECER:
+        raise OperacaoInvalida("Resultado de parecer inválido.")
+    conteudo = _texto_obrigatorio(dados, "conteudo")
 
     parecer = Parecer(
         orientacao_id=orientacao.id,
