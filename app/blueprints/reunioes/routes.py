@@ -168,7 +168,7 @@ def agendar():
             "success",
         )
         _avisar(ata, "agendada")
-        return redirect(url_for("reunioes.index"))
+        return redirect(_destino_apos_criar())
     return render_template("reunioes/agendar.html", form=form, vinculos=vinculos)
 
 
@@ -457,6 +457,14 @@ def criar_ata_grupo():
     return render_template("reunioes/ata_form.html", form=form, vinculos=vinculos)
 
 
+def _destino_apos_criar() -> str:
+    """Volta ao Painel quando o formulário foi aberto pelos atalhos de lá
+    (`?de=painel`); caso contrário, ao hub de Reuniões."""
+    if request.args.get("de") == "painel":
+        return url_for("main.dashboard")
+    return url_for("reunioes.index")
+
+
 @bp.route("/tarefas/nova", methods=["GET", "POST"])
 @role_required("orientador")
 def criar_tarefa_grupo():
@@ -484,5 +492,5 @@ def criar_tarefa_grupo():
             f"(um marco por cronograma).",
             "success",
         )
-        return redirect(url_for("reunioes.index"))
+        return redirect(_destino_apos_criar())
     return render_template("reunioes/tarefa_form.html", form=form, vinculos=vinculos)

@@ -19,3 +19,6 @@ uploads/
 .idea/
 deploy-credenciais.txt
 uv.lock
+
+# Rust / Mobile
+mobile/target/

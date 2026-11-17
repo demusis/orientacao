@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from "_macros.html" import render_form %}
 {% block title %}Agendar reunião · ARIADNE{% endblock %}
-{% block voltar %}<a class="voltar" href="{{ url_for('reunioes.index') }}">Reuniões</a>{% endblock %}
+{% block voltar %}{% if request.args.get('de') == 'painel' %}<a class="voltar" href="{{ url_for('main.dashboard') }}">Painel</a>{% else %}<a class="voltar" href="{{ url_for('reunioes.index') }}">Reuniões</a>{% endif %}{% endblock %}
 {% block content %}
 <div class="card">
   <h1>Agendar reunião</h1>

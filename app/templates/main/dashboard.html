@@ -19,8 +19,8 @@
 <nav class="hub-painel" aria-label="Acesso rápido">
   <a class="hub-item" href="{{ url_for('reunioes.index') }}">Reuniões</a>
   <a class="hub-item" href="{{ url_for('orientandos.listar') }}">Orientandos</a>
-  <a class="hub-item" href="{{ url_for('reunioes.agendar') }}">+ Agendar reunião</a>
-  <a class="hub-item" href="{{ url_for('reunioes.criar_tarefa_grupo') }}">+ Nova tarefa</a>
+  <a class="hub-item" href="{{ url_for('reunioes.agendar', de='painel') }}">+ Agendar reunião</a>
+  <a class="hub-item" href="{{ url_for('reunioes.criar_tarefa_grupo', de='painel') }}">+ Nova tarefa</a>
   <a class="hub-item" href="{{ url_for('materiais.index') }}">Materiais</a>
 </nav>
 {% elif current_user.papel == 'orientando' %}
@@ -157,7 +157,7 @@
 <div class="card painel-recolhivel">
   <h2>Tarefas a fazer <span class="badge">{{ pendencias.tarefas_a_fazer|length }}</span></h2>
   {% if current_user.papel == 'orientador' %}
-  <p><a href="{{ url_for('reunioes.criar_tarefa_grupo') }}">+ Nova tarefa</a> · <a href="{{ url_for('reunioes.index') }}#tarefas-grupo">Tarefas em grupo</a></p>
+  <p><a href="{{ url_for('reunioes.criar_tarefa_grupo', de='painel') }}">+ Nova tarefa</a> · <a href="{{ url_for('reunioes.index') }}#tarefas-grupo">Tarefas em grupo</a></p>
   {% endif %}
   {% if pendencias.linhas_a_fazer %}
   <p><small>Atrasadas e com prazo nos próximos 30 dias{% if avalia %}; tarefa em grupo numa

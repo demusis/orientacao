@@ -35,6 +35,7 @@ def create_app(config_name: str | None = None) -> Flask:
 
     from app import models  # noqa: F401  (registro dos mapeamentos)
     from app.blueprints.admin import bp as admin_bp
+    from app.blueprints.api import bp as api_bp
     from app.blueprints.atas import bp as atas_bp
     from app.blueprints.auth import bp as auth_bp
     from app.blueprints.cronogramas import bp as cronogramas_bp
@@ -46,6 +47,8 @@ def create_app(config_name: str | None = None) -> Flask:
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(admin_bp, url_prefix="/admin")
+    app.register_blueprint(api_bp, url_prefix="/api/v1")
+    csrf.exempt(api_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(cronogramas_bp, url_prefix="/orientacoes/<int:orientacao_id>/cronograma")
     app.register_blueprint(documentos_bp, url_prefix="/orientacoes/<int:orientacao_id>/documentos")
@@ -186,6 +189,8 @@ def register_troca_obrigatoria(app: Flask) -> None:
         if not getattr(current_user, "senha_provisoria", False):
             return None
         if request.endpoint in _LIVRES_DE_TROCA or request.endpoint is None:
+            return None
+        if request.blueprint == "api":
             return None
         return redirect(url_for("auth.trocar_senha"))
 
