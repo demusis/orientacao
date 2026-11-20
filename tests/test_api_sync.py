@@ -489,3 +489,130 @@ def test_api_documentos_parecer_e_extrato_pdf(
         headers=_headers(tok_intruso),
     )
     assert r_intruso.status_code == 404
+
+
+def _marco_documento(orientacao, **extra):
+    marco = Marco(
+        orientacao_id=orientacao.id,
+        titulo="Fichamento Prophet",
+        data_prevista=date(2026, 12, 11),
+        tipo="outro",
+        etapa=20,
+        entrega_esperada="documento",
+        **extra,
+    )
+    db.session.add(marco)
+    db.session.commit()
+    return marco
+
+
+def _pdf(nome="fichamento.pdf"):
+    import io
+
+    return (io.BytesIO(b"%PDF-1.4\n% teste\n"), nome)
+
+
+def test_api_entrega_com_arquivo_sinaliza_e_e_idempotente(
+    client, orientando, orientacao
+):
+    marco = _marco_documento(orientacao)
+    tok = _token_de(client, "orientando@teste.br")
+    dados = {
+        "op_id": "entrega-1",
+        "destino": "novo",
+        "titulo": "Fichamento",
+        "comentario": "Segue o fichamento.",
+        "sinalizar": "1",
+        "arquivo": _pdf(),
+    }
+    r = client.post(
+        f"/api/v1/marcos/{marco.id}/entrega",
+        data=dados,
+        headers=_headers(tok),
+        content_type="multipart/form-data",
+    )
+    assert r.status_code == 200, r.get_json()
+    corpo = r.get_json()
+    assert corpo["status"] == "ok"
+    assert corpo["sinalizou"] is True
+    doc = db.session.get(Documento, corpo["documento_id"])
+    assert doc.marco_id == marco.id and doc.titulo == "Fichamento"
+    assert doc.versao_atual.nome_original == "fichamento.pdf"
+    db.session.refresh(marco)
+    assert marco.conclusao_sinalizada is True
+    m_estado = next(m for m in corpo["estado"]["marcos"] if m["id"] == marco.id)
+    assert m_estado["aguardando"] == "orientador"
+    assert any(d["id"] == doc.id for d in corpo["estado"]["documentos"])
+
+    # Reenvio com o mesmo op_id não duplica
+    dados["arquivo"] = _pdf()
+    r2 = client.post(
+        f"/api/v1/marcos/{marco.id}/entrega",
+        data=dados,
+        headers=_headers(tok),
+        content_type="multipart/form-data",
+    )
+    assert r2.status_code == 200
+    assert r2.get_json()["status"] == "ja_aplicada"
+    assert Documento.query.filter_by(marco_id=marco.id).count() == 1
+
+    # Nova versão do mesmo documento, sem sinalizar (já sinalizado)
+    r3 = client.post(
+        f"/api/v1/marcos/{marco.id}/entrega",
+        data={"op_id": "entrega-2", "destino": str(doc.id), "arquivo": _pdf("v2.pdf")},
+        headers=_headers(tok),
+        content_type="multipart/form-data",
+    )
+    assert r3.status_code == 200, r3.get_json()
+    assert r3.get_json()["versao"] == 2
+    assert r3.get_json()["sinalizou"] is False
+
+
+def test_api_entrega_recusa_arquivo_invalido_e_intruso(
+    client, orientando, intruso, orientacao
+):
+    import io
+
+    marco = _marco_documento(orientacao)
+    tok = _token_de(client, "orientando@teste.br")
+
+    # Extensão não permitida
+    r = client.post(
+        f"/api/v1/marcos/{marco.id}/entrega",
+        data={"op_id": "x1", "arquivo": (io.BytesIO(b"MZ..."), "virus.exe")},
+        headers=_headers(tok),
+        content_type="multipart/form-data",
+    )
+    assert r.status_code == 400
+    assert "não permitida" in r.get_json()["erro"]
+
+    # Conteúdo que não bate com a extensão
+    r = client.post(
+        f"/api/v1/marcos/{marco.id}/entrega",
+        data={"op_id": "x2", "arquivo": (io.BytesIO(b"nao e pdf"), "falso.pdf")},
+        headers=_headers(tok),
+        content_type="multipart/form-data",
+    )
+    assert r.status_code == 400
+
+    # Sem arquivo
+    r = client.post(
+        f"/api/v1/marcos/{marco.id}/entrega",
+        data={"op_id": "x3"},
+        headers=_headers(tok),
+        content_type="multipart/form-data",
+    )
+    assert r.status_code == 400
+
+    # Usuário sem vínculo não enxerga a tarefa
+    tok_intruso = _token_de(client, "intruso@teste.br")
+    r = client.post(
+        f"/api/v1/marcos/{marco.id}/entrega",
+        data={"op_id": "x4", "arquivo": _pdf()},
+        headers=_headers(tok_intruso),
+        content_type="multipart/form-data",
+    )
+    assert r.status_code == 404
+    assert Documento.query.filter_by(marco_id=marco.id).count() == 0
+    db.session.refresh(marco)
+    assert not marco.conclusao_sinalizada

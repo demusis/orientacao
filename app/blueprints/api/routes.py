@@ -28,6 +28,7 @@ from app.models.ata import RESULTADOS_PARECER, TIPOS_PARECER
 from app.models.cronograma import ENTREGAS_ESPERADAS, ETAPAS_MARCO, TIPOS_MARCO
 from app.services import auditoria, exportacao, relatorio, tarefas
 from app.services import cronogramas as servico_cronograma
+from app.services import entregas as servico_entregas
 from app.services.atas import (
     AtaImutavel,
     OperacaoInvalida,
@@ -42,6 +43,7 @@ from app.services.pareceres import marco_aberto_da_versao
 from app.services.rbac import manda_no_cronograma, orientacoes_do_usuario
 from app.services.seguranca import excedeu_tentativas
 from app.services.tempo import agora
+from app.services.uploads import UploadInvalido
 from app.services.usuarios import normalizar_email
 
 _TOKEN_SALT = "ariadne-api-token-v1"
@@ -157,6 +159,7 @@ def _serializar_marco(m: Marco) -> dict:
         "nota_devolucao": m.nota_devolucao,
         "grupo_id": m.grupo_id,
         "entrega_esperada": m.entrega_esperada,
+        "documento_base_id": m.documento_base_id,
         "aguardando": m.aguardando,
         "criado_em": _iso(m.criado_em),
     }
@@ -382,6 +385,91 @@ def extrato_orientacao_pdf(orientacao_id: int):
                 f'inline; filename="relatorio-vinculo-{orientacao.id}.pdf"'
             )
         },
+    )
+
+
+@bp.route("/marcos/<int:marco_id>/entrega", methods=["POST"])
+@api_auth_required
+def enviar_entrega(marco_id: int):
+    """Envio de documento pela tarefa (multipart), com a opção de sinalizar a
+    conclusão no mesmo ato — a mesma regra da página da tarefa no site. Só
+    online: arquivos não passam pela fila de sincronização. Idempotente por
+    `op_id`, como as operações do `POST /sync`.
+
+    Campos: `arquivo` (obrigatório), `destino` (id de documento da tarefa ou
+    "novo"), `titulo` (para documento novo), `comentario`, `sinalizar` (0/1),
+    `op_id`."""
+    op_id = (request.form.get("op_id") or "").strip()
+    if not op_id or len(op_id) > 128:
+        return jsonify({"erro": "op_id inválido ou ausente."}), 400
+
+    marco = db.session.get(Marco, marco_id)
+    orientacao = (
+        orientacoes_do_usuario().filter(Orientacao.id == marco.orientacao_id).first()
+        if marco is not None
+        else None
+    )
+    if orientacao is None:
+        return jsonify({"erro": "Tarefa não encontrada ou sem permissão."}), 404
+
+    if _op_ja_aplicada(op_id):
+        return (
+            jsonify({"status": "ja_aplicada", "estado": _montar_estado_sync()}),
+            200,
+        )
+    if marco.status == "concluido":
+        return jsonify({"erro": "A tarefa está concluída; não recebe novos envios."}), 409
+
+    arquivo = request.files.get("arquivo")
+    if arquivo is None or not arquivo.filename:
+        return jsonify({"erro": "Envie o arquivo no campo 'arquivo'."}), 400
+
+    destino = (request.form.get("destino") or "novo").strip()
+    documento = None
+    if destino != "novo":
+        documento = next(
+            (d for d in marco.documentos_da_tarefa if str(d.id) == destino), None
+        )
+        if documento is None:
+            return jsonify({"erro": "Documento de destino não pertence à tarefa."}), 400
+    titulo = (request.form.get("titulo") or "").strip()[:255]
+    if documento is None and not titulo:
+        titulo = marco.titulo[:255]
+    comentario = (request.form.get("comentario") or "").strip()[:4000] or None
+    sinalizar = (request.form.get("sinalizar") or "").strip().lower() in {
+        "1", "true", "sim", "on",
+    }
+
+    try:
+        resultado = servico_entregas.registrar_entrega(
+            marco, current_user,
+            documento=documento,
+            titulo=titulo,
+            arquivo=arquivo,
+            comentario=comentario,
+            sinalizar=sinalizar,
+        )
+        auditoria.registrar(
+            "sync_operacao", "documento", resultado.documento.id,
+            {"op_id": op_id, "acao": "enviar_entrega"},
+        )
+        db.session.commit()
+    except (UploadInvalido, ValueError) as exc:
+        db.session.rollback()
+        return jsonify({"erro": str(exc)}), 400
+
+    return (
+        jsonify(
+            {
+                "status": "ok",
+                "documento_id": resultado.documento.id,
+                "versao": resultado.versao.numero_versao,
+                "sinalizou": resultado.sinalizou,
+                "mensagem": resultado.mensagem(),
+                "estado": _montar_estado_sync(),
+            }
+        ),
+        200,
     )
 
 

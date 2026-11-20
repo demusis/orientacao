@@ -16,6 +16,7 @@ from app.models import Documento, Marco, Orientacao, Parecer
 from app.models.cronograma import ultima_versao
 from app.services import auditoria, tarefas
 from app.services import cronogramas as servico_cronograma
+from app.services import entregas as servico_entregas
 from app.services import materiais as servico_materiais
 from app.services.rbac import manda_no_cronograma, orientacao_autorizada
 from app.services.uploads import UploadInvalido, salvar_versao
@@ -292,54 +293,28 @@ def anexar(orientacao_id: int, marco_id: int):
         return voltar
 
     em_nome = eh_gestor and eh_entrega_da_orientanda(form.natureza.data)
-    novo = form.destino.data == NOVO_DOCUMENTO
-    if novo:
-        documento = Documento(
-            orientacao_id=orientacao.id,
-            marco_id=marco.id,
-            titulo=form.titulo.data.strip(),
-            criado_por=current_user.id,
-        )
-        db.session.add(documento)
-        db.session.flush()
-    else:
+    documento = None
+    if form.destino.data != NOVO_DOCUMENTO:
         documento = next((d for d in docs if str(d.id) == form.destino.data), None)
         if documento is None:
             abort(404)
     try:
-        versao = salvar_versao(
-            documento, form.arquivo.data or None, current_user,
-            form.comentario.data, em_nome_do_orientando=em_nome,
+        resultado = servico_entregas.registrar_entrega(
+            marco, current_user,
+            documento=documento,
+            titulo=form.titulo.data,
+            arquivo=form.arquivo.data,
             anexos=form.anexos.data,
+            comentario=form.comentario.data,
+            em_nome_do_orientando=em_nome,
+            sinalizar=sinaliza_possivel and form.sinalizar.data,
         )
-    except UploadInvalido as exc:
+    except (UploadInvalido, ValueError) as exc:
         db.session.rollback()
         flash(str(exc), "danger")
         return voltar
-    db.session.flush()
-    dados = {"anexos": len(versao.anexos), "origem": "marco", "marco_id": marco.id,
-             "natureza": versao.natureza}
-    if novo:
-        auditoria.registrar(
-            "criacao_documento", "documento", documento.id,
-            {"titulo": documento.titulo, "arquivo": versao.nome_original, **dados},
-        )
-    else:
-        auditoria.registrar(
-            "nova_versao_documento", "versao_documento", versao.id,
-            {"documento_id": documento.id, "versao": versao.numero_versao, **dados},
-        )
-    sinalizou = sinaliza_possivel and form.sinalizar.data
-    if sinalizou:
-        servico_cronograma.sinalizar_conclusao(marco)
     db.session.commit()
-    if novo:
-        msg = f'Documento "{documento.titulo}" criado (versão 1).'
-    else:
-        msg = f'Versão {versao.numero_versao} de "{documento.titulo}" enviada.'
-    if sinalizou:
-        msg += " O orientador foi avisado para conferir."
-    flash(msg, "success")
+    flash(resultado.mensagem(), "success")
     return voltar
 
 
